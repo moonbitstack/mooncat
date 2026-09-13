@@ -1,10 +1,10 @@
 name = "Lfan-ke/mooncat"
 
-version = "0.8.0"
+version = "0.8.1"
 
 readme = "README.md"
 
-repository = "https://github.com/Lfan-ke/mooncat"
+repository = "https://github.com/moonbitstack/mooncat"
 
 license = "Apache-2.0"
 
