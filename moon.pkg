@@ -12,15 +12,15 @@ import {
   "moonbitlang/async/aqueue",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/buffer",
-  "Lfan-ke/moonasgi",
-  "Lfan-ke/moonrpc",
+  "moonbitstack/moonasgi",
+  "moonbitstack/moonrpc",
 }
 
 // moonapi is a test-only dependency: the greet-readiness integration test hosts
 // a real moonapi App on mooncat to prove the server half of the greet chain.
 // Consumers of mooncat don't inherit it.
 import {
-  "Lfan-ke/moonapi",
+  "moonbitstack/moonapi",
 } for "test"
 
 // The async TLS-server constructor is `#internal` ("for internal testing

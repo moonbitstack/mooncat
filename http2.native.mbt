@@ -1,6 +1,6 @@
 // A self-built HTTP/2 cleartext (h2c) server path that drives a moonasgi
 // application, reusing the HTTP/2 frame layer (RFC 7540) and HPACK (RFC 7541)
-// engine published by `Lfan-ke/moonrpc` — the same transport primitives that
+// engine published by `moonbitstack/moonrpc` — the same transport primitives that
 // carry real gRPC there. This file is the ASGI-over-h2 binding: it reads the
 // client connection preface + SETTINGS, decodes request HEADERS into an ASGI
 // `Scope`, streams request DATA as the `Receive` body, and encodes the ASGI

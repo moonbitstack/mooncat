@@ -1,8 +1,7 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "Lfan-ke/mooncat"
+package "moonbitstack/mooncat"
 
 import {
-  "Lfan-ke/moonasgi",
   "moonbitlang/async",
   "moonbitlang/async/aqueue",
   "moonbitlang/async/io",
@@ -11,6 +10,7 @@ import {
   "moonbitlang/core/buffer",
   "moonbitlang/core/builtin",
   "moonbitlang/core/debug",
+  "moonbitstack/moonasgi",
 }
 
 // Values

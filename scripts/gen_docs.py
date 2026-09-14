@@ -233,7 +233,7 @@ def main():
              '<button class="theme-btn" id="theme">◐ toggle theme</button>'
              '<div class="side-foot">'
              '<a href="https://github.com/moonbitstack/mooncat/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/moonbitstack/mooncat/ci.yml?branch=master&label=CI&logo=github"></a>'
-             '<a href="https://mooncakes.io/docs/Lfan-ke/mooncat"><img alt="mooncakes" src="https://img.shields.io/badge/mooncakes-Lfan--ke%2Fmooncat-1f6feb"></a>'
+             '<a href="https://mooncakes.io/docs/moonbitstack/mooncat"><img alt="mooncakes" src="https://img.shields.io/badge/mooncakes-Lfan--ke%2Fmooncat-1f6feb"></a>'
              '</div></aside>']
 
     hero = ('<main><header class="hero"><h1>mooncat</h1>'
@@ -245,8 +245,8 @@ def main():
             '<img alt="tests" src="https://img.shields.io/badge/tests-17%20passing%20(native)-0ca678">'
             '<a href="https://github.com/moonbitstack/mooncat"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-source-24292f?logo=github"></a>'
             '<img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-6d5efc"></div>'
-            '<div class="install"><span class="prompt">$</span><code>moon add Lfan-ke/mooncat</code>'
-            '<button class="copy" data-copy="moon add Lfan-ke/mooncat">copy</button></div>'
+            '<div class="install"><span class="prompt">$</span><code>moon add moonbitstack/mooncat</code>'
+            '<button class="copy" data-copy="moon add moonbitstack/mooncat">copy</button></div>'
             '<div class="contract"><h2><span class="spark">&#10038;</span> The contract at a glance</h2>'
             '<pre>' + tint(CONTRACT) + '</pre></div></header>')
 
@@ -263,7 +263,7 @@ def main():
                         % (kind, kind, tint(sig), ('<p class="doc">%s</p>' % prose(doc)) if doc else ''))
         body.append('</section>')
     body.append('<footer>Generated from source <code>///</code> doc-comments · '
-                '<a href="https://mooncakes.io/docs/Lfan-ke/mooncat">mooncakes</a> · '
+                '<a href="https://mooncakes.io/docs/moonbitstack/mooncat">mooncakes</a> · '
                 '<a href="https://github.com/moonbitstack/mooncat">GitHub</a> · Apache-2.0 &#169; Leo Cheng</footer>')
     body.append('</main></div><script>' + JS + '</script></body></html>')
 

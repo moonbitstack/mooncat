@@ -1,6 +1,6 @@
 import {
-  "Lfan-ke/mooncat",
-  "Lfan-ke/moonasgi",
+  "moonbitstack/mooncat",
+  "moonbitstack/moonasgi",
   "moonbitlang/async",
 }
 

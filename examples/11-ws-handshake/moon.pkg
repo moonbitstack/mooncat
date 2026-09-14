@@ -1,5 +1,5 @@
 import {
-  "Lfan-ke/mooncat",
+  "moonbitstack/mooncat",
 }
 
 supported_targets = "+native"

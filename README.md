@@ -6,9 +6,11 @@
 
 [![Check and Test](https://github.com/moonbitstack/mooncat/actions/workflows/ci.yml/badge.svg)](https://github.com/moonbitstack/mooncat/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
-[![mooncakes](https://img.shields.io/badge/mooncakes-Lfan--ke%2Fmooncat-brightgreen)](https://mooncakes.io/docs/Lfan-ke/mooncat)
+[![mooncakes](https://img.shields.io/badge/mooncakes-Lfan--ke%2Fmooncat-brightgreen)](https://mooncakes.io/docs/moonbitstack/mooncat)
 
 </div>
+
+> Moved on mooncakes from `Lfan-ke/mooncat` to `moonbitstack/mooncat`.
 
 `mooncat` runs a [`moonasgi`](https://github.com/moonbitstack/moonasgi) application over a real network socket. It sits between `moonbitlang/async`'s native HTTP transport and the ASGI SEAM: it accepts connections, turns each request into a `Scope` + `Receive` + `Send`, and drives your app — exactly the role `uvicorn` plays for Python.
 
