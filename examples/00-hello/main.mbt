@@ -5,7 +5,7 @@
 /// cancelled, so leave it running and hit it from another shell:
 ///
 ///     moon run examples/00-hello --target native
-///     curl http://127.0.0.1:23333
+///     curl http://127.0.0.1:12000
 #coverage.skip
 async fn main {
   let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
@@ -23,8 +23,8 @@ async fn main {
       ),
     )
   }
-  println("mooncat serving on http://127.0.0.1:23333")
-  @mooncat.serve(app, host="127.0.0.1", port=23333) catch {
+  println("mooncat serving on http://127.0.0.1:12000")
+  @mooncat.serve(app, host="127.0.0.1", port=12000) catch {
     err => println("mooncat stopped: \{err}")
   }
 }

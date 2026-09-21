@@ -94,6 +94,6 @@ green there.
 cancelled — leave it running and hit it from another shell:
 
 ```bash
-curl http://127.0.0.1:23333
+curl http://127.0.0.1:12000
 # hello from mooncat, heke1228
 ```

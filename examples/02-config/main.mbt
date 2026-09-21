@@ -9,7 +9,7 @@
 fn main {
   let cfg = @mooncat.Config::new(
     host="0.0.0.0",
-    port=23333,
+    port=12000,
     backlog=1024,
     dual_stack=true,
     reuse_addr=true,

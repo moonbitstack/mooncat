@@ -98,6 +98,6 @@ fn main {
 
   // `serve_h2c_config(app, Config::new(host=..., port=...))` carries exactly this
   // exchange over a bound TCP socket; here it stays in-process and self-terminating.
-  let cfg = @mooncat.Config::new(host="127.0.0.1", port=23333)
+  let cfg = @mooncat.Config::new(host="127.0.0.1", port=12000)
   println("serve_h2c_config would bind this on http://\{cfg.bind()}")
 }
