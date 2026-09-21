@@ -39,11 +39,11 @@ pub fn tls13_certificate_verify_content(
 /// the message body — the SignatureScheme (ecdsa_secp256r1_sha256) and the two-byte-length-
 /// prefixed raw r||s signature over the §4.4.3 signed content.
 pub fn tls13_certificate_verify_sign(
-  key : EcdsaPrivateKey,
+  key : @ecdsa.PrivateKey,
   context : String,
   transcript_hash : Bytes,
 ) -> Bytes {
-  let sig = ecdsa_p256_sha256_sign(
+  let sig = ecdsa_sign(
     tls13_certificate_verify_content(context, transcript_hash),
     key,
   )
@@ -62,7 +62,7 @@ pub fn tls13_certificate_verify_sign(
 /// ECDSA signature over the §4.4.3 signed content. False on a wrong scheme, a malformed body,
 /// or an invalid signature.
 pub fn tls13_certificate_verify_check(
-  key : EcdsaPublicKey,
+  key : @ecdsa.PublicKey,
   context : String,
   transcript_hash : Bytes,
   body : Bytes,
@@ -78,7 +78,7 @@ pub fn tls13_certificate_verify_check(
   if body.length() != 4 + sig_len {
     return false
   }
-  ecdsa_p256_sha256_verify(
+  ecdsa_verify(
     tls13_certificate_verify_content(context, transcript_hash),
     body[4:4 + sig_len].to_owned(),
     key,

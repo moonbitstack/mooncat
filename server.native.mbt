@@ -274,7 +274,7 @@ async fn dispatch(
 pub async fn serve(
   app : @moonasgi.AsgiApp,
   host? : String = "127.0.0.1",
-  port? : Int = 8000,
+  port? : Int = port,
   backlog? : Int = 2048,
 ) -> Unit {
   serve_config(app, Config::new(host~, port~, backlog~))
@@ -363,11 +363,7 @@ async test "serve_config stops itself after limit_max_requests" {
     let srv = g.spawn(() => {
       serve_config(
         app,
-        Config::new(
-          port=18104,
-          limit_max_requests=Some(2),
-          logger=Logger::silent(),
-        ),
+        Config::new(port=18104, limit_max_requests=2, logger=Logger::silent()),
       )
     })
     @async.sleep(300)

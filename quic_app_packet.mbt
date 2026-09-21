@@ -49,7 +49,7 @@ pub fn quic_protect_short(
   )
   let pn_offset = header.length() - pn_length
   let nonce = quic_nonce(iv, packet_number)
-  let box = aes128_gcm_seal(key, nonce, payload, header)
+  let box = gcm_seal(key, nonce, payload, header)
   let packet = Buffer()
   packet.write_bytes(header[:])
   packet.write_bytes(box[:])

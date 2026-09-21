@@ -269,7 +269,7 @@ pub fn TlsRecordKeys::seal_padded(
     raise tls_fatal(tls_alert_record_overflow)
   }
   let aad = tls_record_ciphertext_header(len)
-  let body = aes128_gcm_seal(self.keys.key, self.nonce(), inner, aad)
+  let body = gcm_seal(self.keys.key, self.nonce(), inner, aad)
   self.seq = self.seq + 1UL
   bytes_concat(aad, body)
 }
@@ -297,8 +297,7 @@ pub fn TlsRecordKeys::open(
     raise tls_fatal(tls_alert_decode_error)
   }
   let aad = record[0:tls_record_header_len].to_owned()
-  guard aes128_gcm_open(self.keys.key, self.nonce(), rec.fragment, aad)
-    is Some(inner) else {
+  guard gcm_open(self.keys.key, self.nonce(), rec.fragment, aad) is Some(inner) else {
     raise tls_fatal(tls_alert_bad_record_mac)
   }
   self.seq = self.seq + 1UL

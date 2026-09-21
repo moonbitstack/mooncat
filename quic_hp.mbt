@@ -7,8 +7,8 @@
 /// The header-protection mask: the first five bytes of AES-128-ECB(hp_key, sample),
 /// where `sample` is 16 bytes of packet ciphertext (RFC 9001 §5.4.2/§5.4.3).
 pub fn quic_hp_mask(hp_key : Bytes, sample : Bytes) -> Bytes {
-  let sched = aes128_key_schedule(hp_key)
-  aes128_encrypt_block(sched, sample)[0:5].to_owned()
+  let sched = aes_key(hp_key)
+  aes_block(sched, sample)[0:5].to_owned()
 }
 
 ///|

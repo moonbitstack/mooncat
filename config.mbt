@@ -92,8 +92,19 @@ pub(all) struct Config {
 }
 
 ///|
+/// The port every server in this family listens on unless told otherwise.
+///
+/// Not 8000, which is uvicorn's, and not 8080: on a development machine those
+/// are taken by whatever ran last. One number of our own means every example,
+/// every README and every round of integration testing agree without anyone
+/// having to say which port they meant. HTTP, WebSocket, HTTP/2 and gRPC all
+/// share it — one listener tells them apart — and QUIC takes the same number on
+/// UDP, which is a different port space.
+pub let port : Int = 12000
+
+///|
 /// Build a `Config`, defaulting to uvicorn's own defaults: host `127.0.0.1`,
-/// port `8000`, backlog `2048`, a 5-second idle keep-alive timeout, a 16 KiB
+/// port `12000`, backlog `2048`, a 5-second idle keep-alive timeout, a 16 KiB
 /// request-head cap, the `Date` header on, proxy headers trusted from
 /// `127.0.0.1`, and no request-count or concurrency limit. Transport knobs
 /// default to the async server's own defaults: `reuse_addr` on (uvicorn sets
@@ -107,19 +118,19 @@ pub(all) struct Config {
 /// as uvicorn does by default.
 pub fn Config::new(
   host? : String = "127.0.0.1",
-  port? : Int = 8000,
+  port? : Int = port,
   backlog? : Int = 2048,
   dual_stack? : Bool = false,
   reuse_addr? : Bool = true,
   server_headers? : Map[String, String] = Map([("server", "mooncat")]),
-  max_connections? : Int? = None,
+  max_connections? : Int,
   allow_failure? : Bool = true,
-  graceful_timeout? : Int? = None,
+  graceful_timeout? : Int,
   root_path? : String = "",
   logger? : Logger = Logger::new(),
   timeout_keep_alive? : Int = 5000,
-  limit_max_requests? : Int? = None,
-  limit_concurrency? : Int? = None,
+  limit_max_requests? : Int,
+  limit_concurrency? : Int,
   max_head_size? : Int = 16 * 1024,
   date_header? : Bool = true,
   proxy_headers? : Bool = true,

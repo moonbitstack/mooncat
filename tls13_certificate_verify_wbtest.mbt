@@ -17,10 +17,10 @@ test "certificate verify: the ES256 signed content follows RFC 8446 §4.4.3" {
 ///|
 test "certificate verify: a server signature over the transcript verifies and tampering is rejected" {
   // A P-256 signing key (a scalar below the group order) and its public key.
-  let key = EcdsaPrivateKey::from_hex(
+  let key = ec_private(
     "2333333333333333333333333333333333333333333333333333333333333333",
   )
-  let pub_key = key.public_key()
+  let pub_key = key.public()
   let th = sha256(b"ch..sh..ee..certificate-heke1228")
   let body = tls13_certificate_verify_sign(key, tls13_cv_context_server, th)
   // The body is ecdsa_secp256r1_sha256 (0x0403) + a 64-byte r||s signature.

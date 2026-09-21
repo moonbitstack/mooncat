@@ -7,7 +7,7 @@
 /// The transcript hash over a run of handshake messages (RFC 8446 §4.4.1): here the
 /// SHA-256 of their concatenation.
 pub fn tls13_transcript_hash(messages : Bytes) -> Bytes {
-  sha256(messages)
+  @sha2.hash(messages[:])
 }
 
 ///|

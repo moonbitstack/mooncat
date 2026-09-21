@@ -48,8 +48,8 @@ test "key_share: ECDHE over the extension yields an agreed handshake secret" {
   assert_eq(group, tls_group_x25519)
   assert_eq(peer_b_pub, b_pub)
   // Each side computes the shared secret from its own private key and the peer's public key.
-  let shared_client = x25519(a_priv, peer_b_pub)
-  let shared_server = x25519(b_priv, client_shares[0].1)
+  let shared_client = x25519_raw(a_priv, peer_b_pub)
+  let shared_server = x25519_raw(b_priv, client_shares[0].1)
   assert_eq(shared_client, shared_server)
   // And both derive the same Handshake Secret through the key schedule (RFC 8446 §7.1).
   let early = tls13_early_secret(Bytes::make(32, b'\x00'))

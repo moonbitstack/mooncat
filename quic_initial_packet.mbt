@@ -79,7 +79,7 @@ pub fn quic_protect_initial(
   )
   let pn_offset = header.length() - pn_length
   let nonce = quic_nonce(iv, packet_number)
-  let box = aes128_gcm_seal(key, nonce, payload, header)
+  let box = gcm_seal(key, nonce, payload, header)
   let packet = Buffer()
   packet.write_bytes(header[:])
   packet.write_bytes(box[:])
@@ -107,7 +107,7 @@ pub fn quic_unprotect_initial(
   let aad = recovered[0:header_end].to_owned()
   let ciphertext = recovered[header_end:].to_owned()
   let nonce = quic_nonce(iv, pn)
-  match aes128_gcm_open(key, nonce, ciphertext, aad) {
+  match gcm_open(key, nonce, ciphertext, aad) {
     Some(pt) => Some((pt, pn))
     None => None
   }

@@ -102,7 +102,7 @@ pub async fn serve_tls(
   private_key_file~ : String,
   pfx_file~ : String,
   host? : String = "127.0.0.1",
-  port? : Int = 8443,
+  port? : Int = port,
   backlog? : Int = 2048,
 ) -> Unit {
   serve_tls_config(app, Config::new(host~, port~, backlog~), {

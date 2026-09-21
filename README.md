@@ -33,7 +33,7 @@ let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
 }
 
 // Serve it (inside an async context / task group):
-@mooncat.serve(app, host="127.0.0.1", port=8000)
+@mooncat.serve(app, host="127.0.0.1", port=12000)
 ```
 
 `serve` blocks in a keep-alive accept loop until its task is cancelled. Each request is bridged faithfully: the method/path/query/headers become an `http` `Scope`, the request body streams through `Receive`, and `HttpResponseStart` / `HttpResponseBody` events are written back via the connection.
@@ -47,7 +47,7 @@ let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
   certificate_file="certs/cert.pem",  // PEM cert  (OpenSSL platforms)
   private_key_file="certs/key.pem",   // PEM key   (OpenSSL platforms)
   pfx_file="certs/dev.pfx",           // PKCS#12   (Windows / SChannel)
-  port=8443)
+  port=12000)
 ```
 
 Each accepted connection completes a real TLS handshake (`@tls.Tls`), then a **self-built, transport-agnostic HTTP/1.1 codec** — request-line + header parser and a response writer that frames single-shot replies with `Content-Length` and streamed replies with `Transfer-Encoding: chunked` — drives the moonasgi app over the encrypted stream, with keep-alive and the lifespan protocol intact. Proven end-to-end by a real `@http` TLS client doing `GET` over `https://` and asserting `200` + body in CI. Regenerate the throwaway localhost test cert with `scripts/gen_test_cert.sh`.
@@ -64,7 +64,7 @@ Each accepted connection completes a real TLS handshake (`@tls.Tls`), then a **s
 
 ```moonbit
 let handle = @mooncat.ShutdownHandle::new()
-g.spawn(() => @mooncat.serve_graceful(app, @mooncat.Config::new(port=8000), handle~))
+g.spawn(() => @mooncat.serve_graceful(app, @mooncat.Config::new(port=12000), handle~))
 // … later, from anywhere:
 handle.shutdown()   // stop accepting → drain in-flight → lifespan shutdown → close
 ```
@@ -82,7 +82,7 @@ handle.shutdown()   // stop accepting → drain in-flight → lifespan shutdown 
 `serve_h2c` serves the same ASGI app over **HTTP/2 cleartext** — the prior-knowledge, no-TLS HTTP/2 profile a client reaches with `curl --http2-prior-knowledge` or a gRPC client:
 
 ```moonbit
-@mooncat.serve_h2c(app, host="127.0.0.1", port=8000)
+@mooncat.serve_h2c(app, host="127.0.0.1", port=12000)
 ```
 
 The transport is [`moonrpc`](https://github.com/moonbitstack/moonrpc)'s self-built HTTP/2 stack — the same RFC 7540 frame layer and RFC 7541 HPACK engine that carries real gRPC there. mooncat binds it to ASGI: it reads the client connection preface + SETTINGS, HPACK-decodes each request's HEADERS block into an `Http` `Scope` (the `:method` / `:path` / `:scheme` / `:authority` pseudo-headers plus the ordinary headers), streams request DATA to the app as the `Receive` body, and encodes the response — a HEADERS frame with the `:status` pseudo-header, then DATA — back over the connection. Requests multiplex on their own stream ids, and the response DATA is split to the peer's maximum frame size and clamped to the connection- and stream-level send windows, resuming on `WINDOW_UPDATE` (RFC 7540 §6.9).
@@ -110,3 +110,31 @@ The `moonbitlang/async` HTTP **server** is native-only (Linux/macOS) — there i
 ## License
 
 Apache-2.0.
+
+## What this server does not implement
+
+The algorithms are not here. AES, GCM, SHA-1, SHA-256, HMAC, HKDF, X25519,
+ECDSA and the DER codec live in
+[`mooncrypt`](https://github.com/moonbitstack/mooncrypt); X.509 lives in
+[`mooncred`](https://github.com/moonbitstack/mooncred); the levels and the sink
+behind the log lines are
+[`moonlog`](https://github.com/moonbitstack/moonlog)'s; base64 is
+[`moonbase`](https://github.com/moonbitstack/moonbase)'s.
+
+What stays is what belongs to a server: the TLS 1.3 and QUIC state machines, the
+HTTP/1.1, HTTP/2 and HTTP/3 codecs, QPACK, the WebSocket framing, the process
+model, and `crypto.mbt` — a file with no algorithm in it, binding those
+primitives to the one suite these protocols name (AES-128-GCM with SHA-256,
+P-256, X25519) so the protocol code says what it is doing rather than restating
+the suite on every line.
+
+The protocol state machines are slated to move to `moonnet` in turn; until then
+they are here.
+
+## Listening
+
+The default port is **12000**, for HTTP, HTTPS, WebSocket and h2c alike — one
+listener tells them apart, so TLS gets no shadow port of its own. QUIC takes the
+same number on UDP, which is a different port space. It is a default, not a
+fixture: `Config::new(port=...)` moves it.
+

@@ -28,7 +28,7 @@ test "handshake driver: a full server handshake advances to Connected" {
   // in order.
   assert_eq(
     hs.transcript_hash(),
-    sha256(cat3(ch, server_flight, client_finished)),
+    @sha2.hash(cat3(ch, server_flight, client_finished)[:]),
   )
 }
 

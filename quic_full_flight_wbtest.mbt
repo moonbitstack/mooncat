@@ -16,10 +16,10 @@ test "full flight: the server's Handshake flight carries real EE, Certificate, a
   )
   let client_pub = tls13_x25519_public(client_priv)
   let server_pub = tls13_x25519_public(server_priv)
-  let cert_key = EcdsaPrivateKey::from_hex(
+  let cert_key = ec_private(
     "233333333333333333333333333333333333333333333333333333333333eeff",
   )
-  let cert_pub = cert_key.public_key()
+  let cert_pub = cert_key.public()
   // ClientHello (with key_share) over an Initial packet; server receives it.
   let ch = TlsClientHello::{
     random: Bytes::make(32, b'\x23'),
@@ -67,7 +67,7 @@ test "full flight: the server's Handshake flight carries real EE, Certificate, a
   let ee_body = tls13_quic_encrypted_extensions(alpn_h3, params)
   // A real self-signed X.509 certificate whose key is the one that signs the CertificateVerify,
   // so the certificate and the signature are consistent — the identity a client authenticates.
-  let der = x509_self_signed(
+  let der = @x509.self_signed(
     cert_key, b"\x2a", "mooncat.example", "250101000000Z", "350101000000Z",
   )
   let cert_body = tls13_encode_certificate(b"", [der])

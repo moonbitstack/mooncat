@@ -14,9 +14,9 @@ fn main {
     dual_stack=true,
     reuse_addr=true,
     server_headers=Map([("server", "mooncat"), ("x-powered-by", "moonbit")]),
-    max_connections=Some(66666),
+    max_connections=66666,
     allow_failure=false,
-    graceful_timeout=Some(23333),
+    graceful_timeout=23333,
   )
   println("bind             = \{cfg.bind()}")
   println("backlog          = \{cfg.backlog}")

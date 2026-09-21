@@ -20,10 +20,10 @@ fn main {
     None => false
   }
   println("chain round-trip = \{chain_ok}")
-  let key = @mooncat.EcdsaPrivateKey::from_hex(
+  let key = @mooncat.ec_private(
     "2333333333333333333333333333333333333333333333333333333333333333",
   )
-  let th = @mooncat.sha256(b"ch..sh..ee..cert transcript heke1228")
+  let th = @sha2.hash(b"ch..sh..ee..cert transcript heke1228")
   let body = @mooncat.tls13_certificate_verify_sign(
     key, @mooncat.tls13_cv_context_server, th,
   )
@@ -32,7 +32,7 @@ fn main {
   )
   let scheme = (body[0].to_int() << 8) | body[1].to_int()
   println("scheme ecdsa_secp256r1_sha256 = \{scheme == 0x0403}")
-  let pubk = key.public_key()
+  let pubk = key.public()
   println(
     "verify (server ctx)  = \{@mooncat.tls13_certificate_verify_check(pubk, @mooncat.tls13_cv_context_server, th, body)}",
   )

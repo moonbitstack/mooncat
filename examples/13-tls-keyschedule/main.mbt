@@ -9,7 +9,7 @@ fn main {
   let early = @mooncat.tls13_early_secret(Bytes::make(32, b'\x00'))
   println("early secret       = \{hex(early)}")
   println(
-    "derived-for-hs     = \{hex(@mooncat.tls13_derive_secret(early, b"derived", @mooncat.sha256(b"")))}",
+    "derived-for-hs     = \{hex(@mooncat.tls13_derive_secret(early, b"derived", @sha2.hash(b"")))}",
   )
   let ecdhe = hexb(
     "8bd4054fb55b9d63fdfbacf9f04b9f0d35e6d63f537563efd46272900f89492d",
@@ -20,7 +20,7 @@ fn main {
   let base = hexb(
     "b67b7d690cc16c4e75e54213cb2d37b4e9c912bcded9105d42befd59d391ad38",
   )
-  let th = @mooncat.sha256(b"transcript-heke1228")
+  let th = @sha2.hash(b"transcript-heke1228")
   let vd = @mooncat.tls13_finished_verify_data(base, th)
   println("finished verify_data = \{hex(vd)}")
   println(

@@ -17,7 +17,7 @@ test "transcript: incremental hash equals the hash of the concatenation" {
   t.add(ch)
   t.add(sh)
   let combined = cat2(ch, sh)
-  assert_eq(t.hash(), sha256(combined))
+  assert_eq(t.hash(), @sha2.hash(combined[:]))
   assert_eq(t.hash(), tls13_transcript_hash(combined))
 }
 
@@ -53,7 +53,7 @@ test "finished: verify_data is the finished-key HMAC and round-trips through ver
   let vd = tls13_finished_verify_data(base_key, th)
   assert_eq(vd.length(), 32)
   // verify_data is exactly HMAC(finished_key, transcript_hash).
-  assert_eq(vd, hmac_sha256(tls13_finished_key(base_key), th))
+  assert_eq(vd, hmac256(tls13_finished_key(base_key), th))
   // A genuine verify_data is accepted; a tampered one is rejected.
   assert_eq(tls13_finished_verify(base_key, th, vd), true)
   let tampered = cat2(vd[0:31].to_owned(), b"\x00")

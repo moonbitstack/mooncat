@@ -1,4 +1,10 @@
 ///|
+/// `n` copies of one byte, which is how RFC 5869's test vectors give their input.
+fn rep_byte(b : Int, n : Int) -> Bytes {
+  Bytes::make(n, b.to_byte())
+}
+
+///|
 test "HKDF matches RFC 5869 Test Case 1 (SHA-256)" {
   let ikm = rep_byte(0x0b, 22)
   let salt = qv_hexb("000102030405060708090a0b0c")

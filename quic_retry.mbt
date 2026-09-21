@@ -23,12 +23,7 @@ pub fn quic_retry_integrity_tag(
   pseudo.write_bytes(odcid[:])
   pseudo.write_bytes(retry_without_tag[:])
   // Empty plaintext: seal returns ciphertext||tag with no ciphertext, i.e. the tag.
-  aes128_gcm_seal(
-    quic_v1_retry_key,
-    quic_v1_retry_nonce,
-    b"",
-    pseudo.to_bytes(),
-  )
+  gcm_seal(quic_v1_retry_key, quic_v1_retry_nonce, b"", pseudo.to_bytes())
 }
 
 ///|

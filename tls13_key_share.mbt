@@ -58,7 +58,7 @@ fn ks_read_u16(view : BytesView, off : Int) -> Int {
 ///|
 /// The ephemeral x25519 public key for a private scalar: `x25519(private, base_point)`.
 pub fn tls13_x25519_public(private_key : Bytes) -> Bytes {
-  x25519(private_key, x25519_base())
+  x25519_raw(private_key, @x25519.base)
 }
 
 ///|

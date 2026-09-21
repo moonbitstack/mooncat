@@ -79,8 +79,8 @@ fn main {
   let mut status = 0
   for ev in @moonasgi.run_http(app, scope, inbound) {
     match ev {
-      @moonasgi.HttpResponseStart(status=s, ..) => status = s
-      @moonasgi.HttpResponseBody(body~, ..) => resp_body = body
+      @moonasgi.Event::HttpResponseStart(status=s, ..) => status = s
+      @moonasgi.Event::HttpResponseBody(body~, ..) => resp_body = body
       _ => ()
     }
   }

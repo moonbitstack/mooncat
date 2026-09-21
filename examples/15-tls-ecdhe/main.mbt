@@ -15,7 +15,7 @@ fn main {
   )
   let client_pub = @mooncat.tls13_x25519_public(client_priv)
   let server_pub = @mooncat.tls13_x25519_public(server_priv)
-  let th = @mooncat.sha256(b"ch..sh transcript heke1228")
+  let th = @sha2.hash(b"ch..sh transcript heke1228")
   let s_server = @mooncat.tls13_ecdhe_handshake_traffic_secret(
     server_priv, client_pub, th, false,
   )

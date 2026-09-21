@@ -35,7 +35,7 @@ test "ECDHE: peers agree on the handshake traffic secrets via their hello key_sh
     encode_client_hello(ch),
     encode_server_hello(sh),
   )
-  let th = sha256(transcript)
+  let th = @sha2.hash(transcript[:])
   // Each peer extracts the other's key_share from the decoded hello messages.
   let peer_client_pub = tls_client_hello_key_shares(ch.extensions)[0].1
   let peer_server_pub = match tls_server_hello_key_share(sh) {

@@ -1,7 +1,0 @@
-import {
-  "moonbitstack/mooncat",
-}
-
-supported_targets = "+native"
-
-pkgtype(kind: "executable")

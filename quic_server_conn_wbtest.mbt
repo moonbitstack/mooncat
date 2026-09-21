@@ -199,7 +199,7 @@ test "server conn: send_handshake_flight emits EE/Cert/CertVerify/Finished the c
     bytes_concat(bytes_concat(bytes_concat(ch, sh_msg), ee), cert),
     cv,
   )
-  let expected = tls13_finished_verify_data(secret, sha256(transcript))
+  let expected = tls13_finished_verify_data(secret, @sha2.hash(transcript[:]))
   assert_eq(msgs[3].1, expected)
 }
 
@@ -250,7 +250,7 @@ test "server conn: receive_handshake verifies the client Finished and reaches CO
   )
   let server_fin = tls_encode_handshake(
     20,
-    tls13_finished_verify_data(server_secret, sha256(through_cv)),
+    tls13_finished_verify_data(server_secret, @sha2.hash(through_cv[:])),
   )
   let through_server_fin = bytes_concat(through_cv, server_fin)
   // The client Finished MACs the transcript through the server Finished with the client
@@ -260,7 +260,7 @@ test "server conn: receive_handshake verifies the client Finished and reaches CO
   )
   let client_fin = tls_encode_handshake(
     20,
-    tls13_finished_verify_data(client_secret, sha256(through_server_fin)),
+    tls13_finished_verify_data(client_secret, @sha2.hash(through_server_fin[:])),
   )
   let client_keys = quic_packet_keys(client_secret)
   let fin_packet = quic_send_handshake(
@@ -495,13 +495,16 @@ test "server conn: a full ECDHE handshake reaches CONNECTED" {
   )
   let server_fin = tls_encode_handshake(
     20,
-    tls13_finished_verify_data(server_hs_secret, sha256(through_cv)),
+    tls13_finished_verify_data(server_hs_secret, @sha2.hash(through_cv[:])),
   )
   let through_server_fin = bytes_concat(through_cv, server_fin)
   // Client sends its Finished over the shared transcript in a Handshake packet.
   let client_fin = tls_encode_handshake(
     20,
-    tls13_finished_verify_data(client_hs_secret, sha256(through_server_fin)),
+    tls13_finished_verify_data(
+      client_hs_secret,
+      @sha2.hash(through_server_fin[:]),
+    ),
   )
   let client_keys = quic_packet_keys(client_hs_secret)
   let fin_packet = quic_send_handshake(

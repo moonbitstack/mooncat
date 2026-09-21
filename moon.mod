@@ -23,9 +23,12 @@ description = "mooncat — a native ASGI 3.0 server for MoonBit (← uvicorn), b
 preferred_target = "native"
 
 import {
-  "moonbitstack/moonasgi@0.8.2",
+  "moonbitstack/moonasgi@0.10.0",
   "moonbitlang/async@0.20.3",
   "moonbitstack/moonbase@0.4.0",
-  "moonbitstack/moonapi@0.8.1",
+  "moonbitstack/mooncrypt@0.2.2",
+  "moonbitstack/mooncred@0.4.0",
+  "moonbitstack/moonlog@0.1.0",
+  "moonbitstack/moonapi@0.10.0",
   "moonbitstack/moonrpc@0.10.1",
 }

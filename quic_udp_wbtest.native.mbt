@@ -268,7 +268,7 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
       Some(v) => v.1
       None => abort("ServerHello carried no key_share")
     }
-    let th = sha256(bytes_concat(ch_msg, sh_msg))
+    let th = @sha2.hash(bytes_concat(ch_msg, sh_msg)[:])
     let server_hs_secret = tls13_ecdhe_handshake_traffic_secret(
       client_priv, server_pub_wire, th, false,
     )
@@ -298,13 +298,20 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
     )
     // The client authenticates the server Finished before answering.
     assert_eq(
-      tls13_finished_verify(server_hs_secret, sha256(through_cv), msgs[3].1),
+      tls13_finished_verify(
+        server_hs_secret,
+        @sha2.hash(through_cv[:]),
+        msgs[3].1,
+      ),
       true,
     )
     let through_server_fin = bytes_concat(through_cv, server_fin)
     let client_fin = tls_encode_handshake(
       20,
-      tls13_finished_verify_data(client_hs_secret, sha256(through_server_fin)),
+      tls13_finished_verify_data(
+        client_hs_secret,
+        @sha2.hash(through_server_fin[:]),
+      ),
     )
     client_ep.send_datagram(
       quic_send_handshake(

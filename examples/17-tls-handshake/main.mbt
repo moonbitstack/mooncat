@@ -34,7 +34,7 @@ fn run() -> Unit raise {
   let _ = hs.feed(fin)
   println("after client Finished connected = \{hs.is_connected()}")
   println(
-    "transcript = hash(CH++flight++Finished) = \{hs.transcript_hash() == @mooncat.sha256(cat(cat(ch, flight), fin))}",
+    "transcript = hash(CH++flight++Finished) = \{hs.transcript_hash() == @sha2.hash(cat(cat(ch, flight), fin))}",
   )
   let mut cs = @mooncat.TlsClientState::new()
   for mtype in [2, 8, 11, 15, 20] {

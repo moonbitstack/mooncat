@@ -10,7 +10,7 @@
 ///|
 /// The x25519 ECDHE shared secret from an endpoint's private key and the peer's public key.
 pub fn tls13_ecdhe_shared(private_key : Bytes, peer_public : Bytes) -> Bytes {
-  x25519(private_key, peer_public)
+  x25519_raw(private_key, peer_public)
 }
 
 ///|

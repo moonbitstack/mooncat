@@ -37,7 +37,7 @@ test "hello key_share: a ServerHello carries the server's x25519 share through t
   let client_priv = qv_hexb(
     "4444444444444444444444444444444444444444444444444444444444444444",
   )
-  let shared_client = x25519(client_priv, extracted)
-  let shared_server = x25519(server_priv, tls13_x25519_public(client_priv))
+  let shared_client = x25519_raw(client_priv, extracted)
+  let shared_server = x25519_raw(server_priv, tls13_x25519_public(client_priv))
   assert_eq(shared_client, shared_server)
 }

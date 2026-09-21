@@ -26,7 +26,7 @@ pub fn TranscriptHash::add(self : TranscriptHash, message : Bytes) -> Unit {
 ///|
 /// The SHA-256 transcript hash over every message added so far (RFC 8446 §4.4.1).
 pub fn TranscriptHash::hash(self : TranscriptHash) -> Bytes {
-  sha256(self.messages.to_bytes())
+  @sha2.hash(self.messages.to_bytes()[:])
 }
 
 ///|
@@ -37,7 +37,7 @@ pub fn tls13_finished_verify_data(
   base_key : Bytes,
   transcript_hash : Bytes,
 ) -> Bytes {
-  hmac_sha256(tls13_finished_key(base_key), transcript_hash)
+  hmac256(tls13_finished_key(base_key), transcript_hash)
 }
 
 ///|

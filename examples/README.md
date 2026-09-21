@@ -32,14 +32,6 @@ socket instead and block in the accept loop until cancelled.
 
 | # | Example | What it shows | Key API |
 | --- | --- | --- | --- |
-| 03 | [`hash`](03-hash/) | SHA-1, SHA-256, HMAC-SHA256 against their published vectors | `sha1`, `sha256`, `hmac_sha256` |
-| 04 | [`hkdf`](04-hkdf/) | HKDF extract/expand and the TLS/QUIC labelled expansion | `hkdf_extract`, `hkdf_expand`, `hkdf_expand_label` |
-| 05 | [`base64`](05-base64/) | RFC 4648 encode/decode across every input remainder | `base64_encode`, `base64_decode` |
-| 06 | [`aes-gcm`](06-aes-gcm/) | AES-128 block cipher and AES-128-GCM seal/open with tamper rejection | `aes128_key_schedule`, `aes128_encrypt_block`, `aes128_gcm_seal` / `aes128_gcm_open` |
-| 07 | [`x25519`](07-x25519/) | X25519 ECDHE agreement (RFC 7748) | `x25519`, `x25519_base` |
-| 08 | [`ecdsa`](08-ecdsa/) | ES256 sign/verify with the RFC 6979 deterministic nonce | `EcdsaPrivateKey`, `ecdsa_p256_sha256_sign` / `_verify` |
-| 09 | [`asn1-der`](09-asn1-der/) | The ASN.1 DER (X.690) builders X.509 is assembled from | `der_length` / `der_integer` / `der_oid` / `der_sequence` / … |
-| 10 | [`x509`](10-x509/) | A self-signed X.509 v3 P-256 certificate, self-signature verified | `x509_self_signed`, `x509_tbs_certificate`, `x509_subject_public_key_info` |
 
 ## TLS 1.3
 
@@ -56,6 +48,8 @@ socket instead and block in the accept loop until cancelled.
 | # | Example | What it shows | Key API |
 | --- | --- | --- | --- |
 | 11 | [`ws-handshake`](11-ws-handshake/) | The 101 upgrade: accept key and subprotocol negotiation | `websocket_accept_key`, `websocket_select_subprotocol`, `websocket_handshake_response` |
+
+> 03 至 10 原本演示的是密码学与编码的基元。那些基元 2026-09-21 迁去了 [`mooncrypt`](https://github.com/moonbitstack/mooncrypt)、[`mooncred`](https://github.com/moonbitstack/mooncred) 与 [`moonbase`](https://github.com/moonbitstack/moonbase)，示例随之搬走：跑 `moon run examples/tour` 看它们。编号留空不补，免得旧链接失效。
 | 12 | [`ws-frame`](12-ws-frame/) | The frame codec: masked/unmasked frames, close payloads, opcodes | `ws_encode_frame`, `ws_decode_frame`, `ws_close_payload`, `WsOpcode` |
 
 ## QUIC (HTTP/3 transport)

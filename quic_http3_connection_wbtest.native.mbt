@@ -145,7 +145,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
       Some(v) => v.1
       None => abort("ServerHello carried no key_share")
     }
-    let th_ch_sh = sha256(bytes_concat(ch_msg, sh_msg))
+    let th_ch_sh = @sha2.hash(bytes_concat(ch_msg, sh_msg)[:])
     let server_hs_secret = tls13_ecdhe_handshake_traffic_secret(
       client_priv, server_pub_wire, th_ch_sh, false,
     )
@@ -163,7 +163,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
       msgs[2].2,
     )
     let through_server_fin = bytes_concat(through_cv, msgs[3].2)
-    let th_app = sha256(through_server_fin)
+    let th_app = @sha2.hash(through_server_fin[:])
     let client_hs_secret = tls13_ecdhe_handshake_traffic_secret(
       client_priv, server_pub_wire, th_ch_sh, true,
     )

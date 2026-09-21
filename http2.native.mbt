@@ -504,7 +504,7 @@ async fn drive_h2c(app : @moonasgi.AsgiApp, conn : @socket.Tcp) -> Unit {
 pub async fn serve_h2c(
   app : @moonasgi.AsgiApp,
   host? : String = "127.0.0.1",
-  port? : Int = 8000,
+  port? : Int = port,
 ) -> Unit {
   serve_h2c_config(app, Config::new(host~, port~))
 }

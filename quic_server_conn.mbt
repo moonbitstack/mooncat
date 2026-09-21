@@ -148,7 +148,7 @@ pub fn QuicServerConn::send_handshake_flight_signed(
   server_hs_secret : Bytes,
   encrypted_extensions : Bytes,
   certificate : Bytes,
-  signing_key : EcdsaPrivateKey,
+  signing_key : @ecdsa.PrivateKey,
   out_dcid : Bytes,
   out_scid : Bytes,
   pn : Int64,

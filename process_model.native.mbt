@@ -468,11 +468,7 @@ async test "the request-count limit stops the server on its own" {
     let srv = g.spawn(() => {
       serve_graceful(
         ok_app,
-        Config::new(
-          port=18094,
-          limit_max_requests=Some(2),
-          logger=Logger::silent(),
-        ),
+        Config::new(port=18094, limit_max_requests=2, logger=Logger::silent()),
         handle~,
       )
     })
@@ -521,11 +517,7 @@ async test "limit_concurrency refuses the overflow request with 503" {
     let srv = g.spawn(() => {
       serve_graceful(
         slow,
-        Config::new(
-          port=18096,
-          limit_concurrency=Some(1),
-          logger=Logger::silent(),
-        ),
+        Config::new(port=18096, limit_concurrency=1, logger=Logger::silent()),
         handle~,
       )
     })
@@ -577,7 +569,7 @@ async test "graceful serve honours max_connections" {
         counted,
         Config::new(
           port=18097,
-          max_connections=Some(1),
+          max_connections=1,
           // A handler holds its slot until the connection ends, so the idle timeout bounds how
           // long a finished client can keep the next one waiting.
           timeout_keep_alive=200,

@@ -14,10 +14,10 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
   let client_pub = tls13_x25519_public(client_priv)
   let server_pub = tls13_x25519_public(server_priv)
   // The certificate's ES256 key pair (a P-256 scalar below the group order).
-  let cert_key = EcdsaPrivateKey::from_hex(
+  let cert_key = ec_private(
     "233333333333333333333333333333333333333333333333333333333333eeff",
   )
-  let cert_pub = cert_key.public_key()
+  let cert_pub = cert_key.public()
   // Client ClientHello with its x25519 key_share, delivered over an Initial packet.
   let ch = TlsClientHello::{
     random: Bytes::make(32, b'\x23'),
@@ -111,9 +111,9 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
     true,
   )
   // A different certificate key does not authenticate the signature.
-  let other_pub = EcdsaPrivateKey::from_hex(
+  let other_pub = ec_private(
     "6666666666666666666666666666666666666666666666666666666666666666",
-  ).public_key()
+  ).public()
   assert_eq(
     tls13_certificate_verify_check(
       other_pub, tls13_cv_context_server, th_through_cert, cv_body,
