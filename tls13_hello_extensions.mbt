@@ -359,3 +359,9 @@ pub fn tls13_negotiate_client_hello(
   }
   tls13_negotiate(ch)
 }
+
+///|
+pub extend TlsNegotiation with Debug::{to_repr}
+
+///|
+pub extend TlsNegotiation with Eq::{not_equal, equal}

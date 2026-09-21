@@ -431,3 +431,21 @@ fn ws_append(buf : Buffer, part : Bytes, max_size : Int) -> Unit raise WsError {
   }
   buf.write_bytes(part)
 }
+
+///|
+pub extend WsFrame with Debug::{to_repr}
+
+///|
+pub extend WsFrame with Eq::{not_equal, equal}
+
+///|
+pub extend WsMessage with Debug::{to_repr}
+
+///|
+pub extend WsMessage with Eq::{not_equal, equal}
+
+///|
+pub extend WsOpcode with Debug::{to_repr}
+
+///|
+pub extend WsOpcode with Eq::{not_equal, equal}

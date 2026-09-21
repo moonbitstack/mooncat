@@ -130,3 +130,9 @@ pub fn QuicConnection::on_crypto_frame(
   stream.insert(offset, data, false)
   stream.read()
 }
+
+///|
+pub extend QuicLevel with Debug::{to_repr}
+
+///|
+pub extend QuicLevel with Eq::{not_equal, equal}

@@ -91,3 +91,15 @@ pub fn stream_is_locally_initiated(id : UInt64, is_server : Bool) -> Bool {
 pub fn stream_is_writable(id : UInt64, is_server : Bool) -> Bool {
   stream_is_locally_initiated(id, is_server) || stream_is_bidi(id)
 }
+
+///|
+pub extend StreamDirection with Debug::{to_repr}
+
+///|
+pub extend StreamDirection with Eq::{not_equal, equal}
+
+///|
+pub extend StreamInitiator with Debug::{to_repr}
+
+///|
+pub extend StreamInitiator with Eq::{not_equal, equal}

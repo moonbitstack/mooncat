@@ -79,7 +79,7 @@ let p256_lfanke : String =
 /// `certs/`: this is a parser test, and it should go on testing the same bytes after the TLS
 /// fixtures are regenerated with fresh keys.
 fn x509_pem(body : String) -> Bytes {
-  base64_decode(@utf8.encode(body))
+  @base64.decode_lossy(body)
 }
 
 ///|

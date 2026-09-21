@@ -523,3 +523,15 @@ pub fn Tlv::time(self : Tlv) -> Int64 raise DerError {
   der_days(year, month, day) * 86400L +
   (hour * 3600 + minute * 60 + second).to_int64()
 }
+
+///|
+pub extend Bits with Debug::{to_repr}
+
+///|
+pub extend Bits with Eq::{not_equal, equal}
+
+///|
+pub extend DerError with Eq::{not_equal, equal}
+
+///|
+pub extend DerError with Show::{to_string, output}

@@ -26,10 +26,6 @@ pub fn aes128_key_schedule(Bytes) -> Array[Int]
 
 pub let alpn_h3 : String
 
-pub fn base64_decode(Bytes) -> Bytes
-
-pub fn base64_encode(Bytes) -> Bytes
-
 pub fn decode_client_hello(BytesView) -> TlsClientHello?
 
 pub fn decode_server_hello(BytesView) -> TlsServerHello?
@@ -681,6 +677,10 @@ pub suberror DerError {
   Malformed(String)
   Unsupported(String)
 } derive(Eq)
+pub fn DerError::equal(Self, Self) -> Bool
+pub fn DerError::not_equal(Self, Self) -> Bool
+pub fn DerError::output(Self, &@builtin.Logger) -> Unit
+pub fn DerError::to_string(Self) -> String
 pub impl Show for DerError
 
 pub suberror FlowError {
@@ -722,6 +722,9 @@ pub suberror StreamStateError {
 pub(all) suberror TlsAlert {
   TlsAlert(level~ : Int, description~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn TlsAlert::equal(Self, Self) -> Bool
+pub fn TlsAlert::not_equal(Self, Self) -> Bool
+pub fn TlsAlert::to_repr(Self) -> @debug.Repr
 
 pub suberror WsError {
   WsError(Int, String)
@@ -742,12 +745,18 @@ pub struct Attr {
   oid : String
   value : String
 } derive(Eq, @debug.Debug)
+pub fn Attr::equal(Self, Self) -> Bool
+pub fn Attr::not_equal(Self, Self) -> Bool
+pub fn Attr::to_repr(Self) -> @debug.Repr
 
 pub struct Bits {
   bytes : Bytes
   unused : Int
 } derive(Eq, @debug.Debug)
+pub fn Bits::equal(Self, Self) -> Bool
 pub fn Bits::get(Self, Int) -> Bool
+pub fn Bits::not_equal(Self, Self) -> Bool
+pub fn Bits::to_repr(Self) -> @debug.Repr
 
 pub struct Cert {
   raw : BytesView
@@ -811,6 +820,9 @@ pub struct Exts {
   eku : Array[String]?
   unknown_critical : Array[String]
 } derive(Eq, @debug.Debug)
+pub fn Exts::equal(Self, Self) -> Bool
+pub fn Exts::not_equal(Self, Self) -> Bool
+pub fn Exts::to_repr(Self) -> @debug.Repr
 
 pub(all) enum GeneralName {
   Dns(String)
@@ -819,6 +831,9 @@ pub(all) enum GeneralName {
   Ip(Bytes)
   Named(Int, Bytes)
 } derive(Eq, @debug.Debug)
+pub fn GeneralName::equal(Self, Self) -> Bool
+pub fn GeneralName::not_equal(Self, Self) -> Bool
+pub fn GeneralName::to_repr(Self) -> @debug.Repr
 
 pub struct Http3Conn {
   role : Http3Role
@@ -843,6 +858,9 @@ pub(all) enum Http3Frame {
   Reserved(UInt64, Bytes)
   ReservedHttp2(UInt64)
 } derive(Eq, @debug.Debug)
+pub fn Http3Frame::equal(Self, Self) -> Bool
+pub fn Http3Frame::not_equal(Self, Self) -> Bool
+pub fn Http3Frame::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Http3Request {
   meth : String
@@ -864,21 +882,30 @@ pub(all) enum Http3Role {
   ClientSide
   ServerSide
 } derive(Eq, @debug.Debug)
+pub fn Http3Role::equal(Self, Self) -> Bool
+pub fn Http3Role::not_equal(Self, Self) -> Bool
+pub fn Http3Role::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Http3Settings {
   qpack_max_table_capacity : UInt64
   max_field_section_size : UInt64
   qpack_blocked_streams : UInt64
 } derive(Eq, @debug.Debug)
+pub fn Http3Settings::equal(Self, Self) -> Bool
 pub fn Http3Settings::from_pairs(Array[(UInt64, UInt64)]) -> Self
 pub fn Http3Settings::new(UInt64, UInt64, UInt64) -> Self
+pub fn Http3Settings::not_equal(Self, Self) -> Bool
 pub fn Http3Settings::to_pairs(Self) -> Array[(UInt64, UInt64)]
+pub fn Http3Settings::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Http3StreamCtx {
   ControlCtx
   RequestCtx
   PushCtx
 } derive(Eq, @debug.Debug)
+pub fn Http3StreamCtx::equal(Self, Self) -> Bool
+pub fn Http3StreamCtx::not_equal(Self, Self) -> Bool
+pub fn Http3StreamCtx::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Http3UniEvent {
   ControlEstablished(Http3Settings)
@@ -887,6 +914,9 @@ pub(all) enum Http3UniEvent {
   Push(UInt64)
   Reserved(UInt64)
 } derive(Eq, @debug.Debug)
+pub fn Http3UniEvent::equal(Self, Self) -> Bool
+pub fn Http3UniEvent::not_equal(Self, Self) -> Bool
+pub fn Http3UniEvent::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Http3UniStream {
   ControlStream
@@ -895,6 +925,9 @@ pub(all) enum Http3UniStream {
   QpackDecoderStream
   ReservedStream(UInt64)
 } derive(Eq, @debug.Debug)
+pub fn Http3UniStream::equal(Self, Self) -> Bool
+pub fn Http3UniStream::not_equal(Self, Self) -> Bool
+pub fn Http3UniStream::to_repr(Self) -> @debug.Repr
 
 pub struct Lifespan {
   app : async (@moonasgi.Scope, async () -> @moonasgi.Event, async (@moonasgi.Event) -> Unit) -> Unit
@@ -915,6 +948,8 @@ pub(all) enum LogLevel {
   Error
   Critical
 } derive(Eq)
+pub fn LogLevel::equal(Self, Self) -> Bool
+pub fn LogLevel::not_equal(Self, Self) -> Bool
 
 pub(all) struct Logger {
   level : LogLevel
@@ -931,7 +966,10 @@ pub struct Name {
   rdns : Array[Array[Attr]]
 } derive(Eq, @debug.Debug)
 pub fn Name::cn(Self) -> String?
+pub fn Name::equal(Self, Self) -> Bool
 pub fn Name::get(Self, String) -> String?
+pub fn Name::not_equal(Self, Self) -> Bool
+pub fn Name::to_repr(Self) -> @debug.Repr
 
 pub struct NewReno {
   mut cwnd : Int64
@@ -969,6 +1007,9 @@ pub(all) enum QpackDecoderInst {
   StreamCancel(stream_id~ : Int)
   InsertCountIncrement(increment~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn QpackDecoderInst::equal(Self, Self) -> Bool
+pub fn QpackDecoderInst::not_equal(Self, Self) -> Bool
+pub fn QpackDecoderInst::to_repr(Self) -> @debug.Repr
 
 pub(all) struct QpackDynamicTable {
   entries : Array[(Bytes, Bytes)]
@@ -990,12 +1031,18 @@ pub(all) enum QpackEncoderInst {
   InsertLiteralName(name~ : Bytes, value~ : Bytes)
   Duplicate(index~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn QpackEncoderInst::equal(Self, Self) -> Bool
+pub fn QpackEncoderInst::not_equal(Self, Self) -> Bool
+pub fn QpackEncoderInst::to_repr(Self) -> @debug.Repr
 
 pub(all) enum QuicConnPhase {
   Active
   Closing
   Draining
 } derive(Eq, @debug.Debug)
+pub fn QuicConnPhase::equal(Self, Self) -> Bool
+pub fn QuicConnPhase::not_equal(Self, Self) -> Bool
+pub fn QuicConnPhase::to_repr(Self) -> @debug.Repr
 
 pub struct QuicConnection {
   is_server : Bool
@@ -1039,12 +1086,18 @@ pub(all) enum QuicFrame {
   HandshakeDone
   ConnectionClose(error_code~ : UInt64, frame_type~ : UInt64?, reason~ : Bytes)
 } derive(Eq, @debug.Debug)
+pub fn QuicFrame::equal(Self, Self) -> Bool
+pub fn QuicFrame::not_equal(Self, Self) -> Bool
+pub fn QuicFrame::to_repr(Self) -> @debug.Repr
 
 pub(all) enum QuicLevel {
   Initial
   Handshake
   Application
 } derive(Eq, @debug.Debug)
+pub fn QuicLevel::equal(Self, Self) -> Bool
+pub fn QuicLevel::not_equal(Self, Self) -> Bool
+pub fn QuicLevel::to_repr(Self) -> @debug.Repr
 
 pub(all) struct QuicLongHeader {
   packet_type : QuicLongPacketType
@@ -1053,6 +1106,9 @@ pub(all) struct QuicLongHeader {
   dcid : Bytes
   scid : Bytes
 } derive(Eq, @debug.Debug)
+pub fn QuicLongHeader::equal(Self, Self) -> Bool
+pub fn QuicLongHeader::not_equal(Self, Self) -> Bool
+pub fn QuicLongHeader::to_repr(Self) -> @debug.Repr
 
 pub(all) enum QuicLongPacketType {
   Initial
@@ -1060,12 +1116,18 @@ pub(all) enum QuicLongPacketType {
   Handshake
   Retry
 } derive(Eq, @debug.Debug)
+pub fn QuicLongPacketType::equal(Self, Self) -> Bool
+pub fn QuicLongPacketType::not_equal(Self, Self) -> Bool
+pub fn QuicLongPacketType::to_repr(Self) -> @debug.Repr
 
 pub(all) struct QuicPacketKeys {
   key : Bytes
   iv : Bytes
   hp : Bytes
 } derive(Eq, @debug.Debug)
+pub fn QuicPacketKeys::equal(Self, Self) -> Bool
+pub fn QuicPacketKeys::not_equal(Self, Self) -> Bool
+pub fn QuicPacketKeys::to_repr(Self) -> @debug.Repr
 
 pub struct QuicRecovery {
   rtt : RttEstimator
@@ -1218,6 +1280,9 @@ pub(all) struct QuicShortHeader {
   pn_length : Int
   dcid : Bytes
 } derive(Eq, @debug.Debug)
+pub fn QuicShortHeader::equal(Self, Self) -> Bool
+pub fn QuicShortHeader::not_equal(Self, Self) -> Bool
+pub fn QuicShortHeader::to_repr(Self) -> @debug.Repr
 
 pub struct QuicStreamScheduler {
   flow : QuicSendFlow
@@ -1264,6 +1329,9 @@ pub(all) enum RecvStreamEvent {
   ReceiveReset
   AppReadReset
 } derive(Eq, @debug.Debug)
+pub fn RecvStreamEvent::equal(Self, Self) -> Bool
+pub fn RecvStreamEvent::not_equal(Self, Self) -> Bool
+pub fn RecvStreamEvent::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RecvStreamState {
   Recv
@@ -1273,6 +1341,9 @@ pub(all) enum RecvStreamState {
   ResetReceived
   ResetRead
 } derive(Eq, @debug.Debug)
+pub fn RecvStreamState::equal(Self, Self) -> Bool
+pub fn RecvStreamState::not_equal(Self, Self) -> Bool
+pub fn RecvStreamState::to_repr(Self) -> @debug.Repr
 
 pub struct RttEstimator {
   mut latest_rtt : Int64
@@ -1306,6 +1377,9 @@ pub(all) enum SendStreamEvent {
   ResetStream
   ResetAcked
 } derive(Eq, @debug.Debug)
+pub fn SendStreamEvent::equal(Self, Self) -> Bool
+pub fn SendStreamEvent::not_equal(Self, Self) -> Bool
+pub fn SendStreamEvent::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SendStreamState {
   Ready
@@ -1315,6 +1389,9 @@ pub(all) enum SendStreamState {
   ResetSent
   ResetRecvd
 } derive(Eq, @debug.Debug)
+pub fn SendStreamState::equal(Self, Self) -> Bool
+pub fn SendStreamState::not_equal(Self, Self) -> Bool
+pub fn SendStreamState::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SentPacket {
   pn : Int64
@@ -1350,17 +1427,26 @@ pub struct Spki {
   params : String?
   key : Bits
 } derive(Eq, @debug.Debug)
+pub fn Spki::equal(Self, Self) -> Bool
+pub fn Spki::not_equal(Self, Self) -> Bool
 pub fn Spki::p256(Self) -> EcdsaPublicKey raise DerError
+pub fn Spki::to_repr(Self) -> @debug.Repr
 
 pub(all) enum StreamDirection {
   Bidirectional
   Unidirectional
 } derive(Eq, @debug.Debug)
+pub fn StreamDirection::equal(Self, Self) -> Bool
+pub fn StreamDirection::not_equal(Self, Self) -> Bool
+pub fn StreamDirection::to_repr(Self) -> @debug.Repr
 
 pub(all) enum StreamInitiator {
   Client
   Server
 } derive(Eq, @debug.Debug)
+pub fn StreamInitiator::equal(Self, Self) -> Bool
+pub fn StreamInitiator::not_equal(Self, Self) -> Bool
+pub fn StreamInitiator::to_repr(Self) -> @debug.Repr
 
 pub struct StreamManager {
   streams : Map[UInt64, RecvStream]
@@ -1412,6 +1498,9 @@ pub(all) struct TlsClientHello {
   cipher_suites : Array[Int]
   extensions : Array[TlsExtension]
 } derive(Eq, @debug.Debug)
+pub fn TlsClientHello::equal(Self, Self) -> Bool
+pub fn TlsClientHello::not_equal(Self, Self) -> Bool
+pub fn TlsClientHello::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TlsClientState {
   WaitServerHello
@@ -1422,28 +1511,43 @@ pub(all) enum TlsClientState {
   WaitFinished
   Connected
 } derive(Eq, @debug.Debug)
+pub fn TlsClientState::equal(Self, Self) -> Bool
 pub fn TlsClientState::new() -> Self
+pub fn TlsClientState::not_equal(Self, Self) -> Bool
+pub fn TlsClientState::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TlsExtension {
   ext_type : Int
   data : Bytes
 } derive(Eq, @debug.Debug)
+pub fn TlsExtension::equal(Self, Self) -> Bool
+pub fn TlsExtension::not_equal(Self, Self) -> Bool
+pub fn TlsExtension::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TlsNegotiation {
   Negotiated(group~ : Int, client_key~ : Bytes, scheme~ : Int)
   Retry(Int)
 } derive(Eq, @debug.Debug)
+pub fn TlsNegotiation::equal(Self, Self) -> Bool
+pub fn TlsNegotiation::not_equal(Self, Self) -> Bool
+pub fn TlsNegotiation::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TlsRecord {
   content_type : Int
   fragment : Bytes
 } derive(Eq, @debug.Debug)
+pub fn TlsRecord::equal(Self, Self) -> Bool
+pub fn TlsRecord::not_equal(Self, Self) -> Bool
+pub fn TlsRecord::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TlsRecordEvent {
   HandshakeMsg(msg_type~ : Int, message~ : Bytes)
   AppData(Bytes)
   PeerAlert(TlsAlert)
 } derive(Eq, @debug.Debug)
+pub fn TlsRecordEvent::equal(Self, Self) -> Bool
+pub fn TlsRecordEvent::not_equal(Self, Self) -> Bool
+pub fn TlsRecordEvent::to_repr(Self) -> @debug.Repr
 
 pub struct TlsRecordKeys {
   mut keys : TlsTrafficKeys
@@ -1499,6 +1603,9 @@ pub(all) struct TlsServerHello {
   cipher_suite : Int
   extensions : Array[TlsExtension]
 } derive(Eq, @debug.Debug)
+pub fn TlsServerHello::equal(Self, Self) -> Bool
+pub fn TlsServerHello::not_equal(Self, Self) -> Bool
+pub fn TlsServerHello::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TlsServerState {
   Start
@@ -1508,12 +1615,18 @@ pub(all) enum TlsServerState {
   WaitFinished
   Connected
 } derive(Eq, @debug.Debug)
+pub fn TlsServerState::equal(Self, Self) -> Bool
 pub fn TlsServerState::new() -> Self
+pub fn TlsServerState::not_equal(Self, Self) -> Bool
+pub fn TlsServerState::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TlsTrafficKeys {
   key : Bytes
   iv : Bytes
 } derive(Eq, @debug.Debug)
+pub fn TlsTrafficKeys::equal(Self, Self) -> Bool
+pub fn TlsTrafficKeys::not_equal(Self, Self) -> Bool
+pub fn TlsTrafficKeys::to_repr(Self) -> @debug.Repr
 
 pub struct Tlv {
   tag : Int
@@ -1540,11 +1653,17 @@ pub(all) struct TransportParam {
   id : UInt64
   value : Bytes
 } derive(Eq, @debug.Debug)
+pub fn TransportParam::equal(Self, Self) -> Bool
+pub fn TransportParam::not_equal(Self, Self) -> Bool
+pub fn TransportParam::to_repr(Self) -> @debug.Repr
 
 pub struct Validity {
   not_before : Int64
   not_after : Int64
 } derive(Eq, @debug.Debug)
+pub fn Validity::equal(Self, Self) -> Bool
+pub fn Validity::not_equal(Self, Self) -> Bool
+pub fn Validity::to_repr(Self) -> @debug.Repr
 
 pub(all) struct WsConfig {
   max_size : Int
@@ -1556,12 +1675,18 @@ pub(all) struct WsFrame {
   opcode : WsOpcode
   payload : Bytes
 } derive(Eq, @debug.Debug)
+pub fn WsFrame::equal(Self, Self) -> Bool
+pub fn WsFrame::not_equal(Self, Self) -> Bool
+pub fn WsFrame::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WsMessage {
   WsText(String)
   WsBinary(Bytes)
   WsClose(Int, Bytes)
 } derive(Eq, @debug.Debug)
+pub fn WsMessage::equal(Self, Self) -> Bool
+pub fn WsMessage::not_equal(Self, Self) -> Bool
+pub fn WsMessage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WsOpcode {
   Continuation
@@ -1571,8 +1696,11 @@ pub(all) enum WsOpcode {
   Ping
   Pong
 } derive(Eq, @debug.Debug)
+pub fn WsOpcode::equal(Self, Self) -> Bool
 pub fn WsOpcode::is_control(Self) -> Bool
+pub fn WsOpcode::not_equal(Self, Self) -> Bool
 pub fn WsOpcode::to_int(Self) -> Int
+pub fn WsOpcode::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

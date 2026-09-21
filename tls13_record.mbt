@@ -308,3 +308,15 @@ pub fn TlsRecordKeys::open(
   }
   (content_type, content)
 }
+
+///|
+pub extend TlsRecord with Debug::{to_repr}
+
+///|
+pub extend TlsRecord with Eq::{not_equal, equal}
+
+///|
+pub extend TlsTrafficKeys with Debug::{to_repr}
+
+///|
+pub extend TlsTrafficKeys with Eq::{not_equal, equal}

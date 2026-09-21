@@ -174,3 +174,9 @@ pub fn tls_alert_is_fatal(alert : TlsAlert) -> Bool {
   description != tls_alert_close_notify &&
   description != tls_alert_user_canceled
 }
+
+///|
+pub extend TlsAlert with Debug::{to_repr}
+
+///|
+pub extend TlsAlert with Eq::{not_equal, equal}

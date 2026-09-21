@@ -139,3 +139,6 @@ fn reason(code : Int) -> String {
     _ => ""
   }
 }
+
+///|
+pub extend LogLevel with Eq::{not_equal, equal}

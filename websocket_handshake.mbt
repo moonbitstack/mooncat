@@ -14,7 +14,7 @@ pub let websocket_guid : String = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 /// key concatenated with the GUID (RFC 6455 §4.2.2).
 pub fn websocket_accept_key(sec_websocket_key : String) -> String {
   @utf8.decode_lossy(
-    base64_encode(sha1(@utf8.encode(sec_websocket_key + websocket_guid)))[:],
+    @base64.encode_bytes(sha1(@utf8.encode(sec_websocket_key + websocket_guid)))[:],
   )
 }
 

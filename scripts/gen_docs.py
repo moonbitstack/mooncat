@@ -37,9 +37,9 @@ SECTIONS = [
      "RFC 9114 framing, settings and the request/response message model over QUIC "
      "streams, with the RFC 9204 QPACK codec: static and dynamic tables, field "
      "encoding, encoder/decoder instructions and section prefixes."),
-    ("crypto", ('aes.mbt', 'gcm.mbt', 'sha1.mbt', 'sha256.mbt', 'hmac.mbt', 'hkdf.mbt', 'x25519.mbt', 'ecdsa.mbt', 'base64.mbt'), "Primitives",
+    ("crypto", ('aes.mbt', 'gcm.mbt', 'sha1.mbt', 'sha256.mbt', 'hmac.mbt', 'hkdf.mbt', 'x25519.mbt', 'ecdsa.mbt'), "Primitives",
      "The cryptography the transports need: AES and GCM, SHA-1 and SHA-256, HMAC and "
-     "HKDF, X25519, ECDSA, and base64."),
+     "HKDF, X25519 and ECDSA."),
 ]
 
 KIND = {"struct": "struct", "enum": "enum", "fn": "fn", "type": "type", "let": "let"}

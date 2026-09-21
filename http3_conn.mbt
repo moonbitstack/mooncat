@@ -113,3 +113,15 @@ pub fn Http3Conn::settings_established(self : Http3Conn) -> Bool {
 pub fn Http3Conn::peer_settings(self : Http3Conn) -> Http3Settings? {
   self.peer_settings
 }
+
+///|
+pub extend Http3Role with Debug::{to_repr}
+
+///|
+pub extend Http3Role with Eq::{not_equal, equal}
+
+///|
+pub extend Http3UniEvent with Debug::{to_repr}
+
+///|
+pub extend Http3UniEvent with Eq::{not_equal, equal}

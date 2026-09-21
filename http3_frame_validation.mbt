@@ -38,3 +38,9 @@ pub fn http3_check_frame(
     )
   }
 }
+
+///|
+pub extend Http3StreamCtx with Debug::{to_repr}
+
+///|
+pub extend Http3StreamCtx with Eq::{not_equal, equal}

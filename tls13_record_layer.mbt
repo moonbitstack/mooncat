@@ -277,3 +277,9 @@ pub fn TlsRecordLayer::write_alert(
 /// octets — the content type, the frozen version, a length of one, and the single octet
 /// 0x01 — always unencrypted, and never meaning anything.
 pub let tls_record_ccs : Bytes = b"\x14\x03\x03\x00\x01\x01"
+
+///|
+pub extend TlsRecordEvent with Debug::{to_repr}
+
+///|
+pub extend TlsRecordEvent with Eq::{not_equal, equal}

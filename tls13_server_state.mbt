@@ -63,3 +63,9 @@ pub fn tls_server_send_flight(
     _ => raise tls_fatal(tls_alert_internal_error)
   }
 }
+
+///|
+pub extend TlsServerState with Debug::{to_repr}
+
+///|
+pub extend TlsServerState with Eq::{not_equal, equal}

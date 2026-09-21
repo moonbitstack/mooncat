@@ -92,3 +92,9 @@ pub fn http3_decode_control_stream(
     _ => None
   }
 }
+
+///|
+pub extend Http3Settings with Debug::{to_repr}
+
+///|
+pub extend Http3Settings with Eq::{not_equal, equal}

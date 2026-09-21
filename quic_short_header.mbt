@@ -54,3 +54,9 @@ pub fn parse_short_header(
   let dcid = b[1:1 + dcid_len].to_owned()
   Some(({ spin, key_phase, pn_length, dcid, }, 1 + dcid_len))
 }
+
+///|
+pub extend QuicShortHeader with Debug::{to_repr}
+
+///|
+pub extend QuicShortHeader with Eq::{not_equal, equal}

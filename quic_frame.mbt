@@ -472,3 +472,9 @@ pub fn parse_frame(b : BytesView) -> (QuicFrame, Int)? {
     _ => None
   }
 }
+
+///|
+pub extend QuicFrame with Debug::{to_repr}
+
+///|
+pub extend QuicFrame with Eq::{not_equal, equal}

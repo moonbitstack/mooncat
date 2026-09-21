@@ -65,3 +65,9 @@ pub fn http3_encode_control_stream(settings : Array[(UInt64, UInt64)]) -> Bytes 
   buf.write_bytes(http3_frame_encode(Settings(settings)))
   buf.to_bytes()
 }
+
+///|
+pub extend Http3UniStream with Debug::{to_repr}
+
+///|
+pub extend Http3UniStream with Eq::{not_equal, equal}

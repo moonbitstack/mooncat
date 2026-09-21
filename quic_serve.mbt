@@ -747,3 +747,9 @@ pub fn[A] QuicServer::tick(self : QuicServer[A], now : Int64) -> Unit {
     self.conns.remove(cid)
   }
 }
+
+///|
+pub extend QuicConnPhase with Debug::{to_repr}
+
+///|
+pub extend QuicConnPhase with Eq::{not_equal, equal}

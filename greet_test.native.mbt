@@ -26,7 +26,7 @@ async test "greet: mooncat serves a moonapi app answering a real HTTP GET" {
       )
     })
     let app = api.to_asgi()
-    let task = g.spawn(() => serve(app, port=18095))
+    let task = g.spawn(() => @mooncat.serve(app, port=18095))
     @async.sleep(250)
     let (resp, body) = @http.get("http://127.0.0.1:18095/greet/moon")
     assert_eq(resp.code, 200)

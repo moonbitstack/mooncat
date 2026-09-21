@@ -662,3 +662,39 @@ pub fn Cert::signed_by(
     key,
   )
 }
+
+///|
+pub extend Attr with Debug::{to_repr}
+
+///|
+pub extend Attr with Eq::{not_equal, equal}
+
+///|
+pub extend Exts with Debug::{to_repr}
+
+///|
+pub extend Exts with Eq::{not_equal, equal}
+
+///|
+pub extend GeneralName with Debug::{to_repr}
+
+///|
+pub extend GeneralName with Eq::{not_equal, equal}
+
+///|
+pub extend Name with Debug::{to_repr}
+
+///|
+pub extend Name with Eq::{not_equal, equal}
+
+///|
+pub extend Spki with Debug::{to_repr}
+
+///|
+pub extend Spki with Eq::{not_equal, equal}
+
+///|
+pub extend Validity with Debug::{to_repr}
+
+///|
+pub extend Validity with Eq::{not_equal, equal}

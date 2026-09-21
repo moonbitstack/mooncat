@@ -224,3 +224,21 @@ pub fn decode_server_hello(body : BytesView) -> TlsServerHello? {
   }
   Some({ random, session_id, cipher_suite, extensions, })
 }
+
+///|
+pub extend TlsClientHello with Debug::{to_repr}
+
+///|
+pub extend TlsClientHello with Eq::{not_equal, equal}
+
+///|
+pub extend TlsExtension with Debug::{to_repr}
+
+///|
+pub extend TlsExtension with Eq::{not_equal, equal}
+
+///|
+pub extend TlsServerHello with Debug::{to_repr}
+
+///|
+pub extend TlsServerHello with Eq::{not_equal, equal}

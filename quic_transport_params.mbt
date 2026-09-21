@@ -112,3 +112,9 @@ pub fn decode_transport_params(b : BytesView) -> Array[TransportParam]? {
   }
   Some(out)
 }
+
+///|
+pub extend TransportParam with Debug::{to_repr}
+
+///|
+pub extend TransportParam with Eq::{not_equal, equal}

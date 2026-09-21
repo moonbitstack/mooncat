@@ -97,3 +97,27 @@ pub fn recv_stream_next(
     _ => raise StreamStateError("illegal recv-stream transition")
   }
 }
+
+///|
+pub extend RecvStreamEvent with Debug::{to_repr}
+
+///|
+pub extend RecvStreamEvent with Eq::{not_equal, equal}
+
+///|
+pub extend RecvStreamState with Debug::{to_repr}
+
+///|
+pub extend RecvStreamState with Eq::{not_equal, equal}
+
+///|
+pub extend SendStreamEvent with Debug::{to_repr}
+
+///|
+pub extend SendStreamEvent with Eq::{not_equal, equal}
+
+///|
+pub extend SendStreamState with Debug::{to_repr}
+
+///|
+pub extend SendStreamState with Eq::{not_equal, equal}

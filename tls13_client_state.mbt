@@ -66,3 +66,9 @@ pub fn tls_client_next(
     _ => raise tls_fatal(tls_alert_unexpected_message)
   }
 }
+
+///|
+pub extend TlsClientState with Debug::{to_repr}
+
+///|
+pub extend TlsClientState with Eq::{not_equal, equal}

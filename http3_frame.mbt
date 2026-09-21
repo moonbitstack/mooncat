@@ -226,3 +226,9 @@ pub fn http3_frame_decode_all(
   }
   (frames, off)
 }
+
+///|
+pub extend Http3Frame with Debug::{to_repr}
+
+///|
+pub extend Http3Frame with Eq::{not_equal, equal}

@@ -106,3 +106,15 @@ pub fn parse_long_header(b : BytesView) -> (QuicLongHeader, Int)? {
   off = off + scil
   Some(({ packet_type, type_specific, version, dcid, scid, }, off))
 }
+
+///|
+pub extend QuicLongHeader with Debug::{to_repr}
+
+///|
+pub extend QuicLongHeader with Eq::{not_equal, equal}
+
+///|
+pub extend QuicLongPacketType with Debug::{to_repr}
+
+///|
+pub extend QuicLongPacketType with Eq::{not_equal, equal}

@@ -45,3 +45,9 @@ pub fn quic_packet_keys(secret : Bytes) -> QuicPacketKeys {
     hp: hkdf_expand_label(secret, b"quic hp", b"", 16),
   }
 }
+
+///|
+pub extend QuicPacketKeys with Debug::{to_repr}
+
+///|
+pub extend QuicPacketKeys with Eq::{not_equal, equal}

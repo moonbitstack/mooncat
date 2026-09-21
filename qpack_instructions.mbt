@@ -139,3 +139,15 @@ pub fn qpack_decode_decoder_inst(input : BytesView) -> (QpackDecoderInst, Int)? 
     }
   }
 }
+
+///|
+pub extend QpackDecoderInst with Debug::{to_repr}
+
+///|
+pub extend QpackDecoderInst with Eq::{not_equal, equal}
+
+///|
+pub extend QpackEncoderInst with Debug::{to_repr}
+
+///|
+pub extend QpackEncoderInst with Eq::{not_equal, equal}
