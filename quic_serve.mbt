@@ -601,8 +601,8 @@ fn[A] QuicServeConn::on_frames(
 fn[A] QuicServeConn::adopt_peer_params(self : QuicServeConn[A]) -> Unit {
   let hello = self.core.client_hello()
   guard hello.length() > 0 else { return }
-  guard tls_parse_handshake(hello[:]) is Some((_, body)) else { return }
-  guard decode_client_hello(body[:]) is Some(ch) else { return }
+  guard @msg.unframe(hello[:]) is Some((_, body)) else { return }
+  guard @msg.read_hello(body[:]) is Some(ch) else { return }
   self.apply_peer_params(tls_hello_quic_transport_params(ch.extensions))
 }
 

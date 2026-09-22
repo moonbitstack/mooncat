@@ -8,7 +8,7 @@
 /// The next-generation 1-RTT traffic secret, `HKDF-Expand-Label(secret, "quic ku", "",
 /// Hash.length)` (RFC 9001 §6.1). Applying it again advances another generation.
 pub fn quic_key_update(secret : Bytes) -> Bytes {
-  hkdf_expand_label(secret, b"quic ku", b"", 32)
+  @keys.expand_label(secret[:], b"quic ku"[:], b""[:], len=32)
 }
 
 ///|

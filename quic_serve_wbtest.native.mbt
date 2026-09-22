@@ -16,7 +16,7 @@ async test "quic serve: the event loop demultiplexes a real datagram and answers
     let cid = qv_hexb("8394c8f03e515708")
     client.send_datagram(
       qs_initial(cid, b"\xaa", 0L, [
-        Crypto(offset=0, data=tls_encode_handshake(1, b"heke1228")),
+        Crypto(offset=0, data=@msg.frame(ClientHello, b"heke1228"[:])),
       ]),
       addr,
     )
@@ -37,7 +37,10 @@ async test "quic serve: the event loop demultiplexes a real datagram and answers
     )
     assert_eq(server.count(), 1)
     let conn = qs_conn(server, cid)
-    assert_eq(conn.core().client_hello(), tls_encode_handshake(1, b"heke1228"))
+    assert_eq(
+      conn.core().client_hello(),
+      @msg.frame(ClientHello, b"heke1228"[:]),
+    )
     loop_task.cancel()
     client.close()
   })

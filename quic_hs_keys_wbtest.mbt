@@ -10,11 +10,11 @@ test "RFC 8448 §3: named traffic secrets match the published values" {
     "860c06edc07858ee8e78f0e7428c58edd6b43f2ca3e6e95f02ed063cf0e1cad8",
   )
   assert_eq(
-    qv_hex(tls13_client_hs_traffic_secret(handshake, hs_th)),
+    qv_hex(@keys.client_handshake(handshake[:], hs_th[:])),
     "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21",
   )
   assert_eq(
-    qv_hex(tls13_server_hs_traffic_secret(handshake, hs_th)),
+    qv_hex(@keys.server_handshake(handshake[:], hs_th[:])),
     "b67b7d690cc16c4e75e54213cb2d37b4e9c912bcded9105d42befd59d391ad38",
   )
   let master = qv_hexb(
@@ -24,11 +24,11 @@ test "RFC 8448 §3: named traffic secrets match the published values" {
     "9608102a0f1ccc6db6250b7b7e417b1a000eaada3daae4777a7686c9ff83df13",
   )
   assert_eq(
-    qv_hex(tls13_client_ap_traffic_secret(master, ap_th)),
+    qv_hex(@keys.client_application(master[:], ap_th[:])),
     "9e40646ce79a7f9dc05af8889bce6552875afa0b06df0087f792ebb7c17504a5",
   )
   assert_eq(
-    qv_hex(tls13_server_ap_traffic_secret(master, ap_th)),
+    qv_hex(@keys.server_application(master[:], ap_th[:])),
     "a11af9f05531f856ad47116b45a950328204b4f44bfb6b3a4b4f1f3fcb631643",
   )
 }

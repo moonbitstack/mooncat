@@ -95,8 +95,8 @@ test "quic serve: two datagrams for different connection ids reach different con
   let server : QuicServer[String] = QuicServer::new(QuicServeConfig::default())
   let cid_a = qv_hexb("8394c8f03e515708")
   let cid_b = qv_hexb("1122334455667788")
-  let hello_a = tls_encode_handshake(1, b"emm")
-  let hello_b = tls_encode_handshake(1, b"hhh")
+  let hello_a = @msg.frame(ClientHello, b"emm"[:])
+  let hello_b = @msg.frame(ClientHello, b"hhh"[:])
   server.recv(
     qs_initial(cid_a, b"\xaa", 0L, [Crypto(offset=0, data=hello_a)]),
     "client-a",
@@ -126,7 +126,7 @@ test "quic serve: an ack-eliciting Initial datagram is padded to 1200 bytes (RFC
   let cid = qv_hexb("8394c8f03e515708")
   server.recv(
     qs_initial(cid, b"\xaa", 0L, [
-      Crypto(offset=0, data=tls_encode_handshake(1, b"emm")),
+      Crypto(offset=0, data=@msg.frame(ClientHello, b"emm"[:])),
     ]),
     "peer",
     0L,
@@ -135,7 +135,7 @@ test "quic serve: an ack-eliciting Initial datagram is padded to 1200 bytes (RFC
   // The ACK the server owes is not ack-eliciting, so ยง14.1 does not ask it to be padded.
   let ack = qs_next(server)
   assert_eq(ack.length() < quic_min_initial_datagram, true)
-  let server_hello = tls_encode_handshake(2, b"serverhello")
+  let server_hello = @msg.frame(ServerHello, b"serverhello"[:])
   conn.send(QuicLevel::Initial, [Crypto(offset=0, data=server_hello)])
   let flight = qs_next(server)
   assert_eq(flight.length() >= quic_min_initial_datagram, true)
@@ -150,7 +150,7 @@ test "quic serve: a server sends at most 3x what it received before the address 
   let server : QuicServer[String] = QuicServer::new(QuicServeConfig::default())
   let cid = qv_hexb("8394c8f03e515708")
   let first = qs_initial(cid, b"\xaa", 0L, [
-    Crypto(offset=0, data=tls_encode_handshake(1, b"emm")),
+    Crypto(offset=0, data=@msg.frame(ClientHello, b"emm"[:])),
   ])
   server.recv(first, "peer", 0L)
   let conn = qs_conn(server, cid)
@@ -158,7 +158,10 @@ test "quic serve: a server sends at most 3x what it received before the address 
   // Far more than the budget: each of these is padded to 1200 bytes.
   for _i = 0; _i < 8; _i = _i + 1 {
     conn.send(QuicLevel::Initial, [
-      Crypto(offset=0, data=tls_encode_handshake(2, b"serverhello-many-bytes")),
+      Crypto(
+        offset=0,
+        data=@msg.frame(ServerHello, b"serverhello-many-bytes"[:]),
+      ),
     ])
   }
   let (count, sent) = qs_drain(server)
@@ -195,7 +198,7 @@ test "quic serve: an idle connection times out on the injected clock (RFC 9000 ย
   let cid = qv_hexb("8394c8f03e515708")
   server.recv(
     qs_initial(cid, b"\xaa", 0L, [
-      Crypto(offset=0, data=tls_encode_handshake(1, b"emm")),
+      Crypto(offset=0, data=@msg.frame(ClientHello, b"emm"[:])),
     ]),
     "peer",
     1_000L,
@@ -217,7 +220,7 @@ test "quic serve: closing a connection puts CONNECTION_CLOSE on the wire (RFC 90
   let cid = qv_hexb("8394c8f03e515708")
   server.recv(
     qs_initial(cid, b"\xaa", 0L, [
-      Crypto(offset=0, data=tls_encode_handshake(1, b"emm")),
+      Crypto(offset=0, data=@msg.frame(ClientHello, b"emm"[:])),
     ]),
     "peer",
     0L,
@@ -277,7 +280,7 @@ test "quic serve: queued stream data leaves as a protected 1-RTT packet (RFC 900
   let scid = b"\xaa\xbb"
   server.recv(
     qs_initial(cid, scid, 0L, [
-      Crypto(offset=0, data=tls_encode_handshake(1, b"emm")),
+      Crypto(offset=0, data=@msg.frame(ClientHello, b"emm"[:])),
     ]),
     "peer",
     0L,
@@ -303,7 +306,7 @@ test "quic serve: the probe timeout re-queues an unacknowledged packet (RFC 9002
   let scid = b"\xaa\xbb"
   server.recv(
     qs_initial(cid, scid, 0L, [
-      Crypto(offset=0, data=tls_encode_handshake(1, b"emm")),
+      Crypto(offset=0, data=@msg.frame(ClientHello, b"emm"[:])),
     ]),
     "peer",
     0L,
@@ -332,7 +335,7 @@ test "quic serve: a short-header datagram is demultiplexed by the id it carries 
   let cid = qv_hexb("8394c8f03e515708")
   server.recv(
     qs_initial(cid, b"\xaa\xbb", 0L, [
-      Crypto(offset=0, data=tls_encode_handshake(1, b"emm")),
+      Crypto(offset=0, data=@msg.frame(ClientHello, b"emm"[:])),
     ]),
     "peer",
     0L,
@@ -368,7 +371,7 @@ test "quic serve: the send loop and the connection number one Application space 
   let scid = b"\xaa\xbb"
   server.recv(
     qs_initial(cid, scid, 0L, [
-      Crypto(offset=0, data=tls_encode_handshake(1, b"emm")),
+      Crypto(offset=0, data=@msg.frame(ClientHello, b"emm"[:])),
     ]),
     "peer",
     0L,

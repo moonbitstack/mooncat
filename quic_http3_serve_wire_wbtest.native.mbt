@@ -9,7 +9,7 @@ async test "quic http3 serve over udp: the server routes a request through a han
     let master_secret = qv_hexb(
       "6666666666666666666666666666666666666666666666666666666666666666",
     )
-    let th = sha256(b"http3-serve-wire-lfanke")
+    let th = @sha2.hash(b"http3-serve-wire-lfanke"[:])
     let client_app_keys = quic_application_keys(master_secret, th, true)
     let server_app_keys = quic_application_keys(master_secret, th, false)
     let server_cid = qv_hexb("00112233aabbccdd")

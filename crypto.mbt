@@ -6,13 +6,6 @@
 // suite on every call.
 
 ///|
-/// SHA-256 over a whole message — the digest TLS 1.3 and QUIC fix alongside
-/// AES-128-GCM, named here so the protocol code does not restate the suite.
-fn sha256(msg : Bytes) -> Bytes {
-  @sha2.hash(msg[:])
-}
-
-///|
 /// A P-256 private key from the hex of its scalar.
 ///
 /// Hex is what a fixture and an example carry. A key from a file is PEM or DER,
@@ -22,12 +15,6 @@ pub fn ec_private(scalar : String) -> @ecdsa.PrivateKey {
   @ecdsa.PrivateKey::new(@base16.decode_lossy(scalar)[:], curve=P256) catch {
     _ => abort("mooncat: not a P-256 scalar")
   }
-}
-
-///|
-/// HMAC-SHA256, the MAC the TLS 1.3 key schedule runs on.
-fn hmac256(key : Bytes, msg : Bytes) -> Bytes {
-  @hmac.mac(key[:], msg[:], digest)
 }
 
 ///|

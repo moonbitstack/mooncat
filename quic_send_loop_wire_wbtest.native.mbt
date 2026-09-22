@@ -9,7 +9,7 @@ async test "quic send loop over udp: QuicSender streams data through 1-RTT packe
     let master_secret = qv_hexb(
       "2333333333333333333333333333333333333333333333333333333333333333",
     )
-    let th = sha256(b"send-loop-wire-lfanke")
+    let th = @sha2.hash(b"send-loop-wire-lfanke"[:])
     let sender_keys = quic_application_keys(master_secret, th, true)
     let ack_keys = quic_application_keys(master_secret, th, false)
     let server_cid = qv_hexb("00112233aabbccdd")
@@ -116,7 +116,7 @@ async test "quic send loop over udp: a probe timeout retransmits over the wire a
     let master_secret = qv_hexb(
       "2333333333333333333333333333333333333333333333333333333333333333",
     )
-    let th = sha256(b"send-loop-pto-lfanke")
+    let th = @sha2.hash(b"send-loop-pto-lfanke"[:])
     let sender_keys = quic_application_keys(master_secret, th, true)
     let ack_keys = quic_application_keys(master_secret, th, false)
     let server_cid = qv_hexb("00112233aabbccdd")

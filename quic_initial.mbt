@@ -20,19 +20,29 @@ pub(all) struct QuicPacketKeys {
 /// The Initial secret shared by both endpoints: HKDF-Extract(initial_salt, DCID),
 /// where DCID is the Destination Connection ID from the client's first packet.
 pub fn quic_initial_secret(dcid : Bytes) -> Bytes {
-  hkdf_extract(quic_v1_initial_salt, dcid)
+  @keys.extract(quic_v1_initial_salt[:], dcid[:])
 }
 
 ///|
 /// The client's Initial secret, `HKDF-Expand-Label(initial, "client in", "", 32)`.
 pub fn quic_client_initial_secret(dcid : Bytes) -> Bytes {
-  hkdf_expand_label(quic_initial_secret(dcid), b"client in", b"", 32)
+  @keys.expand_label(
+    quic_initial_secret(dcid)[:],
+    b"client in"[:],
+    b""[:],
+    len=32,
+  )
 }
 
 ///|
 /// The server's Initial secret, `HKDF-Expand-Label(initial, "server in", "", 32)`.
 pub fn quic_server_initial_secret(dcid : Bytes) -> Bytes {
-  hkdf_expand_label(quic_initial_secret(dcid), b"server in", b"", 32)
+  @keys.expand_label(
+    quic_initial_secret(dcid)[:],
+    b"server in"[:],
+    b""[:],
+    len=32,
+  )
 }
 
 ///|
@@ -40,9 +50,9 @@ pub fn quic_server_initial_secret(dcid : Bytes) -> Bytes {
 /// are "quic key", "quic iv", and "quic hp", at the AEAD_AES_128_GCM lengths.
 pub fn quic_packet_keys(secret : Bytes) -> QuicPacketKeys {
   {
-    key: hkdf_expand_label(secret, b"quic key", b"", 16),
-    iv: hkdf_expand_label(secret, b"quic iv", b"", 12),
-    hp: hkdf_expand_label(secret, b"quic hp", b"", 16),
+    key: @keys.expand_label(secret[:], b"quic key"[:], b""[:], len=16),
+    iv: @keys.expand_label(secret[:], b"quic iv"[:], b""[:], len=12),
+    hp: @keys.expand_label(secret[:], b"quic hp"[:], b""[:], len=16),
   }
 }
 

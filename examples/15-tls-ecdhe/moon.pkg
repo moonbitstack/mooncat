@@ -1,8 +1,0 @@
-import {
-  "moonbitstack/mooncat",
-  "moonbitstack/mooncrypt/hash/sha2",
-}
-
-supported_targets = "+native"
-
-pkgtype(kind: "executable")

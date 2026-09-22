@@ -11,7 +11,7 @@
 /// bookkeeping, and the TLS handshake it is driving.
 pub struct QuicServerConn {
   initial_keys : QuicPacketKeys
-  handshake : TlsServerHandshake
+  handshake : @hs.Handshake
   conn : QuicConnection
 }
 
@@ -21,28 +21,28 @@ pub struct QuicServerConn {
 pub fn QuicServerConn::new(dcid : Bytes) -> QuicServerConn {
   {
     initial_keys: quic_packet_keys(quic_client_initial_secret(dcid)),
-    handshake: TlsServerHandshake::new(),
+    handshake: @hs.Handshake::new(),
     conn: QuicConnection::new(true),
   }
 }
 
 ///|
 /// The current TLS handshake state.
-pub fn QuicServerConn::handshake_state(self : QuicServerConn) -> TlsServerState {
+pub fn QuicServerConn::handshake_state(self : QuicServerConn) -> @hs.Server {
   self.handshake.state()
 }
 
 ///|
 /// The transcript hash over the handshake messages processed so far.
 pub fn QuicServerConn::transcript_hash(self : QuicServerConn) -> Bytes {
-  self.handshake.transcript_hash()
+  self.handshake.transcript()
 }
 
 ///|
 /// The raw ClientHello the connection received (empty before one arrives): the source a
 /// server runs the ECDHE key_share from to derive its handshake secrets.
 pub fn QuicServerConn::client_hello(self : QuicServerConn) -> Bytes {
-  self.handshake.client_hello()
+  self.handshake.hello()
 }
 
 ///|
@@ -52,7 +52,7 @@ pub fn QuicServerConn::client_hello(self : QuicServerConn) -> Bytes {
 /// serve, and returns `Retry` when the answer is a HelloRetryRequest.
 pub fn QuicServerConn::negotiate(
   self : QuicServerConn,
-) -> TlsNegotiation raise TlsAlert {
+) -> @hs.Choice raise @alert.Alert {
   self.handshake.negotiate()
 }
 
@@ -71,13 +71,13 @@ pub fn QuicServerConn::initial_ack_pending(self : QuicServerConn) -> Bool {
 /// `send_handshake_flight`, which advances it to WAIT_FINISHED.
 pub fn QuicServerConn::send_server_hello(
   self : QuicServerConn,
-  server_hello : TlsServerHello,
+  server_hello : @msg.Server,
   out_dcid : Bytes,
   out_scid : Bytes,
   pn : Int64,
 ) -> Bytes {
-  let sh_msg = encode_server_hello(server_hello)
-  self.handshake.record_sent(sh_msg)
+  let sh_msg = @msg.server_hello(server_hello)
+  self.handshake.sent(sh_msg[:])
   quic_send_initial(
     1U,
     out_dcid,
@@ -110,19 +110,19 @@ pub fn QuicServerConn::send_handshake_flight(
   out_scid : Bytes,
   pn : Int64,
 ) -> Bytes raise {
-  let ee = tls_encode_handshake(8, encrypted_extensions)
-  let cert = tls_encode_handshake(11, certificate)
-  let cv = tls_encode_handshake(15, certificate_verify)
-  self.handshake.record_sent(ee)
-  self.handshake.record_sent(cert)
-  self.handshake.record_sent(cv)
-  let verify_data = tls13_finished_verify_data(
-    server_hs_secret,
-    self.handshake.transcript_hash(),
+  let ee = @msg.frame(EncryptedExtensions, encrypted_extensions[:])
+  let cert = @msg.frame(Certificate, certificate[:])
+  let cv = @msg.frame(CertificateVerify, certificate_verify[:])
+  self.handshake.sent(ee[:])
+  self.handshake.sent(cert[:])
+  self.handshake.sent(cv[:])
+  let verify_data = @keys.finished(
+    server_hs_secret[:],
+    self.handshake.transcript()[:],
   )
-  let fin = tls_encode_handshake(20, verify_data)
-  self.handshake.record_sent(fin)
-  self.handshake.sent_flight(false)
+  let fin = @msg.frame(Finished, verify_data[:])
+  self.handshake.sent(fin[:])
+  self.handshake.sent_flight(client_cert=false)
   let crypto = bytes_concat(bytes_concat(bytes_concat(ee, cert), cv), fin)
   quic_send_handshake(
     1U,
@@ -153,24 +153,24 @@ pub fn QuicServerConn::send_handshake_flight_signed(
   out_scid : Bytes,
   pn : Int64,
 ) -> Bytes raise {
-  let ee = tls_encode_handshake(8, encrypted_extensions)
-  let cert = tls_encode_handshake(11, certificate)
-  self.handshake.record_sent(ee)
-  self.handshake.record_sent(cert)
+  let ee = @msg.frame(EncryptedExtensions, encrypted_extensions[:])
+  let cert = @msg.frame(Certificate, certificate[:])
+  self.handshake.sent(ee[:])
+  self.handshake.sent(cert[:])
   let cv_body = tls13_certificate_verify_sign(
     signing_key,
-    tls13_cv_context_server,
-    self.handshake.transcript_hash(),
+    @msg.server_context,
+    self.handshake.transcript(),
   )
-  let cv = tls_encode_handshake(15, cv_body)
-  self.handshake.record_sent(cv)
-  let verify_data = tls13_finished_verify_data(
-    server_hs_secret,
-    self.handshake.transcript_hash(),
+  let cv = @msg.frame(CertificateVerify, cv_body[:])
+  self.handshake.sent(cv[:])
+  let verify_data = @keys.finished(
+    server_hs_secret[:],
+    self.handshake.transcript()[:],
   )
-  let fin = tls_encode_handshake(20, verify_data)
-  self.handshake.record_sent(fin)
-  self.handshake.sent_flight(false)
+  let fin = @msg.frame(Finished, verify_data[:])
+  self.handshake.sent(fin[:])
+  self.handshake.sent_flight(client_cert=false)
   let crypto = bytes_concat(bytes_concat(bytes_concat(ee, cert), cv), fin)
   quic_send_handshake(
     1U,
@@ -195,9 +195,9 @@ pub fn QuicServerConn::on_frames(
   level : QuicLevel,
   frames : Array[QuicFrame],
   pn : Int64,
-) -> Array[Int] raise {
+) -> Array[@msg.Kind] raise {
   self.conn.on_packet_received(level, pn, quic_payload_is_ack_eliciting(frames))
-  let processed : Array[Int] = []
+  let processed : Array[@msg.Kind] = []
   for frame in frames {
     match frame {
       Crypto(offset~, data~) => {
@@ -222,7 +222,7 @@ pub fn QuicServerConn::on_frames(
 pub fn QuicServerConn::receive_initial(
   self : QuicServerConn,
   packet : Bytes,
-) -> Array[Int] raise {
+) -> Array[@msg.Kind] raise {
   let (frames, pn) = match quic_recv_initial(packet, self.initial_keys) {
     Some(v) => v
     None => raise QuicPayloadError("Initial packet failed to authenticate")
@@ -279,15 +279,17 @@ pub fn QuicServerConn::on_handshake_frames(
         if contiguous.length() > 0 {
           // The Finished MACs the transcript as it stands now (through the server Finished),
           // so verify against the current hash before folding the client Finished in.
-          let th = self.handshake.transcript_hash()
+          let th = self.handshake.transcript()
           let view = contiguous[:]
           let mut off = 0
           for ;; {
-            match tls_parse_handshake(view[off:]) {
+            match @msg.unframe(view[off:]) {
               Some((t, body)) => {
-                if t == tls_hs_finished {
-                  finished_ok = tls13_finished_verify(
-                    client_hs_secret, th, body,
+                if t == @msg.Kind::Finished {
+                  finished_ok = @keys.finished_ok(
+                    client_hs_secret[:],
+                    th[:],
+                    body[:],
                   )
                 }
                 off = off + 4 + body.length()

@@ -12,7 +12,7 @@ fn client_initial_keys(dcid : Bytes) -> QuicPacketKeys {
 test "server conn: a ClientHello in one Initial packet reaches RECVD_CH" {
   let dcid = qv_hexb("8394c8f03e515708")
   let keys = client_initial_keys(dcid)
-  let ch = tls_encode_handshake(1, b"clienthello-body")
+  let ch = @msg.frame(ClientHello, b"clienthello-body"[:])
   let packet = quic_send_initial(
     1U,
     dcid,
@@ -24,7 +24,7 @@ test "server conn: a ClientHello in one Initial packet reaches RECVD_CH" {
     keys,
   )
   let server = QuicServerConn::new(dcid)
-  assert_eq(server.receive_initial(packet), [1])
+  assert_eq(server.receive_initial(packet), [ClientHello])
   assert_eq(server.handshake_state(), RecvdClientHello)
   // The ack-eliciting Initial owes an ACK.
   assert_eq(server.initial_ack_pending(), true)
@@ -34,7 +34,7 @@ test "server conn: a ClientHello in one Initial packet reaches RECVD_CH" {
 test "server conn: a ClientHello split across two Initial packets reassembles" {
   let dcid = qv_hexb("0001020304050607")
   let keys = client_initial_keys(dcid)
-  let ch = tls_encode_handshake(1, b"a-longer-clienthello-body")
+  let ch = @msg.frame(ClientHello, b"a-longer-clienthello-body"[:])
   let first = ch[0:15].to_owned()
   let rest = ch[15:ch.length()].to_owned()
   let packet1 = quic_send_initial(
@@ -62,7 +62,7 @@ test "server conn: a ClientHello split across two Initial packets reassembles" {
   assert_eq(server.receive_initial(packet1), [])
   assert_eq(server.handshake_state(), Start)
   // The second packet completes it.
-  assert_eq(server.receive_initial(packet2), [1])
+  assert_eq(server.receive_initial(packet2), [ClientHello])
   assert_eq(server.handshake_state(), RecvdClientHello)
 }
 
@@ -78,17 +78,17 @@ test "server conn: send_server_hello produces a ServerHello the client can decod
     b"",
     0,
     4,
-    [Crypto(offset=0, data=tls_encode_handshake(1, b"ch"))],
+    [Crypto(offset=0, data=@msg.frame(ClientHello, b"ch"[:]))],
     keys,
   )
   let server = QuicServerConn::new(dcid)
   let _ = server.receive_initial(ch_packet)
   assert_eq(server.handshake_state(), RecvdClientHello)
   // The server builds and protects its ServerHello.
-  let sh = TlsServerHello::{
+  let sh = @msg.Server::{
     random: Bytes::make(32, b'\xab'),
     session_id: b"",
-    cipher_suite: 0x1301,
+    suite: 0x1301,
     extensions: [],
   }
   let sh_packet = server.send_server_hello(sh, b"", b"\x01\x02\x03\x04", 0)
@@ -98,12 +98,13 @@ test "server conn: send_server_hello produces a ServerHello the client can decod
   // The client (sharing the Initial keys) receives it and decodes the ServerHello.
   let decoded = match quic_recv_initial(sh_packet, keys) {
     Some((frames, _)) => {
-      let mut result : TlsServerHello? = None
+      let mut result : @msg.Server? = None
       for frame in frames {
         match frame {
           Crypto(data~, ..) =>
-            match tls_parse_handshake(data[:]) {
-              Some((2, body)) => result = decode_server_hello(body[:])
+            match @msg.unframe(data[:]) {
+              Some((ServerHello, body)) =>
+                result = @msg.read_server_hello(body[:])
               _ => ()
             }
           _ => ()
@@ -125,7 +126,7 @@ test "server conn: send_handshake_flight emits EE/Cert/CertVerify/Finished the c
   let initial_keys = client_initial_keys(dcid)
   let server = QuicServerConn::new(dcid)
   // Client sends its ClientHello; the server receives it, then sends its ServerHello.
-  let ch = tls_encode_handshake(1, b"ch")
+  let ch = @msg.frame(ClientHello, b"ch"[:])
   let ch_packet = quic_send_initial(
     1U,
     dcid,
@@ -137,14 +138,14 @@ test "server conn: send_handshake_flight emits EE/Cert/CertVerify/Finished the c
     initial_keys,
   )
   let _ = server.receive_initial(ch_packet)
-  let sh = TlsServerHello::{
+  let sh = @msg.Server::{
     random: Bytes::make(32, b'\xcd'),
     session_id: b"",
-    cipher_suite: 0x1301,
+    suite: 0x1301,
     extensions: [],
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
-  let sh_msg = encode_server_hello(sh)
+  let sh_msg = @msg.server_hello(sh)
   // The server sends its Handshake-space flight (a real 32-byte server handshake secret).
   let secret = qv_hexb(
     "b67b7d690cc16c4e75e54213cb2d37b4e9c912bcded9105d42befd59d391ad38",
@@ -169,11 +170,11 @@ test "server conn: send_handshake_flight emits EE/Cert/CertVerify/Finished the c
           _ => ()
         }
       }
-      let out : Array[(Int, Bytes)] = []
+      let out : Array[(@msg.Kind, Bytes)] = []
       let view = crypto[:]
       let mut off = 0
       for ;; {
-        match tls_parse_handshake(view[off:]) {
+        match @msg.unframe(view[off:]) {
           Some((t, body)) => {
             out.push((t, body))
             off = off + 4 + body.length()
@@ -187,19 +188,19 @@ test "server conn: send_handshake_flight emits EE/Cert/CertVerify/Finished the c
   }
   // The four handshake messages, in order.
   assert_eq(msgs.length(), 4)
-  assert_eq(msgs[0].0, 8) // EncryptedExtensions
-  assert_eq(msgs[1].0, 11) // Certificate
-  assert_eq(msgs[2].0, 15) // CertificateVerify
-  assert_eq(msgs[3].0, 20) // Finished
+  assert_eq(msgs[0].0, @msg.Kind::EncryptedExtensions) // EncryptedExtensions
+  assert_eq(msgs[1].0, @msg.Kind::Certificate) // Certificate
+  assert_eq(msgs[2].0, @msg.Kind::CertificateVerify) // CertificateVerify
+  assert_eq(msgs[3].0, @msg.Kind::Finished) // Finished
   // The Finished verify_data is the MAC over the transcript CH..SH..EE..Cert..CertVerify.
-  let ee = tls_encode_handshake(8, ee_body)
-  let cert = tls_encode_handshake(11, cert_body)
-  let cv = tls_encode_handshake(15, cv_body)
+  let ee = @msg.frame(EncryptedExtensions, ee_body[:])
+  let cert = @msg.frame(Certificate, cert_body[:])
+  let cv = @msg.frame(CertificateVerify, cv_body[:])
   let transcript = bytes_concat(
     bytes_concat(bytes_concat(bytes_concat(ch, sh_msg), ee), cert),
     cv,
   )
-  let expected = tls13_finished_verify_data(secret, @sha2.hash(transcript[:]))
+  let expected = @keys.finished(secret[:], @sha2.hash(transcript[:][:]))
   assert_eq(msgs[3].1, expected)
 }
 
@@ -209,7 +210,7 @@ test "server conn: receive_handshake verifies the client Finished and reaches CO
   let initial_keys = client_initial_keys(dcid)
   let server = QuicServerConn::new(dcid)
   // Drive the server through ClientHello, ServerHello, and its Handshake flight.
-  let ch = tls_encode_handshake(1, b"ch")
+  let ch = @msg.frame(ClientHello, b"ch"[:])
   let ch_packet = quic_send_initial(
     1U,
     dcid,
@@ -221,14 +222,14 @@ test "server conn: receive_handshake verifies the client Finished and reaches CO
     initial_keys,
   )
   let _ = server.receive_initial(ch_packet)
-  let sh = TlsServerHello::{
+  let sh = @msg.Server::{
     random: Bytes::make(32, b'\xcd'),
     session_id: b"",
-    cipher_suite: 0x1301,
+    suite: 0x1301,
     extensions: [],
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
-  let sh_msg = encode_server_hello(sh)
+  let sh_msg = @msg.server_hello(sh)
   let server_secret = qv_hexb(
     "b67b7d690cc16c4e75e54213cb2d37b4e9c912bcded9105d42befd59d391ad38",
   )
@@ -241,16 +242,16 @@ test "server conn: receive_handshake verifies the client Finished and reaches CO
   assert_eq(server.handshake_state(), WaitFinished)
   // Reconstruct the transcript the server holds, through its own Finished, so the client
   // can compute its Finished over the same bytes.
-  let ee = tls_encode_handshake(8, ee_body)
-  let cert = tls_encode_handshake(11, cert_body)
-  let cv = tls_encode_handshake(15, cv_body)
+  let ee = @msg.frame(EncryptedExtensions, ee_body[:])
+  let cert = @msg.frame(Certificate, cert_body[:])
+  let cv = @msg.frame(CertificateVerify, cv_body[:])
   let through_cv = bytes_concat(
     bytes_concat(bytes_concat(bytes_concat(ch, sh_msg), ee), cert),
     cv,
   )
-  let server_fin = tls_encode_handshake(
-    20,
-    tls13_finished_verify_data(server_secret, @sha2.hash(through_cv[:])),
+  let server_fin = @msg.frame(
+    Finished,
+    @keys.finished(server_secret[:], @sha2.hash(through_cv[:][:][:])),
   )
   let through_server_fin = bytes_concat(through_cv, server_fin)
   // The client Finished MACs the transcript through the server Finished with the client
@@ -258,9 +259,9 @@ test "server conn: receive_handshake verifies the client Finished and reaches CO
   let client_secret = qv_hexb(
     "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21",
   )
-  let client_fin = tls_encode_handshake(
-    20,
-    tls13_finished_verify_data(client_secret, @sha2.hash(through_server_fin[:])),
+  let client_fin = @msg.frame(
+    Finished,
+    @keys.finished(client_secret[:], @sha2.hash(through_server_fin[:][:][:])),
   )
   let client_keys = quic_packet_keys(client_secret)
   let fin_packet = quic_send_handshake(
@@ -284,7 +285,7 @@ test "server conn: receive_handshake rejects a Finished with the wrong verify_da
   let dcid = qv_hexb("8394c8f03e515708")
   let initial_keys = client_initial_keys(dcid)
   let server = QuicServerConn::new(dcid)
-  let ch = tls_encode_handshake(1, b"ch")
+  let ch = @msg.frame(ClientHello, b"ch"[:])
   let ch_packet = quic_send_initial(
     1U,
     dcid,
@@ -296,10 +297,10 @@ test "server conn: receive_handshake rejects a Finished with the wrong verify_da
     initial_keys,
   )
   let _ = server.receive_initial(ch_packet)
-  let sh = TlsServerHello::{
+  let sh = @msg.Server::{
     random: Bytes::make(32, b'\xcd'),
     session_id: b"",
-    cipher_suite: 0x1301,
+    suite: 0x1301,
     extensions: [],
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
@@ -314,7 +315,7 @@ test "server conn: receive_handshake rejects a Finished with the wrong verify_da
   let client_secret = qv_hexb(
     "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21",
   )
-  let bad_fin = tls_encode_handshake(20, Bytes::make(32, b'\x00'))
+  let bad_fin = @msg.frame(Finished, Bytes::make(32, b'\x00')[:])
   let client_keys = quic_packet_keys(client_secret)
   let fin_packet = quic_send_handshake(
     1U,
@@ -343,18 +344,18 @@ test "server conn: the handshake flight is protected with ECDHE-derived keys the
   let client_pub = tls13_x25519_public(client_priv)
   let server_pub = tls13_x25519_public(server_priv)
   // The client sends a real ClientHello carrying its x25519 key_share.
-  let ch = TlsClientHello::{
+  let ch = @msg.Hello::{
     random: Bytes::make(32, b'\x23'),
     session_id: b"heke1228",
-    cipher_suites: [0x1301],
+    suites: [0x1301],
     extensions: [
       {
-        ext_type: tls_ext_key_share,
-        data: tls_encode_key_share_client([(tls_group_x25519, client_pub)]),
+        kind: @ext.Kind::KeyShare,
+        data: @ext.shares([(@ext.x25519, client_pub)]),
       },
     ],
   }
-  let ch_msg = encode_client_hello(ch)
+  let ch_msg = @msg.hello(ch)
   let initial_keys = client_initial_keys(dcid)
   let ch_initial = quic_send_initial(
     1U,
@@ -370,11 +371,16 @@ test "server conn: the handshake flight is protected with ECDHE-derived keys the
   let _ = server.receive_initial(ch_initial)
   // The server replies with a ServerHello carrying its key_share, then derives its handshake
   // secret from the ECDHE over the CH..SH transcript.
-  let sh = TlsServerHello::{
+  let sh = @msg.Server::{
     random: Bytes::make(32, b'\x66'),
     session_id: b"heke1228",
-    cipher_suite: 0x1301,
-    extensions: [tls_key_share_extension(tls_group_x25519, server_pub)],
+    suite: 0x1301,
+    extensions: [
+      @ext.Ext::{
+        kind: KeyShare,
+        data: @ext.selected_share(@ext.x25519, server_pub[:]),
+      },
+    ],
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
   let th = server.transcript_hash()
@@ -395,14 +401,14 @@ test "server conn: the handshake flight is protected with ECDHE-derived keys the
   let types = match
     quic_recv_handshake(flight, quic_packet_keys(client_hs_secret)) {
     Some((frames, _)) => {
-      let out : Array[Int] = []
+      let out : Array[@msg.Kind] = []
       for frame in frames {
         match frame {
           Crypto(data~, ..) => {
             let view = data[:]
             let mut off = 0
             for ;; {
-              match tls_parse_handshake(view[off:]) {
+              match @msg.unframe(view[off:]) {
                 Some((t, body)) => {
                   out.push(t)
                   off = off + 4 + body.length()
@@ -419,7 +425,12 @@ test "server conn: the handshake flight is protected with ECDHE-derived keys the
     None =>
       abort("client could not decrypt the ECDHE-protected handshake flight")
   }
-  assert_eq(types, [8, 11, 15, 20]) // EE, Certificate, CertificateVerify, Finished
+  assert_eq(types, [
+    @msg.Kind::EncryptedExtensions,
+    @msg.Kind::Certificate,
+    @msg.Kind::CertificateVerify,
+    @msg.Kind::Finished,
+  ])
 }
 
 ///|
@@ -434,18 +445,18 @@ test "server conn: a full ECDHE handshake reaches CONNECTED" {
   let client_pub = tls13_x25519_public(client_priv)
   let server_pub = tls13_x25519_public(server_priv)
   // Client ClientHello with key_share, delivered over an Initial packet.
-  let ch = TlsClientHello::{
+  let ch = @msg.Hello::{
     random: Bytes::make(32, b'\x23'),
     session_id: b"lfanke",
-    cipher_suites: [0x1301],
+    suites: [0x1301],
     extensions: [
       {
-        ext_type: tls_ext_key_share,
-        data: tls_encode_key_share_client([(tls_group_x25519, client_pub)]),
+        kind: @ext.Kind::KeyShare,
+        data: @ext.shares([(@ext.x25519, client_pub)]),
       },
     ],
   }
-  let ch_msg = encode_client_hello(ch)
+  let ch_msg = @msg.hello(ch)
   let initial_keys = client_initial_keys(dcid)
   let server = QuicServerConn::new(dcid)
   let _ = server.receive_initial(
@@ -461,11 +472,16 @@ test "server conn: a full ECDHE handshake reaches CONNECTED" {
     ),
   )
   // Server ServerHello with key_share; derive the handshake secret from the ECDHE.
-  let sh = TlsServerHello::{
+  let sh = @msg.Server::{
     random: Bytes::make(32, b'\x66'),
     session_id: b"lfanke",
-    cipher_suite: 0x1301,
-    extensions: [tls_key_share_extension(tls_group_x25519, server_pub)],
+    suite: 0x1301,
+    extensions: [
+      @ext.Ext::{
+        kind: KeyShare,
+        data: @ext.selected_share(@ext.x25519, server_pub[:]),
+      },
+    ],
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
   let th_ch_sh = server.transcript_hash()
@@ -485,26 +501,23 @@ test "server conn: a full ECDHE handshake reaches CONNECTED" {
   let client_hs_secret = tls13_ecdhe_handshake_traffic_secret(
     client_priv, server_pub, th_ch_sh, true,
   )
-  let sh_msg = encode_server_hello(sh)
-  let ee = tls_encode_handshake(8, ee_body)
-  let cert = tls_encode_handshake(11, cert_body)
-  let cv = tls_encode_handshake(15, cv_body)
+  let sh_msg = @msg.server_hello(sh)
+  let ee = @msg.frame(EncryptedExtensions, ee_body[:])
+  let cert = @msg.frame(Certificate, cert_body[:])
+  let cv = @msg.frame(CertificateVerify, cv_body[:])
   let through_cv = bytes_concat(
     bytes_concat(bytes_concat(bytes_concat(ch_msg, sh_msg), ee), cert),
     cv,
   )
-  let server_fin = tls_encode_handshake(
-    20,
-    tls13_finished_verify_data(server_hs_secret, @sha2.hash(through_cv[:])),
+  let server_fin = @msg.frame(
+    Finished,
+    @keys.finished(server_hs_secret[:], @sha2.hash(through_cv[:][:][:])),
   )
   let through_server_fin = bytes_concat(through_cv, server_fin)
   // Client sends its Finished over the shared transcript in a Handshake packet.
-  let client_fin = tls_encode_handshake(
-    20,
-    tls13_finished_verify_data(
-      client_hs_secret,
-      @sha2.hash(through_server_fin[:]),
-    ),
+  let client_fin = @msg.frame(
+    Finished,
+    @keys.finished(client_hs_secret[:], @sha2.hash(through_server_fin[:][:][:])),
   )
   let client_keys = quic_packet_keys(client_hs_secret)
   let fin_packet = quic_send_handshake(
@@ -535,7 +548,7 @@ test "server conn: a tampered Initial packet is rejected" {
     b"",
     0,
     4,
-    [Crypto(offset=0, data=tls_encode_handshake(1, b"ch"))],
+    [Crypto(offset=0, data=@msg.frame(ClientHello, b"ch"[:]))],
     keys,
   )
   let buf = Buffer()

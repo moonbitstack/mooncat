@@ -27,7 +27,7 @@ async test "quic over udp: an HTTP/3 request and response round-trip over QUIC S
     let master_secret = qv_hexb(
       "2333333333333333333333333333333333333333333333333333333333333333",
     )
-    let th = sha256(b"lfanke-connected-transcript")
+    let th = @sha2.hash(b"lfanke-connected-transcript"[:])
     let client_app_keys = quic_application_keys(master_secret, th, true)
     let server_app_keys = quic_application_keys(master_secret, th, false)
     let server_cid = qv_hexb("00112233aabbccdd")

@@ -33,11 +33,16 @@ async test "quic http3 connection: handshake then serve a request on one connect
     let _ = g.spawn(() => {
       let (ch_dg, client_addr) = server_ep.recv_datagram()
       let _ = server_conn.receive_initial(ch_dg) catch { _ => [] }
-      let sh = TlsServerHello::{
+      let sh = @msg.Server::{
         random: Bytes::make(32, b'\x66'),
         session_id: b"lfanke",
-        cipher_suite: 0x1301,
-        extensions: [tls_key_share_extension(tls_group_x25519, server_pub)],
+        suite: 0x1301,
+        extensions: [
+          @ext.Ext::{
+            kind: KeyShare,
+            data: @ext.selected_share(@ext.x25519, server_pub[:]),
+          },
+        ],
       }
       server_ep.send_datagram(
         server_conn.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0),
@@ -66,7 +71,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
         _ => false
       }
       // 1-RTT keys from the handshake: master secret over the CH..server-Finished transcript.
-      let master = tls13_master_secret(
+      let master = @keys.master(
         tls13_handshake_secret_from_ecdhe(server_priv, client_pub),
       )
       let client_app_keys = quic_application_keys(master, th_app, true)
@@ -103,18 +108,18 @@ async test "quic http3 connection: handshake then serve a request on one connect
     @async.sleep(100)
     // Client: drive the handshake, derive the 1-RTT keys, then send the request and read the reply.
     let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
-    let ch = TlsClientHello::{
+    let ch = @msg.Hello::{
       random: Bytes::make(32, b'\x23'),
       session_id: b"lfanke",
-      cipher_suites: [0x1301],
+      suites: [0x1301],
       extensions: [
         {
-          ext_type: tls_ext_key_share,
-          data: tls_encode_key_share_client([(tls_group_x25519, client_pub)]),
+          kind: @ext.Kind::KeyShare,
+          data: @ext.shares([(@ext.x25519, client_pub)]),
         },
       ],
     }
-    let ch_msg = encode_client_hello(ch)
+    let ch_msg = @msg.hello(ch)
     client_ep.send_datagram(
       quic_send_initial(
         1U,
@@ -133,9 +138,9 @@ async test "quic http3 connection: handshake then serve a request on one connect
       Some((frames, _)) => wire_crypto(frames)
       None => abort("client could not open the ServerHello")
     }
-    let server_hello = match tls_parse_handshake(sh_msg[:]) {
-      Some((2, body)) =>
-        match decode_server_hello(body[:]) {
+    let server_hello = match @msg.unframe(sh_msg[:]) {
+      Some((ServerHello, body)) =>
+        match @msg.read_server_hello(body[:]) {
           Some(v) => v
           None => abort("client could not decode the ServerHello")
         }
@@ -167,9 +172,9 @@ async test "quic http3 connection: handshake then serve a request on one connect
     let client_hs_secret = tls13_ecdhe_handshake_traffic_secret(
       client_priv, server_pub_wire, th_ch_sh, true,
     )
-    let client_fin = tls_encode_handshake(
-      20,
-      tls13_finished_verify_data(client_hs_secret, th_app),
+    let client_fin = @msg.frame(
+      Finished,
+      @keys.finished(client_hs_secret[:], th_app[:][:]),
     )
     client_ep.send_datagram(
       quic_send_handshake(
@@ -184,7 +189,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
       server_addr,
     )
     // 1-RTT keys from the same handshake.
-    let master = tls13_master_secret(
+    let master = @keys.master(
       tls13_handshake_secret_from_ecdhe(client_priv, server_pub_wire),
     )
     let client_app_keys = quic_application_keys(master, th_app, true)

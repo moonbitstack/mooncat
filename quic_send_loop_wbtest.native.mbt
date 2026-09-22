@@ -10,7 +10,7 @@ async test "quic send loop: a real ACK over UDP drives QuicRecovery to detect lo
     let master_secret = qv_hexb(
       "6666666666666666666666666666666666666666666666666666666666666666",
     )
-    let th = sha256(b"send-loop-connected-lfanke")
+    let th = @sha2.hash(b"send-loop-connected-lfanke"[:])
     let sender_keys = quic_application_keys(master_secret, th, true)
     let ack_keys = quic_application_keys(master_secret, th, false)
     let server_cid = qv_hexb("00112233aabbccdd")

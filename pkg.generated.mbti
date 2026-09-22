@@ -6,33 +6,26 @@ import {
   "moonbitlang/async/aqueue",
   "moonbitlang/async/io",
   "moonbitlang/async/socket",
-  "moonbitlang/core/buffer",
   "moonbitlang/core/debug",
   "moonbitstack/moonasgi/spec",
   "moonbitstack/mooncrypt/sign/ecdsa",
   "moonbitstack/moonlog",
+  "moonbitstack/moontls/alert",
+  "moonbitstack/moontls/ext",
+  "moonbitstack/moontls/hs",
+  "moonbitstack/moontls/msg",
 }
 
 // Values
 pub fn ack_fields_to_ranges(UInt64, UInt64, Array[(UInt64, UInt64)]) -> Array[(UInt64, UInt64)] raise QuicAckError
 
-pub let alpn_h3 : String
-
-pub fn decode_client_hello(BytesView) -> TlsClientHello?
-
-pub fn decode_server_hello(BytesView) -> TlsServerHello?
-
 pub fn decode_transport_params(BytesView) -> Array[TransportParam]?
 
 pub fn ec_private(String) -> @ecdsa.PrivateKey
 
-pub fn encode_client_hello(TlsClientHello) -> Bytes
-
 pub fn encode_frame(QuicFrame) -> Bytes
 
 pub fn encode_long_header(QuicLongHeader) -> Bytes
-
-pub fn encode_server_hello(TlsServerHello) -> Bytes
 
 pub fn encode_short_header(QuicShortHeader) -> Bytes
 
@@ -43,12 +36,6 @@ pub let h3_settings_max_field_section_size : UInt64
 pub let h3_settings_qpack_blocked_streams : UInt64
 
 pub let h3_settings_qpack_max_table_capacity : UInt64
-
-pub fn hkdf_expand(Bytes, Bytes, Int) -> Bytes
-
-pub fn hkdf_expand_label(Bytes, Bytes, Bytes, Int) -> Bytes
-
-pub fn hkdf_extract(Bytes, Bytes) -> Bytes
 
 pub fn http3_check_frame(Http3Frame, Http3StreamCtx) -> Unit raise Http3FrameError
 
@@ -268,25 +255,9 @@ pub fn stream_sequence(UInt64) -> UInt64
 
 pub fn tls13_certificate_verify_check(@ecdsa.PublicKey, String, Bytes, Bytes) -> Bool
 
-pub fn tls13_certificate_verify_content(String, Bytes) -> Bytes
-
 pub fn tls13_certificate_verify_sign(@ecdsa.PrivateKey, String, Bytes) -> Bytes
 
-pub fn tls13_client_ap_traffic_secret(Bytes, Bytes) -> Bytes
-
-pub fn tls13_client_hs_traffic_secret(Bytes, Bytes) -> Bytes
-
-pub let tls13_cv_context_client : String
-
-pub let tls13_cv_context_server : String
-
-pub fn tls13_decode_certificate(BytesView) -> (Bytes, Array[Bytes])?
-
-pub fn tls13_decode_encrypted_extensions(BytesView) -> Array[TlsExtension]?
-
-pub fn tls13_derive_secret(Bytes, Bytes, Bytes) -> Bytes
-
-pub fn tls13_early_secret(Bytes) -> Bytes
+pub fn tls13_client_hello_x25519(Bytes) -> Bytes?
 
 pub fn tls13_ecdhe_handshake_traffic_secret(Bytes, Bytes, Bytes, Bool) -> Bytes
 
@@ -294,261 +265,19 @@ pub fn tls13_ecdhe_secrets_from_client_hello(Bytes, Bytes, Bytes) -> (Bytes, Byt
 
 pub fn tls13_ecdhe_shared(Bytes, Bytes) -> Bytes
 
-pub fn tls13_encode_certificate(Bytes, Array[Bytes]) -> Bytes
-
-pub fn tls13_encrypted_extensions_body(Array[TlsExtension]) -> Bytes
-
-pub fn tls13_finished_key(Bytes) -> Bytes
-
-pub fn tls13_finished_verify(Bytes, Bytes, Bytes) -> Bool
-
-pub fn tls13_finished_verify_data(Bytes, Bytes) -> Bytes
-
-pub fn tls13_groups() -> Array[Int]
-
-pub fn tls13_handshake_secret(Bytes, Bytes) -> Bytes
-
 pub fn tls13_handshake_secret_from_ecdhe(Bytes, Bytes) -> Bytes
-
-pub fn tls13_hello_retry_group(TlsServerHello) -> Int?
-
-pub let tls13_hello_retry_random : Bytes
-
-pub fn tls13_hello_retry_request(Bytes, Int, Int) -> TlsServerHello
-
-pub fn tls13_is_hello_retry_request(TlsServerHello) -> Bool
-
-pub fn tls13_master_secret(Bytes) -> Bytes
-
-pub fn tls13_negotiate(TlsClientHello) -> TlsNegotiation raise TlsAlert
-
-pub fn tls13_negotiate_client_hello(Bytes) -> TlsNegotiation raise TlsAlert
 
 pub fn tls13_quic_encrypted_extensions(String, Array[TransportParam]) -> Bytes
 
-pub fn tls13_server_ap_traffic_secret(Bytes, Bytes) -> Bytes
-
-pub fn tls13_server_hello(Bytes, Bytes, Int, Array[TlsExtension]) -> TlsServerHello
-
 pub fn tls13_server_hs_secret_from_client_hello(Bytes, Bytes, Bytes) -> Bytes?
-
-pub fn tls13_server_hs_traffic_secret(Bytes, Bytes) -> Bytes
-
-pub fn tls13_signature_schemes() -> Array[Int]
-
-pub fn tls13_traffic_keys(Bytes) -> TlsTrafficKeys
-
-pub fn tls13_transcript_hash(Bytes) -> Bytes
 
 pub fn tls13_x25519_public(Bytes) -> Bytes
 
-pub let tls_alert_access_denied : Int
+pub fn tls_hello_quic_transport_params(Array[@ext.Ext]) -> Array[TransportParam]
 
-pub let tls_alert_bad_certificate : Int
+pub fn tls_selected_alpn(Array[@ext.Ext]) -> String?
 
-pub let tls_alert_bad_certificate_status_response : Int
-
-pub let tls_alert_bad_record_mac : Int
-
-pub let tls_alert_certificate_expired : Int
-
-pub let tls_alert_certificate_required : Int
-
-pub let tls_alert_certificate_revoked : Int
-
-pub let tls_alert_certificate_unknown : Int
-
-pub let tls_alert_close_notify : Int
-
-pub let tls_alert_decode_error : Int
-
-pub let tls_alert_decrypt_error : Int
-
-pub let tls_alert_handshake_failure : Int
-
-pub let tls_alert_illegal_parameter : Int
-
-pub let tls_alert_inappropriate_fallback : Int
-
-pub let tls_alert_insufficient_security : Int
-
-pub let tls_alert_internal_error : Int
-
-pub fn tls_alert_is_fatal(TlsAlert) -> Bool
-
-pub let tls_alert_level_fatal : Int
-
-pub let tls_alert_level_warning : Int
-
-pub let tls_alert_missing_extension : Int
-
-pub let tls_alert_no_application_protocol : Int
-
-pub let tls_alert_protocol_version : Int
-
-pub let tls_alert_record_overflow : Int
-
-pub let tls_alert_unexpected_message : Int
-
-pub let tls_alert_unknown_ca : Int
-
-pub let tls_alert_unknown_psk_identity : Int
-
-pub let tls_alert_unrecognized_name : Int
-
-pub let tls_alert_unsupported_certificate : Int
-
-pub let tls_alert_unsupported_extension : Int
-
-pub let tls_alert_user_canceled : Int
-
-pub fn tls_alpn_extension(Array[String]) -> TlsExtension
-
-pub let tls_client_hello : Int
-
-pub fn tls_client_hello_alpn(Array[TlsExtension]) -> Array[String]
-
-pub fn tls_client_hello_groups(Array[TlsExtension]) -> Array[Int]
-
-pub fn tls_client_hello_key_shares(Array[TlsExtension]) -> Array[(Int, Bytes)]
-
-pub fn tls_client_hello_signature_algorithms(Array[TlsExtension]) -> Array[Int]
-
-pub fn tls_client_hello_versions(Array[TlsExtension]) -> Array[Int]
-
-pub fn tls_client_next(TlsClientState, Int) -> TlsClientState raise TlsAlert
-
-pub fn tls_decode_alert(BytesView) -> TlsAlert?
-
-pub fn tls_decode_alpn(BytesView) -> Array[String]
-
-pub fn tls_decode_key_share_client(BytesView) -> Array[(Int, Bytes)]
-
-pub fn tls_decode_key_share_entry(BytesView) -> (Int, Bytes, Int)?
-
-pub fn tls_decode_key_share_retry(BytesView) -> Int?
-
-pub fn tls_decode_key_share_server(BytesView) -> (Int, Bytes)?
-
-pub fn tls_decode_signature_algorithms(BytesView) -> Array[Int]
-
-pub fn tls_decode_supported_groups(BytesView) -> Array[Int]
-
-pub fn tls_decode_supported_versions_client(BytesView) -> Array[Int]
-
-pub fn tls_decode_supported_versions_server(BytesView) -> Int?
-
-pub fn tls_encode_alert(TlsAlert) -> Bytes
-
-pub fn tls_encode_alpn(Array[String]) -> Bytes
-
-pub fn tls_encode_handshake(Int, Bytes) -> Bytes
-
-pub fn tls_encode_key_share_client(Array[(Int, Bytes)]) -> Bytes
-
-pub fn tls_encode_key_share_entry(Int, Bytes) -> Bytes
-
-pub fn tls_encode_key_share_retry(Int) -> Bytes
-
-pub fn tls_encode_key_share_server(Int, Bytes) -> Bytes
-
-pub fn tls_encode_signature_algorithms(Array[Int]) -> Bytes
-
-pub fn tls_encode_supported_groups(Array[Int]) -> Bytes
-
-pub fn tls_encode_supported_versions_client(Array[Int]) -> Bytes
-
-pub fn tls_encode_supported_versions_server(Int) -> Bytes
-
-pub let tls_ext_alpn : Int
-
-pub let tls_ext_key_share : Int
-
-pub let tls_ext_quic_transport_params : Int
-
-pub let tls_ext_signature_algorithms : Int
-
-pub let tls_ext_supported_groups : Int
-
-pub let tls_ext_supported_versions : Int
-
-pub fn tls_fatal(Int) -> TlsAlert
-
-pub fn tls_find_extension(Array[TlsExtension], Int) -> TlsExtension?
-
-pub let tls_group_secp256r1 : Int
-
-pub let tls_group_secp384r1 : Int
-
-pub let tls_group_x25519 : Int
-
-pub fn tls_hello_quic_transport_params(Array[TlsExtension]) -> Array[TransportParam]
-
-pub fn tls_key_share_extension(Int, Bytes) -> TlsExtension
-
-pub fn tls_key_share_retry_extension(Int) -> TlsExtension
-
-pub let tls_legacy_version : Int
-
-pub fn tls_parse_handshake(BytesView) -> (Int, Bytes)?
-
-pub fn tls_quic_transport_params_extension(Array[TransportParam]) -> TlsExtension
-
-pub let tls_record_alert : Int
-
-pub let tls_record_application_data : Int
-
-pub let tls_record_ccs : Bytes
-
-pub let tls_record_change_cipher_spec : Int
-
-pub fn tls_record_encode(Int, Bytes) -> Bytes raise TlsAlert
-
-pub let tls_record_handshake : Int
-
-pub let tls_record_header_len : Int
-
-pub fn tls_record_inner(Int, Bytes, Int) -> Bytes
-
-pub let tls_record_max_encrypted : Int
-
-pub let tls_record_max_fragment : Int
-
-pub fn tls_record_nonce(Bytes, UInt64) -> Bytes
-
-pub fn tls_record_parse(BytesView) -> (TlsRecord, Int)? raise TlsAlert
-
-pub fn tls_record_parse_encrypted(BytesView) -> (TlsRecord, Int)? raise TlsAlert
-
-pub fn tls_record_unpad(BytesView) -> (Int, Bytes) raise TlsAlert
-
-pub fn tls_selected_alpn(Array[TlsExtension]) -> String?
-
-pub fn tls_selected_version_extension(Int) -> TlsExtension
-
-pub let tls_server_hello : Int
-
-pub fn tls_server_hello_key_share(TlsServerHello) -> (Int, Bytes)?
-
-pub fn tls_server_hello_version(TlsServerHello) -> Int?
-
-pub fn tls_server_recv(TlsServerState, Int) -> TlsServerState raise TlsAlert
-
-pub fn tls_server_send_flight(TlsServerState, Bool) -> TlsServerState raise TlsAlert
-
-pub let tls_sig_ecdsa_secp256r1_sha256 : Int
-
-pub let tls_sig_rsa_pss_rsae_sha256 : Int
-
-pub fn tls_signature_algorithms_extension(Array[Int]) -> TlsExtension
-
-pub fn tls_supported_groups_extension(Array[Int]) -> TlsExtension
-
-pub fn tls_supported_versions_extension(Array[Int]) -> TlsExtension
-
-pub let tls_version_13 : Int
-
-pub fn tls_warning(Int) -> TlsAlert
+pub fn tls_server_hello_key_share(@msg.Server) -> (Int, Bytes)?
 
 pub let tp_ack_delay_exponent : UInt64
 
@@ -638,13 +367,6 @@ pub suberror ReassemblyError {
 pub suberror StreamStateError {
   StreamStateError(String)
 }
-
-pub(all) suberror TlsAlert {
-  TlsAlert(level~ : Int, description~ : Int)
-} derive(Eq, @debug.Debug)
-pub fn TlsAlert::equal(Self, Self) -> Bool
-pub fn TlsAlert::not_equal(Self, Self) -> Bool
-pub fn TlsAlert::to_repr(Self) -> @debug.Repr
 
 pub suberror WsError {
   WsError(Int, String)
@@ -1086,21 +808,21 @@ pub fn[A] QuicServer::tick(Self[A], Int64) -> Unit
 
 pub struct QuicServerConn {
   initial_keys : QuicPacketKeys
-  handshake : TlsServerHandshake
+  handshake : @hs.Handshake
   conn : QuicConnection
 }
 pub fn QuicServerConn::client_hello(Self) -> Bytes
-pub fn QuicServerConn::handshake_state(Self) -> TlsServerState
+pub fn QuicServerConn::handshake_state(Self) -> @hs.Server
 pub fn QuicServerConn::initial_ack_pending(Self) -> Bool
-pub fn QuicServerConn::negotiate(Self) -> TlsNegotiation raise TlsAlert
+pub fn QuicServerConn::negotiate(Self) -> @hs.Choice raise @alert.Alert
 pub fn QuicServerConn::new(Bytes) -> Self
-pub fn QuicServerConn::on_frames(Self, QuicLevel, Array[QuicFrame], Int64) -> Array[Int] raise
+pub fn QuicServerConn::on_frames(Self, QuicLevel, Array[QuicFrame], Int64) -> Array[@msg.Kind] raise
 pub fn QuicServerConn::on_handshake_frames(Self, Array[QuicFrame], Int64, Bytes) -> Bool raise
 pub fn QuicServerConn::receive_handshake(Self, Bytes, QuicPacketKeys, Bytes) -> Bool raise
-pub fn QuicServerConn::receive_initial(Self, Bytes) -> Array[Int] raise
+pub fn QuicServerConn::receive_initial(Self, Bytes) -> Array[@msg.Kind] raise
 pub fn QuicServerConn::send_handshake_flight(Self, Bytes, Bytes, Bytes, Bytes, Bytes, Bytes, Int64) -> Bytes raise
 pub fn QuicServerConn::send_handshake_flight_signed(Self, Bytes, Bytes, Bytes, @ecdsa.PrivateKey, Bytes, Bytes, Int64) -> Bytes raise
-pub fn QuicServerConn::send_server_hello(Self, TlsServerHello, Bytes, Bytes, Int64) -> Bytes
+pub fn QuicServerConn::send_server_hello(Self, @msg.Server, Bytes, Bytes, Int64) -> Bytes
 pub fn QuicServerConn::transcript_hash(Self) -> Bytes
 
 pub(all) struct QuicShortHeader {
@@ -1310,149 +1032,6 @@ pub(all) struct TlsCert {
   private_key_file : String
   pfx_file : String
 }
-
-pub(all) struct TlsClientHello {
-  random : Bytes
-  session_id : Bytes
-  cipher_suites : Array[Int]
-  extensions : Array[TlsExtension]
-} derive(Eq, @debug.Debug)
-pub fn TlsClientHello::equal(Self, Self) -> Bool
-pub fn TlsClientHello::not_equal(Self, Self) -> Bool
-pub fn TlsClientHello::to_repr(Self) -> @debug.Repr
-
-pub(all) enum TlsClientState {
-  WaitServerHello
-  WaitEncryptedExtensions
-  WaitCertCertReq
-  WaitCert
-  WaitCertVerify
-  WaitFinished
-  Connected
-} derive(Eq, @debug.Debug)
-pub fn TlsClientState::equal(Self, Self) -> Bool
-pub fn TlsClientState::new() -> Self
-pub fn TlsClientState::not_equal(Self, Self) -> Bool
-pub fn TlsClientState::to_repr(Self) -> @debug.Repr
-
-pub(all) struct TlsExtension {
-  ext_type : Int
-  data : Bytes
-} derive(Eq, @debug.Debug)
-pub fn TlsExtension::equal(Self, Self) -> Bool
-pub fn TlsExtension::not_equal(Self, Self) -> Bool
-pub fn TlsExtension::to_repr(Self) -> @debug.Repr
-
-pub(all) enum TlsNegotiation {
-  Negotiated(group~ : Int, client_key~ : Bytes, scheme~ : Int)
-  Retry(Int)
-} derive(Eq, @debug.Debug)
-pub fn TlsNegotiation::equal(Self, Self) -> Bool
-pub fn TlsNegotiation::not_equal(Self, Self) -> Bool
-pub fn TlsNegotiation::to_repr(Self) -> @debug.Repr
-
-pub(all) struct TlsRecord {
-  content_type : Int
-  fragment : Bytes
-} derive(Eq, @debug.Debug)
-pub fn TlsRecord::equal(Self, Self) -> Bool
-pub fn TlsRecord::not_equal(Self, Self) -> Bool
-pub fn TlsRecord::to_repr(Self) -> @debug.Repr
-
-pub(all) enum TlsRecordEvent {
-  HandshakeMsg(msg_type~ : Int, message~ : Bytes)
-  AppData(Bytes)
-  PeerAlert(TlsAlert)
-} derive(Eq, @debug.Debug)
-pub fn TlsRecordEvent::equal(Self, Self) -> Bool
-pub fn TlsRecordEvent::not_equal(Self, Self) -> Bool
-pub fn TlsRecordEvent::to_repr(Self) -> @debug.Repr
-
-pub struct TlsRecordKeys {
-  mut keys : TlsTrafficKeys
-  mut seq : UInt64
-}
-pub fn TlsRecordKeys::keys(Self) -> TlsTrafficKeys
-pub fn TlsRecordKeys::new(Bytes) -> Self
-pub fn TlsRecordKeys::nonce(Self) -> Bytes
-pub fn TlsRecordKeys::open(Self, BytesView) -> (Int, Bytes) raise TlsAlert
-pub fn TlsRecordKeys::rekey(Self, Bytes) -> Unit
-pub fn TlsRecordKeys::seal(Self, Int, Bytes) -> Bytes raise TlsAlert
-pub fn TlsRecordKeys::seal_padded(Self, Int, Bytes, Int) -> Bytes raise TlsAlert
-pub fn TlsRecordKeys::seq(Self) -> UInt64
-
-pub struct TlsRecordLayer {
-  mut inbox : Bytes
-  mut partial : Bytes
-  mut read : TlsRecordKeys?
-  mut write : TlsRecordKeys?
-  mut compat : Bool
-}
-pub fn TlsRecordLayer::feed(Self, Bytes) -> Array[TlsRecordEvent] raise TlsAlert
-pub fn TlsRecordLayer::handshake_done(Self) -> Unit
-pub fn TlsRecordLayer::has_partial(Self) -> Bool
-pub fn TlsRecordLayer::new() -> Self
-pub fn TlsRecordLayer::read_seq(Self) -> UInt64
-pub fn TlsRecordLayer::set_read_secret(Self, Bytes) -> Unit
-pub fn TlsRecordLayer::set_write_secret(Self, Bytes) -> Unit
-pub fn TlsRecordLayer::write_alert(Self, TlsAlert) -> Bytes raise TlsAlert
-pub fn TlsRecordLayer::write_app(Self, Bytes) -> Bytes raise TlsAlert
-pub fn TlsRecordLayer::write_handshake(Self, Bytes) -> Bytes raise TlsAlert
-pub fn TlsRecordLayer::write_seq(Self) -> UInt64
-
-pub struct TlsServerHandshake {
-  mut state : TlsServerState
-  transcript : TranscriptHash
-  mut buffer : Bytes
-  mut client_hello : Bytes
-}
-pub fn TlsServerHandshake::client_hello(Self) -> Bytes
-pub fn TlsServerHandshake::feed(Self, Bytes) -> Array[Int] raise
-pub fn TlsServerHandshake::is_connected(Self) -> Bool
-pub fn TlsServerHandshake::negotiate(Self) -> TlsNegotiation raise TlsAlert
-pub fn TlsServerHandshake::new() -> Self
-pub fn TlsServerHandshake::record_sent(Self, Bytes) -> Unit
-pub fn TlsServerHandshake::sent_flight(Self, Bool) -> Unit raise
-pub fn TlsServerHandshake::state(Self) -> TlsServerState
-pub fn TlsServerHandshake::transcript_hash(Self) -> Bytes
-
-pub(all) struct TlsServerHello {
-  random : Bytes
-  session_id : Bytes
-  cipher_suite : Int
-  extensions : Array[TlsExtension]
-} derive(Eq, @debug.Debug)
-pub fn TlsServerHello::equal(Self, Self) -> Bool
-pub fn TlsServerHello::not_equal(Self, Self) -> Bool
-pub fn TlsServerHello::to_repr(Self) -> @debug.Repr
-
-pub(all) enum TlsServerState {
-  Start
-  RecvdClientHello
-  WaitCert
-  WaitCertVerify
-  WaitFinished
-  Connected
-} derive(Eq, @debug.Debug)
-pub fn TlsServerState::equal(Self, Self) -> Bool
-pub fn TlsServerState::new() -> Self
-pub fn TlsServerState::not_equal(Self, Self) -> Bool
-pub fn TlsServerState::to_repr(Self) -> @debug.Repr
-
-pub(all) struct TlsTrafficKeys {
-  key : Bytes
-  iv : Bytes
-} derive(Eq, @debug.Debug)
-pub fn TlsTrafficKeys::equal(Self, Self) -> Bool
-pub fn TlsTrafficKeys::not_equal(Self, Self) -> Bool
-pub fn TlsTrafficKeys::to_repr(Self) -> @debug.Repr
-
-pub struct TranscriptHash {
-  messages : @buffer.Buffer
-}
-pub fn TranscriptHash::add(Self, Bytes) -> Unit
-pub fn TranscriptHash::hash(Self) -> Bytes
-pub fn TranscriptHash::new() -> Self
 
 pub(all) struct TransportParam {
   id : UInt64

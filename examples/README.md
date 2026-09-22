@@ -37,11 +37,6 @@ socket instead and block in the accept loop until cancelled.
 
 | # | Example | What it shows | Key API |
 | --- | --- | --- | --- |
-| 13 | [`tls-keyschedule`](13-tls-keyschedule/) | The RFC 8446 key schedule and Finished verify_data (RFC 8448 vectors) | `tls13_early_secret` / `tls13_handshake_secret` / `tls13_master_secret` / `tls13_finished_verify` |
-| 14 | [`tls-hello`](14-tls-hello/) | ClientHello/ServerHello encode/decode with key_share and ALPN | `encode_client_hello` / `decode_client_hello`, `tls_encode_key_share_client`, `tls_alpn_extension` |
-| 15 | [`tls-ecdhe`](15-tls-ecdhe/) | The x25519 ECDHE that turns the hello key_shares into handshake keys | `tls13_x25519_public`, `tls13_ecdhe_shared`, `tls13_ecdhe_handshake_traffic_secret` |
-| 16 | [`tls-certificate`](16-tls-certificate/) | The Certificate message and a real ES256 CertificateVerify | `tls13_encode_certificate` / `_decode_certificate`, `tls13_certificate_verify_sign` / `_check` |
-| 17 | [`tls-handshake`](17-tls-handshake/) | The transcript hash and the server/client handshake state machines | `TranscriptHash`, `TlsServerHandshake`, `tls_client_next` |
 
 ## WebSocket
 
@@ -97,3 +92,5 @@ cancelled — leave it running and hit it from another shell:
 curl http://127.0.0.1:12000
 # hello from mooncat, heke1228
 ```
+
+TLS's own examples left with the protocol: the key schedule, the hellos, the ECDHE, the Certificate and the handshake state machines are [`moontls`](https://github.com/moonbitstack/moontls)' now, and its `examples/tour` walks them. What stays here is serving.

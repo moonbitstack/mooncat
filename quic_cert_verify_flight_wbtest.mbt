@@ -19,18 +19,18 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
   )
   let cert_pub = cert_key.public()
   // Client ClientHello with its x25519 key_share, delivered over an Initial packet.
-  let ch = TlsClientHello::{
+  let ch = @msg.Hello::{
     random: Bytes::make(32, b'\x23'),
     session_id: b"lfanke",
-    cipher_suites: [0x1301],
+    suites: [0x1301],
     extensions: [
       {
-        ext_type: tls_ext_key_share,
-        data: tls_encode_key_share_client([(tls_group_x25519, client_pub)]),
+        kind: @ext.Kind::KeyShare,
+        data: @ext.shares([(@ext.x25519, client_pub)]),
       },
     ],
   }
-  let ch_msg = encode_client_hello(ch)
+  let ch_msg = @msg.hello(ch)
   let server = QuicServerConn::new(dcid)
   let _ = server.receive_initial(
     quic_send_initial(
@@ -45,14 +45,19 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
     ),
   )
   // Server ServerHello with its key_share; derive the handshake secret from the ECDHE.
-  let sh = TlsServerHello::{
+  let sh = @msg.Server::{
     random: Bytes::make(32, b'\x66'),
     session_id: b"lfanke",
-    cipher_suite: 0x1301,
-    extensions: [tls_key_share_extension(tls_group_x25519, server_pub)],
+    suite: 0x1301,
+    extensions: [
+      @ext.Ext::{
+        kind: KeyShare,
+        data: @ext.selected_share(@ext.x25519, server_pub[:]),
+      },
+    ],
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
-  let sh_msg = encode_server_hello(sh)
+  let sh_msg = @msg.server_hello(sh)
   let th_ch_sh = server.transcript_hash()
   let server_hs_secret = tls13_ecdhe_handshake_traffic_secret(
     server_priv, client_pub, th_ch_sh, false,
@@ -84,9 +89,9 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
       let view = crypto[:]
       let mut off = 0
       for ;; {
-        match tls_parse_handshake(view[off:]) {
+        match @msg.unframe(view[off:]) {
           Some((t, body)) => {
-            if t == 15 {
+            if t == @msg.Kind::CertificateVerify {
               found = body
             }
             off = off + 4 + body.length()
@@ -99,14 +104,14 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
     None => abort("client could not decrypt the signed handshake flight")
   }
   // The client reconstructs the transcript through the Certificate and verifies the signature.
-  let ee = tls_encode_handshake(8, ee_body)
-  let cert = tls_encode_handshake(11, cert_body)
-  let th_through_cert = sha256(
-    bytes_concat(bytes_concat(bytes_concat(ch_msg, sh_msg), ee), cert),
+  let ee = @msg.frame(EncryptedExtensions, ee_body[:])
+  let cert = @msg.frame(Certificate, cert_body[:])
+  let th_through_cert = @sha2.hash(
+    bytes_concat(bytes_concat(bytes_concat(ch_msg, sh_msg), ee), cert)[:],
   )
   assert_eq(
     tls13_certificate_verify_check(
-      cert_pub, tls13_cv_context_server, th_through_cert, cv_body,
+      cert_pub, @msg.server_context, th_through_cert, cv_body,
     ),
     true,
   )
@@ -116,7 +121,7 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
   ).public()
   assert_eq(
     tls13_certificate_verify_check(
-      other_pub, tls13_cv_context_server, th_through_cert, cv_body,
+      other_pub, @msg.server_context, th_through_cert, cv_body,
     ),
     false,
   )
