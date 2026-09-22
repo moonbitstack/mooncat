@@ -7,14 +7,14 @@
 ///|
 async test "quic send loop: a real ACK over UDP drives @recovery.State to detect loss and list retransmissions" {
   @async.with_task_group(g => {
-    let master_secret = qv_hexb(
+    let master_secret = @base16.decode_lossy(
       "6666666666666666666666666666666666666666666666666666666666666666",
     )
     let th = @sha2.hash(b"send-loop-connected-lfanke"[:])
     let sender_keys = @crypto.application(master_secret, th, client=true)
     let ack_keys = @crypto.application(master_secret, th, client=false)
-    let server_cid = qv_hexb("00112233aabbccdd")
-    let client_cid = qv_hexb("66778899eeff0011")
+    let server_cid = @base16.decode_lossy("00112233aabbccdd")
+    let client_cid = @base16.decode_lossy("66778899eeff0011")
     let receiver_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let receiver_addr = receiver_ep.local_addr()
     // Receiver: take five data packets, acknowledge only those numbered 2 and up (0 and 1 stand

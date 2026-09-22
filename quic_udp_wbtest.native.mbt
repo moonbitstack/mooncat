@@ -26,7 +26,7 @@ async test "quic udp: a datagram round-trips over a real async UDP socket (loopb
 ///|
 async test "quic over udp: a real Initial packet with a ClientHello drives the server handshake over the wire" {
   @async.with_task_group(g => {
-    let dcid = qv_hexb("8394c8f03e515708")
+    let dcid = @base16.decode_lossy("8394c8f03e515708")
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
     let server_conn = @conn.Server::new(dcid)
@@ -65,7 +65,7 @@ async test "quic over udp: a real Initial packet with a ClientHello drives the s
 ///|
 async test "quic over udp: client ClientHello and server ServerHello complete an Initial flight over the wire" {
   @async.with_task_group(g => {
-    let dcid = qv_hexb("8394c8f03e515708")
+    let dcid = @base16.decode_lossy("8394c8f03e515708")
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
     let server_conn = @conn.Server::new(dcid)
@@ -166,11 +166,11 @@ fn split_hs(crypto : Bytes) -> Array[(@msg.Kind, Bytes, Bytes)] {
 ///|
 async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over a real UDP socket" {
   @async.with_task_group(g => {
-    let dcid = qv_hexb("8394c8f03e515708")
-    let client_priv = qv_hexb(
+    let dcid = @base16.decode_lossy("8394c8f03e515708")
+    let client_priv = @base16.decode_lossy(
       "2333333333333333333333333333333333333333333333333333333333333333",
     )
-    let server_priv = qv_hexb(
+    let server_priv = @base16.decode_lossy(
       "6666666666666666666666666666666666666666666666666666666666666666",
     )
     let client_pub = tls13_x25519_public(client_priv)

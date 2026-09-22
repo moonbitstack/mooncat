@@ -1,6 +1,6 @@
-// The `read_message` control-frame path (RFC 6455 §5.4/§5.5) drives a real `@pipe.pipe()` writer
-// for the pong and close replies, so these cases are native-only. The pure frame codec and the
-// reader-only `read_frame` path stay all-target in websocket_frame_wbtest.mbt.
+// `read_frame` off a stream, and the `read_message` control-frame path (RFC 6455 §5.4/§5.5),
+// which drives a real `@pipe.pipe()` writer for the pong and close replies. The frame codec
+// itself is moonhttp's and is tested there.
 //
 // Every inbound frame here is masked, because every frame a client sends must be (§5.1).
 
@@ -219,4 +219,44 @@ async test "read_message fails an unmasked client frame with 1002 (§5.1)" {
       0,
     )
   })
+}
+
+///|
+async test "read_frame reads consecutive frames off a stream, each length form" {
+  // Seven bits, sixteen, and sixty-four: 125, 256 and 65536 bytes. The last is past what a
+  // pipe buffers, so a writer task feeds the pipe while the reader drains it.
+  let sizes = [125, 256, 65536]
+  @async.with_task_group(g => {
+    let (r, w) = @pipe.pipe()
+    g.spawn_bg(() => {
+      for n in sizes {
+        let frame : @ws.Frame = {
+          fin: true,
+          opcode: Binary,
+          payload: Bytes::make(n, n.to_byte()),
+        }
+        w.write(frame.encode(mask=test_mask))
+      }
+      w.close()
+    })
+    for n in sizes {
+      let got = read_frame(r)
+      assert_eq(got.payload.length(), n)
+      assert_eq(got.payload[n - 1], n.to_byte())
+    }
+    r.close()
+  })
+}
+
+///|
+async test "read_frame refuses a sixty-four-bit length with the top bit set (§5.2)" {
+  let reader = bytes_reader(b"\x82\xff\xff\xff\xff\xff\xff\xff\xff\xff")
+  let refused = try {
+    ignore(read_frame(reader))
+    false
+  } catch {
+    @ws.Exceeded(..) => true
+    _ => false
+  }
+  assert_eq(refused, true)
 }

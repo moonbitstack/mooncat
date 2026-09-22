@@ -13,14 +13,14 @@ async test "quic over udp: an HTTP/3 request and response round-trip over QUIC S
     // Finished transcript; each derives its own 1-RTT application keys from them. Key
     // agreement is proven by the handshake tests — this isolates the STREAM/HTTP3 mapping
     // over the wire, so the shared secret stands in for the handshake's output.
-    let master_secret = qv_hexb(
+    let master_secret = @base16.decode_lossy(
       "2333333333333333333333333333333333333333333333333333333333333333",
     )
     let th = @sha2.hash(b"lfanke-connected-transcript"[:])
     let client_app_keys = @crypto.application(master_secret, th, client=true)
     let server_app_keys = @crypto.application(master_secret, th, client=false)
-    let server_cid = qv_hexb("00112233aabbccdd")
-    let client_cid = qv_hexb("66778899eeff0011")
+    let server_cid = @base16.decode_lossy("00112233aabbccdd")
+    let client_cid = @base16.decode_lossy("66778899eeff0011")
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
     let request_ok : Ref[Bool] = { val: false, }

@@ -7,11 +7,11 @@
 
 ///|
 test "full flight: the server's Handshake flight carries real EE, Certificate, and ES256 CertificateVerify the client parses" {
-  let dcid = qv_hexb("8394c8f03e515708")
-  let client_priv = qv_hexb(
+  let dcid = @base16.decode_lossy("8394c8f03e515708")
+  let client_priv = @base16.decode_lossy(
     "2333333333333333333333333333333333333333333333333333333333333333",
   )
-  let server_priv = qv_hexb(
+  let server_priv = @base16.decode_lossy(
     "6666666666666666666666666666666666666666666666666666666666666666",
   )
   let client_pub = tls13_x25519_public(client_priv)

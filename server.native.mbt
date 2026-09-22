@@ -20,40 +20,7 @@ fn method_str(m : @http.RequestMethod) -> String {
 /// escape passes through as written: the target is attacker-controlled, and refusing
 /// to build a scope would leave the server unable to answer at all.
 fn percent_decode(target : String) -> Bytes {
-  let out = @buffer.Buffer()
-  let bytes = @utf8.encode(target)
-  let mut i = 0
-  while i < bytes.length() {
-    let b = bytes[i]
-    if b == b'%' && i + 2 < bytes.length() {
-      match (hex_digit(bytes[i + 1]), hex_digit(bytes[i + 2])) {
-        (Some(hi), Some(lo)) => {
-          out.write_byte(((hi * 16 + lo) & 0xff).to_byte())
-          i = i + 3
-          continue
-        }
-        _ => ()
-      }
-    }
-    out.write_byte(b)
-    i = i + 1
-  }
-  out.to_bytes()
-}
-
-///|
-/// One hex digit's value, or `None` for anything else.
-fn hex_digit(b : Byte) -> Int? {
-  let c = b.to_int()
-  if c >= 0x30 && c <= 0x39 {
-    Some(c - 0x30)
-  } else if c >= 0x41 && c <= 0x46 {
-    Some(c - 0x41 + 10)
-  } else if c >= 0x61 && c <= 0x66 {
-    Some(c - 0x61 + 10)
-  } else {
-    None
-  }
+  @mime.percent_decode(@utf8.encode(target)[:])
 }
 
 ///|

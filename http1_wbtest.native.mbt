@@ -83,3 +83,9 @@ async test "http1: a request that tries to smuggle a second one is not read" {
     true,
   )
 }
+
+///|
+test "a request path is percent-decoded, and a stray escape is kept as written" {
+  assert_eq(@utf8.decode_lossy(percent_decode("/a%20b/%E6%97%A5")), "/a b/日")
+  assert_eq(percent_decode("/100%/%zz/%4"), b"/100%/%zz/%4")
+}

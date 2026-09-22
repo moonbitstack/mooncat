@@ -7,11 +7,11 @@
 ///|
 async test "quic http3 connection: handshake then serve a request on one connection over the wire" {
   @async.with_task_group(g => {
-    let dcid = qv_hexb("8394c8f03e515708")
-    let client_priv = qv_hexb(
+    let dcid = @base16.decode_lossy("8394c8f03e515708")
+    let client_priv = @base16.decode_lossy(
       "2333333333333333333333333333333333333333333333333333333333333333",
     )
-    let server_priv = qv_hexb(
+    let server_priv = @base16.decode_lossy(
       "6666666666666666666666666666666666666666666666666666666666666666",
     )
     let client_pub = tls13_x25519_public(client_priv)
@@ -20,7 +20,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
     let server_conn = @conn.Server::new(dcid)
-    let client_cid = qv_hexb("66778899eeff0011")
+    let client_cid = @base16.decode_lossy("66778899eeff0011")
     let connected : Ref[Bool] = { val: false, }
     let handler = fn(r : @http3.Request) -> @http3.Response {
       if r.path == "/hello" {

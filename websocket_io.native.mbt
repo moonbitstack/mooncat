@@ -24,16 +24,15 @@ pub async fn read_frame(
   let b0 = head[0].to_int()
   let b1 = head[1].to_int()
   let mut len = (b1 & 0x7f).to_int64()
+  // `read_exactly` has delivered the whole width, so the reads cannot come up short.
   if len == 126L {
-    let wide = reader.read_exactly(2)
-    len = ((wide[0].to_int() << 8) | wide[1].to_int()).to_int64()
+    len = @fixed.read_u16(reader.read_exactly(2)[:]).unwrap().to_int64()
   } else if len == 127L {
-    let wide = reader.read_exactly(8)
-    let mut n = 0L
-    for i = 0; i < 8; i = i + 1 {
-      n = (n << 8) | wide[i].to_int().to_int64()
-    }
-    len = n
+    // Signed, so a length with the reserved top bit set comes out negative and
+    // `check` refuses it.
+    len = @fixed.read_u64(reader.read_exactly(8)[:])
+      .unwrap()
+      .reinterpret_as_int64()
   }
   let opcode = @ws.check(b0, b1, len, client~, limit~)
   // `check` bounded it, so narrowing cannot truncate.

@@ -6,14 +6,14 @@
 ///|
 async test "quic http3 serve over udp: the server routes a request through a handler and replies over the wire" {
   @async.with_task_group(g => {
-    let master_secret = qv_hexb(
+    let master_secret = @base16.decode_lossy(
       "6666666666666666666666666666666666666666666666666666666666666666",
     )
     let th = @sha2.hash(b"http3-serve-wire-lfanke"[:])
     let client_app_keys = @crypto.application(master_secret, th, client=true)
     let server_app_keys = @crypto.application(master_secret, th, client=false)
-    let server_cid = qv_hexb("00112233aabbccdd")
-    let client_cid = qv_hexb("66778899eeff0011")
+    let server_cid = @base16.decode_lossy("00112233aabbccdd")
+    let client_cid = @base16.decode_lossy("66778899eeff0011")
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
     let handler = fn(r : @http3.Request) -> @http3.Response {

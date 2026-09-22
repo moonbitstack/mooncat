@@ -1,29 +1,4 @@
 ///|
-/// HTTP/2 cleartext (h2c), on the wire. A client reaches mooncat's h2c server with
-/// prior knowledge (RFC 7540 §3.4) — no TLS, no ALPN, the way
-/// `curl --http2-prior-knowledge` or a gRPC client does. This walks the exact
-/// exchange `serve_h2c_config` performs, but in-process over bytes: the connection
-/// preface a server sniffs first, the SETTINGS + WINDOW_UPDATE frames it answers
-/// with, and the response body — produced by running the same moonasgi app through
-/// the synchronous `run_http` seam — carried back as an HTTP/2 DATA frame. The h2
-/// transport is moonrpc's self-built HTTP/2 + HPACK engine, the same one
-/// `serve_h2c_config` binds over a real socket.
-///
-///     moon run examples/33-http2-h2c --target native
-fn hex(bs : Bytes) -> String {
-  let digits = [
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
-  ]
-  let buf = StringBuilder()
-  for b in bs {
-    let v = b.to_int() & 0xFF
-    buf.write_char(digits[v >> 4])
-    buf.write_char(digits[v & 0xF])
-  }
-  buf.to_string()
-}
-
-///|
 fn roundtrip(label : String, frame : @http2.Frame) -> Unit {
   let wire = frame.encode()
   let ok = try {
@@ -32,7 +7,9 @@ fn roundtrip(label : String, frame : @http2.Frame) -> Unit {
   } catch {
     _ => false
   }
-  println("  \{label}: \{wire.length()} octets \{hex(wire)} (round-trip \{ok})")
+  println(
+    "  \{label}: \{wire.length()} octets \{@base16.encode(wire)} (round-trip \{ok})",
+  )
 }
 
 ///|
@@ -41,7 +18,7 @@ fn main {
   // 1. The client connection preface: the 24 octets an h2c server reads and checks
   //    before anything else. `drive_h2c` rejects a connection that doesn't open with it.
   let preface = @http2.preface
-  println("preface: \{preface.length()} octets \{hex(preface)}")
+  println("preface: \{preface.length()} octets \{@base16.encode(preface)}")
   println("  has_connection_preface(preface) = \{@http2.has_preface(preface)}")
   println(
     "  has_connection_preface(b\"GET / HTTP/1.1\") = \{@http2.has_preface(b"GET / HTTP/1.1")}",

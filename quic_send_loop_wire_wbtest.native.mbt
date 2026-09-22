@@ -6,14 +6,14 @@
 ///|
 async test "quic send loop over udp: @conn.Sender streams data through 1-RTT packets and an ACK clears it" {
   @async.with_task_group(g => {
-    let master_secret = qv_hexb(
+    let master_secret = @base16.decode_lossy(
       "2333333333333333333333333333333333333333333333333333333333333333",
     )
     let th = @sha2.hash(b"send-loop-wire-lfanke"[:])
     let sender_keys = @crypto.application(master_secret, th, client=true)
     let ack_keys = @crypto.application(master_secret, th, client=false)
-    let server_cid = qv_hexb("00112233aabbccdd")
-    let client_cid = qv_hexb("66778899eeff0011")
+    let server_cid = @base16.decode_lossy("00112233aabbccdd")
+    let client_cid = @base16.decode_lossy("66778899eeff0011")
     let payload = b"hello-quic-send-loop!" // 21 bytes → three 8/8/5 frames at max_frame 8
     let receiver_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let receiver_addr = receiver_ep.local_addr()
@@ -105,14 +105,14 @@ async test "quic send loop over udp: @conn.Sender streams data through 1-RTT pac
 ///|
 async test "quic send loop over udp: a probe timeout retransmits over the wire and the receiver reassembles it" {
   @async.with_task_group(g => {
-    let master_secret = qv_hexb(
+    let master_secret = @base16.decode_lossy(
       "2333333333333333333333333333333333333333333333333333333333333333",
     )
     let th = @sha2.hash(b"send-loop-pto-lfanke"[:])
     let sender_keys = @crypto.application(master_secret, th, client=true)
     let ack_keys = @crypto.application(master_secret, th, client=false)
-    let server_cid = qv_hexb("00112233aabbccdd")
-    let client_cid = qv_hexb("66778899eeff0011")
+    let server_cid = @base16.decode_lossy("00112233aabbccdd")
+    let client_cid = @base16.decode_lossy("66778899eeff0011")
     let payload = b"probe!!" // 7 bytes → one STREAM frame at max_frame 8
     let receiver_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let receiver_addr = receiver_ep.local_addr()

@@ -10,7 +10,7 @@ fn client_initial_keys(dcid : Bytes) -> @crypto.Keys {
 
 ///|
 test "server conn: a ClientHello in one Initial packet reaches RECVD_CH" {
-  let dcid = qv_hexb("8394c8f03e515708")
+  let dcid = @base16.decode_lossy("8394c8f03e515708")
   let keys = client_initial_keys(dcid)
   let ch = @msg.frame(ClientHello, b"clienthello-body"[:])
   let packet = @conn.send_long(
@@ -32,7 +32,7 @@ test "server conn: a ClientHello in one Initial packet reaches RECVD_CH" {
 
 ///|
 test "server conn: a ClientHello split across two Initial packets reassembles" {
-  let dcid = qv_hexb("0001020304050607")
+  let dcid = @base16.decode_lossy("0001020304050607")
   let keys = client_initial_keys(dcid)
   let ch = @msg.frame(ClientHello, b"a-longer-clienthello-body"[:])
   let first = ch[0:15].to_owned()
@@ -68,7 +68,7 @@ test "server conn: a ClientHello split across two Initial packets reassembles" {
 
 ///|
 test "server conn: send_server_hello produces a ServerHello the client can decode" {
-  let dcid = qv_hexb("8394c8f03e515708")
+  let dcid = @base16.decode_lossy("8394c8f03e515708")
   let keys = client_initial_keys(dcid)
   // The client sends its ClientHello; the server receives it.
   let ch_packet = @conn.send_long(
@@ -122,7 +122,7 @@ test "server conn: send_server_hello produces a ServerHello the client can decod
 
 ///|
 test "server conn: send_handshake_flight emits EE/Cert/CertVerify/Finished the client authenticates" {
-  let dcid = qv_hexb("8394c8f03e515708")
+  let dcid = @base16.decode_lossy("8394c8f03e515708")
   let initial_keys = client_initial_keys(dcid)
   let server = @conn.Server::new(dcid)
   // Client sends its ClientHello; the server receives it, then sends its ServerHello.
@@ -147,7 +147,7 @@ test "server conn: send_handshake_flight emits EE/Cert/CertVerify/Finished the c
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
   let sh_msg = @msg.server_hello(sh)
   // The server sends its Handshake-space flight (a real 32-byte server handshake secret).
-  let secret = qv_hexb(
+  let secret = @base16.decode_lossy(
     "b67b7d690cc16c4e75e54213cb2d37b4e9c912bcded9105d42befd59d391ad38",
   )
   let ee_body = b"encrypted-extensions"
@@ -212,7 +212,7 @@ test "server conn: send_handshake_flight emits EE/Cert/CertVerify/Finished the c
 
 ///|
 test "server conn: receive_handshake verifies the client Finished and reaches CONNECTED" {
-  let dcid = qv_hexb("8394c8f03e515708")
+  let dcid = @base16.decode_lossy("8394c8f03e515708")
   let initial_keys = client_initial_keys(dcid)
   let server = @conn.Server::new(dcid)
   // Drive the server through ClientHello, ServerHello, and its Handshake flight.
@@ -236,7 +236,7 @@ test "server conn: receive_handshake verifies the client Finished and reaches CO
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
   let sh_msg = @msg.server_hello(sh)
-  let server_secret = qv_hexb(
+  let server_secret = @base16.decode_lossy(
     "b67b7d690cc16c4e75e54213cb2d37b4e9c912bcded9105d42befd59d391ad38",
   )
   let ee_body = b"encrypted-extensions"
@@ -268,7 +268,7 @@ test "server conn: receive_handshake verifies the client Finished and reaches CO
   let through_server_fin = bytes_concat(through_cv, server_fin)
   // The client Finished MACs the transcript through the server Finished with the client
   // handshake secret; it travels in a Handshake packet protected with the client keys.
-  let client_secret = qv_hexb(
+  let client_secret = @base16.decode_lossy(
     "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21",
   )
   let client_fin = @msg.frame(
@@ -295,7 +295,7 @@ test "server conn: receive_handshake verifies the client Finished and reaches CO
 
 ///|
 test "server conn: receive_handshake rejects a Finished with the wrong verify_data" {
-  let dcid = qv_hexb("8394c8f03e515708")
+  let dcid = @base16.decode_lossy("8394c8f03e515708")
   let initial_keys = client_initial_keys(dcid)
   let server = @conn.Server::new(dcid)
   let ch = @msg.frame(ClientHello, b"ch"[:])
@@ -317,7 +317,7 @@ test "server conn: receive_handshake rejects a Finished with the wrong verify_da
     extensions: [],
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
-  let server_secret = qv_hexb(
+  let server_secret = @base16.decode_lossy(
     "b67b7d690cc16c4e75e54213cb2d37b4e9c912bcded9105d42befd59d391ad38",
   )
   let _ = server.send_handshake_flight(
@@ -331,7 +331,7 @@ test "server conn: receive_handshake rejects a Finished with the wrong verify_da
   )
   // A Finished whose verify_data is garbage does not authenticate: receive_handshake
   // returns false even though the message advances the state.
-  let client_secret = qv_hexb(
+  let client_secret = @base16.decode_lossy(
     "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21",
   )
   let bad_fin = @msg.frame(Finished, Bytes::make(32, b'\x00')[:])
@@ -354,11 +354,11 @@ test "server conn: receive_handshake rejects a Finished with the wrong verify_da
 
 ///|
 test "server conn: the handshake flight is protected with ECDHE-derived keys the client can decrypt" {
-  let dcid = qv_hexb("8394c8f03e515708")
-  let client_priv = qv_hexb(
+  let dcid = @base16.decode_lossy("8394c8f03e515708")
+  let client_priv = @base16.decode_lossy(
     "2333333333333333333333333333333333333333333333333333333333333333",
   )
-  let server_priv = qv_hexb(
+  let server_priv = @base16.decode_lossy(
     "6666666666666666666666666666666666666666666666666666666666666666",
   )
   let client_pub = tls13_x25519_public(client_priv)
@@ -461,11 +461,11 @@ test "server conn: the handshake flight is protected with ECDHE-derived keys the
 
 ///|
 test "server conn: a full ECDHE handshake reaches CONNECTED" {
-  let dcid = qv_hexb("8394c8f03e515708")
-  let client_priv = qv_hexb(
+  let dcid = @base16.decode_lossy("8394c8f03e515708")
+  let client_priv = @base16.decode_lossy(
     "2333333333333333333333333333333333333333333333333333333333333333",
   )
-  let server_priv = qv_hexb(
+  let server_priv = @base16.decode_lossy(
     "6666666666666666666666666666666666666666666666666666666666666666",
   )
   let client_pub = tls13_x25519_public(client_priv)
@@ -572,7 +572,7 @@ test "server conn: a full ECDHE handshake reaches CONNECTED" {
 
 ///|
 test "server conn: a tampered Initial packet is rejected" {
-  let dcid = qv_hexb("8394c8f03e515708")
+  let dcid = @base16.decode_lossy("8394c8f03e515708")
   let keys = client_initial_keys(dcid)
   let packet = @conn.send_long(
     Initial,
