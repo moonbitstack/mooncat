@@ -1,13 +1,5 @@
-// The greet chain over HTTP/2, as a blackbox test: it drives only mooncat's
-// public `serve_h2c` and a real moonapi `App` (the moonapi dependency is
-// test-only, and only blackbox tests see it), with a self-contained h2c client
-// built on the same moonrpc frame + HPACK primitives.
-
-///|
-/// A typed greeting payload, the mctl-friendly shape a spec would generate.
-struct H2Greeting {
-  message : String
-} derive(ToJson)
+// The greet chain over HTTP/2, as a blackbox test: it drives only mooncat's public
+// `serve_h2c`, with a self-contained h2c client built on moonhttp's frames and HPACK.
 
 ///|
 /// Latin-1 `String` → `Bytes`, for HPACK-encoding request pseudo-headers.
@@ -115,25 +107,14 @@ async fn h2t_get(port : Int, path : String) -> (String, String, Bytes) {
 }
 
 ///|
-/// The greet chain over HTTP/2 (§6.9): mooncat hosts a real moonapi `App` and a
-/// real h2c client GETs a typed `/greet/:name` route, reading back the JSON body,
-/// the `application/json` content type, and `200` — the moonapi router resolving
-/// the path decoded out of the HPACK HEADERS block. Proves the two repos cooperate
-/// over the self-built HTTP/2 transport, not just over HTTP/1.1.
-async test "h2c: mooncat serves a moonapi app answering a real HTTP/2 GET" {
+/// The greet chain over HTTP/2: a real h2c client GETs `/greet/<name>` from the same
+/// routed app the HTTP/1.1 test serves, reading back the JSON body, the content type
+/// and `200` — the path decoded out of the HPACK HEADERS block and handed to the app
+/// through the seam. Proves the HTTP/2 transport serves an application, not just
+/// that it moves frames.
+async test "h2c: mooncat serves a routed app answering a real HTTP/2 GET" {
   @async.with_task_group(g => {
-    let api = @moonapi.App::new()
-    api.get("/greet/:name", ctx => {
-      let name = match ctx.param("name") {
-        Some(n) => n
-        None => "world"
-      }
-      @moonapi.json(
-        200,
-        ToJson::to_json(({ message: "hello \{name}", } : H2Greeting)),
-      )
-    })
-    let app = api.to_asgi()
+    let app = greet_app()
     let task = g.spawn(() => @mooncat.serve_h2c(app, port=18105))
     @async.sleep(250)
     let (status, content_type, body) = h2t_get(18105, "/greet/moon")

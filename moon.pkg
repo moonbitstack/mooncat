@@ -52,13 +52,6 @@ import {
   "moonbitstack/moonhttp/hpack",
 }
 
-// moonapi is a test-only dependency: the greet-readiness integration test hosts
-// a real moonapi App on mooncat to prove the server half of the greet chain.
-// Consumers of mooncat don't inherit it.
-import {
-  "moonbitstack/moonapi",
-} for "test"
-
 // The async TLS-server constructor is `#internal` ("for internal testing
 // only") — it is the only server-side TLS entry point the library exposes, and
 // its own suite drives HTTPS through it. Opt in to that alert so mooncat can
