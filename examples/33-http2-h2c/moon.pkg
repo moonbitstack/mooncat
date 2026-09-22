@@ -1,7 +1,7 @@
 import {
   "moonbitstack/mooncat",
   "moonbitstack/moonasgi",
-  "moonbitstack/moonrpc",
+  "moonbitstack/moonhttp/http2",
 }
 
 pkgtype(kind: "executable")

@@ -6,40 +6,32 @@ import re, html, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SECTIONS = [
-    ("serve", ('server.native.mbt', 'http1.native.mbt', 'config.mbt', 'lifespan.mbt', 'process_model.native.mbt', 'process_reload.native.mbt', 'date.mbt', 'proxy.native.mbt'), "Serving",
+    ("serve", ('server.native.mbt', 'http1.native.mbt', 'config.mbt', 'lifespan.mbt', 'process_model.native.mbt', 'process_reload.native.mbt', 'date.mbt', 'proxy.native.mbt', 'log.mbt'), "Serving",
      "The accept loop that turns each connection into a Scope / Receive / Send and "
      "drives your moonasgi app: the Config record uvicorn's settings map onto, the "
      "lifespan protocol run around the listener, the graceful shutdown path that "
-     "drains in flight requests before it closes, the reload watcher, the Date "
+     "drains in-flight requests before it closes, the reload watcher, the Date "
      "header stamped on every response, and the forwarded headers a trusted proxy "
-     "is believed on."),
-    ("websocket", ('websocket.native.mbt', 'websocket_frame.mbt', 'websocket_handshake.mbt', 'websocket_serve.native.mbt'), "WebSocket",
+     "is believed on. HTTP/1.1 messages are read and written by moonhttp/http1; "
+     "what is here is the connection's inbox that keeps a pipelined request from "
+     "being lost between them."),
+    ("websocket", ('websocket.native.mbt', 'websocket_io.native.mbt', 'websocket_serve.native.mbt'), "WebSocket",
      "The frame-to-Event bridge that drives a websocket Scope through the SEAM: "
-     "connect / accept / receive / send / disconnect / close, the RFC 6455 frame "
-     "codec underneath it, and the upgrade handshake."),
+     "connect / accept / receive / send / disconnect / close. The RFC 6455 frames "
+     "and the opening handshake are moonhttp's ws and upgrade packages."),
     ("http2", ("http2.native.mbt",), "HTTP/2 (h2c)",
-     "Serving HTTP/2 over cleartext: the connection preface, frame pump and stream "
-     "multiplexing, over the same dispatch path HTTP/1.1 uses."),
-    ("tls", ('tls13.mbt', 'tls13_alert.mbt', 'tls13_alpn.mbt', 'tls13_certificate.mbt', 'tls13_certificate_verify.mbt', 'tls13_client_state.mbt', 'tls13_ecdhe.mbt', 'tls13_encrypted_extensions.mbt', 'tls13_handshake_driver.mbt', 'tls13_hello_extensions.mbt', 'tls13_hello_retry.mbt', 'tls13_key_share.mbt', 'tls13_quic_params.mbt', 'tls13_record.mbt', 'tls13_record_layer.mbt', 'tls13_server_state.mbt', 'tls13_transcript.mbt', 'tls_handshake.mbt', 'tls.native.mbt', 'x509.mbt', 'asn1.mbt'), "TLS 1.3",
-     "A TLS 1.3 stack written here rather than bound: the client and server state "
-     "machines, key schedule and transcript, ECDHE key share, ALPN, certificate and "
-     "CertificateVerify, the QUIC transport-parameters extension, the mandatory hello "
-     "extensions and the negotiation they drive, HelloRetryRequest, the alert protocol, "
-     "the record layer that carries all of it over TCP, plus the X.509 and DER parsing "
-     "they rest on."),
-    ("quic", ('quic_ack.mbt', 'quic_app_packet.mbt', 'quic_congestion.mbt', 'quic_conn.mbt', 'quic_flow.mbt', 'quic_frame.mbt', 'quic_handshake_packet.mbt', 'quic_hp.mbt', 'quic_hs_keys.mbt', 'quic_initial.mbt', 'quic_initial_conn.mbt', 'quic_initial_packet.mbt', 'quic_keys.mbt', 'quic_loss.mbt', 'quic_packet_header.mbt', 'quic_packet_number.mbt', 'quic_payload.mbt', 'quic_pn_space.mbt', 'quic_reassembly.mbt', 'quic_recovery.mbt', 'quic_retry.mbt', 'quic_rtt.mbt', 'quic_send_flow.mbt', 'quic_sender.mbt', 'quic_serve.mbt', 'quic_serve.native.mbt', 'quic_server_conn.mbt', 'quic_short_header.mbt', 'quic_stream_id.mbt', 'quic_stream_mgr.mbt', 'quic_stream_sched.mbt', 'quic_stream_state.mbt', 'quic_transport_params.mbt', 'quic_udp.native.mbt', 'quic_varint.mbt'), "QUIC",
-     "RFC 9000/9001 from the packet up: header protection, packet-number spaces, "
-     "initial and handshake keys, frames, streams and their scheduler, flow control, "
-     "loss recovery, congestion control, RTT estimation, retry, the connection "
-     "state machines on both ends, and the server event loop that demultiplexes "
-     "datagrams onto them over a UDP socket."),
-    ("http3", ('http3_conn.mbt', 'http3_frame.mbt', 'http3_frame_validation.mbt', 'http3_message.mbt', 'http3_server.mbt', 'http3_settings.mbt', 'http3_stream.mbt', 'qpack_dynamic_table.mbt', 'qpack_encode_dynamic.mbt', 'qpack_field.mbt', 'qpack_field_dynamic.mbt', 'qpack_instructions.mbt', 'qpack_int.mbt', 'qpack_section_prefix.mbt', 'qpack_static.mbt'), "HTTP/3 and QPACK",
-     "RFC 9114 framing, settings and the request/response message model over QUIC "
-     "streams, with the RFC 9204 QPACK codec: static and dynamic tables, field "
-     "encoding, encoder/decoder instructions and section prefixes."),
-    ("crypto", ('aes.mbt', 'gcm.mbt', 'sha1.mbt', 'sha256.mbt', 'hmac.mbt', 'hkdf.mbt', 'x25519.mbt', 'ecdsa.mbt'), "Primitives",
-     "The cryptography the transports need: AES and GCM, SHA-1 and SHA-256, HMAC and "
-     "HKDF, X25519 and ECDSA."),
+     "Serving HTTP/2 over cleartext: the frame pump, stream multiplexing and the "
+     "send windows, bound to the same dispatch path HTTP/1.1 uses. The frames are "
+     "moonhttp/http2 and the header compression moonhttp/hpack."),
+    ("tls", ('tls.mbt', 'tls.native.mbt', 'crypto.mbt'), "TLS",
+     "What is left of TLS in a server once the protocol is moontls: holding the "
+     "certificate and key, choosing the suite, and driving the handshake over an "
+     "accepted socket. Every algorithm is mooncrypt's; this binds the choices TLS "
+     "1.3 and QUIC make so the protocol code names an operation rather than "
+     "restating the suite on every call."),
+    ("quic", ('quic_serve.native.mbt', 'quic_udp.native.mbt'), "HTTP/3 over QUIC",
+     "The UDP half: the socket, and the event loop that demultiplexes datagrams "
+     "onto connections. QUIC itself is moonquic, and HTTP/3 with QPACK is moonhttp's."),
 ]
 
 KIND = {"struct": "struct", "enum": "enum", "fn": "fn", "type": "type", "let": "let"}

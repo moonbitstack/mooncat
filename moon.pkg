@@ -46,7 +46,10 @@ import {
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/buffer",
   "moonbitstack/moonasgi",
-  "moonbitstack/moonrpc",
+  "moonbitstack/moondate",
+  "moonbitstack/moonhttp/http1",
+  "moonbitstack/moonhttp/http2",
+  "moonbitstack/moonhttp/hpack",
 }
 
 // moonapi is a test-only dependency: the greet-readiness integration test hosts

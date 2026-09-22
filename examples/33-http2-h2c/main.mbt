@@ -24,10 +24,10 @@ fn hex(bs : Bytes) -> String {
 }
 
 ///|
-fn roundtrip(label : String, frame : @moonrpc.Frame) -> Unit {
+fn roundtrip(label : String, frame : @http2.Frame) -> Unit {
   let wire = frame.encode()
   let ok = try {
-    let (back, consumed) = @moonrpc.decode_frame(wire)
+    let (back, consumed) = @http2.decode(wire)
     back == frame && consumed == wire.length()
   } catch {
     _ => false
@@ -40,13 +40,11 @@ fn roundtrip(label : String, frame : @moonrpc.Frame) -> Unit {
 fn main {
   // 1. The client connection preface: the 24 octets an h2c server reads and checks
   //    before anything else. `drive_h2c` rejects a connection that doesn't open with it.
-  let preface = @moonrpc.connection_preface
+  let preface = @http2.preface
   println("preface: \{preface.length()} octets \{hex(preface)}")
+  println("  has_connection_preface(preface) = \{@http2.has_preface(preface)}")
   println(
-    "  has_connection_preface(preface) = \{@moonrpc.has_connection_preface(preface)}",
-  )
-  println(
-    "  has_connection_preface(b\"GET / HTTP/1.1\") = \{@moonrpc.has_connection_preface(b"GET / HTTP/1.1")}",
+    "  has_connection_preface(b\"GET / HTTP/1.1\") = \{@http2.has_preface(b"GET / HTTP/1.1")}",
   )
 
   // 2. The frames the server sends right after the preface (mirrors drive_h2c): a
@@ -54,14 +52,14 @@ fn main {
   println("server settings:")
   roundtrip(
     "SETTINGS",
-    @moonrpc.Frame::Settings(
-      params=[(@moonrpc.settings_initial_window_size, 0x100000)],
+    @http2.Frame::Settings(
+      params=[(@http2.settings_initial_window_size, 0x100000)],
       ack=false,
     ),
   )
   roundtrip(
     "WINDOW_UPDATE",
-    @moonrpc.Frame::WindowUpdate(stream_id=0, increment=0xF0000),
+    @http2.Frame::WindowUpdate(stream_id=0, increment=0xF0000),
   )
 
   // 3. The response body comes from the very same moonasgi app, run in-process over
@@ -88,12 +86,7 @@ fn main {
   println("response DATA frame (stream 1, end_stream):")
   roundtrip(
     "DATA",
-    @moonrpc.Frame::Data(
-      stream_id=1,
-      data=resp_body,
-      end_stream=true,
-      padding=0,
-    ),
+    @http2.Frame::Data(stream_id=1, data=resp_body, end_stream=true, padding=0),
   )
 
   // `serve_h2c_config(app, Config::new(host=..., port=...))` carries exactly this

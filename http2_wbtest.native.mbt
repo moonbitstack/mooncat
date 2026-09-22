@@ -19,10 +19,10 @@ async fn h2c_request(
   extra_headers? : Array[(Bytes, Bytes)] = [],
 ) -> (String, Array[(String, String)], Bytes) {
   let conn = @socket.Tcp::connect(@socket.Addr::parse("\{host}:\{port}"))
-  conn.write(@moonrpc.connection_preface)
-  conn.write(@moonrpc.Frame::Settings(params=[], ack=false).encode())
-  let enc = @moonrpc.HpackEncoder::new()
-  let hdrs : Array[@moonrpc.Header] = [
+  conn.write(@http2.preface)
+  conn.write(@http2.Frame::Settings(params=[], ack=false).encode())
+  let enc = @hpack.Encoder::new()
+  let hdrs : Array[@header.Header] = [
     { name: b":method", value: h2_str_to_bytes(verb), },
     { name: b":scheme", value: b"http", },
     { name: b":path", value: h2_str_to_bytes(path), },
@@ -34,7 +34,7 @@ async fn h2c_request(
   let block = enc.encode(hdrs)
   let has_body = body.length() > 0
   conn.write(
-    @moonrpc.Frame::Headers(
+    @http2.Frame::Headers(
       stream_id=1,
       fragment=block,
       end_stream=!has_body,
@@ -45,10 +45,10 @@ async fn h2c_request(
   )
   if has_body {
     conn.write(
-      @moonrpc.Frame::Data(stream_id=1, data=body, end_stream=true, padding=0).encode(),
+      @http2.Frame::Data(stream_id=1, data=body, end_stream=true, padding=0).encode(),
     )
   }
-  let dec = @moonrpc.HpackDecoder::new()
+  let dec = @hpack.Decoder::new()
   let mut status = ""
   let rheaders : Array[(String, String)] = []
   let acc = @buffer.Buffer()
@@ -58,7 +58,7 @@ async fn h2c_request(
     match frame {
       Settings(ack~, ..) =>
         if !ack {
-          conn.write(@moonrpc.Frame::Settings(params=[], ack=true).encode())
+          conn.write(@http2.Frame::Settings(params=[], ack=true).encode())
         }
       Headers(fragment~, end_stream~, ..) => {
         for h in dec.decode(fragment) {
@@ -78,10 +78,10 @@ async fn h2c_request(
         acc.write_bytes(data)
         if data.length() > 0 {
           conn.write(
-            @moonrpc.Frame::WindowUpdate(stream_id=0, increment=data.length()).encode(),
+            @http2.Frame::WindowUpdate(stream_id=0, increment=data.length()).encode(),
           )
           conn.write(
-            @moonrpc.Frame::WindowUpdate(stream_id~, increment=data.length()).encode(),
+            @http2.Frame::WindowUpdate(stream_id~, increment=data.length()).encode(),
           )
         }
         if end_stream {
@@ -203,14 +203,14 @@ async test "h2c: a large response is clamped to the peer's small stream window" 
     let task = g.spawn(() => serve_h2c(app, port=18103))
     @async.sleep(250)
     let conn = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18103"))
-    conn.write(@moonrpc.connection_preface)
+    conn.write(@http2.preface)
     conn.write(
-      @moonrpc.Frame::Settings(
-        params=[(@moonrpc.settings_initial_window_size, 100)],
+      @http2.Frame::Settings(
+        params=[(@http2.settings_initial_window_size, 100)],
         ack=false,
       ).encode(),
     )
-    let enc = @moonrpc.HpackEncoder::new()
+    let enc = @hpack.Encoder::new()
     let block = enc.encode([
       { name: b":method", value: b"GET", },
       { name: b":scheme", value: b"http", },
@@ -218,7 +218,7 @@ async test "h2c: a large response is clamped to the peer's small stream window" 
       { name: b":authority", value: b"127.0.0.1", },
     ])
     conn.write(
-      @moonrpc.Frame::Headers(
+      @http2.Frame::Headers(
         stream_id=1,
         fragment=block,
         end_stream=true,
@@ -227,7 +227,7 @@ async test "h2c: a large response is clamped to the peer's small stream window" 
         padding=0,
       ).encode(),
     )
-    let dec = @moonrpc.HpackDecoder::new()
+    let dec = @hpack.Decoder::new()
     let acc = @buffer.Buffer()
     let mut first_data_len = -1
     let mut done = false
@@ -236,7 +236,7 @@ async test "h2c: a large response is clamped to the peer's small stream window" 
       match frame {
         Settings(ack~, ..) =>
           if !ack {
-            conn.write(@moonrpc.Frame::Settings(params=[], ack=true).encode())
+            conn.write(@http2.Frame::Settings(params=[], ack=true).encode())
           }
         Headers(fragment~, ..) => dec.decode(fragment) |> ignore
         Data(data~, stream_id~, end_stream~, ..) => {
@@ -246,10 +246,10 @@ async test "h2c: a large response is clamped to the peer's small stream window" 
           acc.write_bytes(data)
           if data.length() > 0 {
             conn.write(
-              @moonrpc.Frame::WindowUpdate(stream_id=0, increment=data.length()).encode(),
+              @http2.Frame::WindowUpdate(stream_id=0, increment=data.length()).encode(),
             )
             conn.write(
-              @moonrpc.Frame::WindowUpdate(stream_id~, increment=data.length()).encode(),
+              @http2.Frame::WindowUpdate(stream_id~, increment=data.length()).encode(),
             )
           }
           if end_stream {
@@ -293,9 +293,9 @@ async test "h2c: two streams multiplex on one connection and each gets its reply
     let task = g.spawn(() => serve_h2c(app, port=18104))
     @async.sleep(250)
     let conn = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18104"))
-    conn.write(@moonrpc.connection_preface)
-    conn.write(@moonrpc.Frame::Settings(params=[], ack=false).encode())
-    let enc = @moonrpc.HpackEncoder::new()
+    conn.write(@http2.preface)
+    conn.write(@http2.Frame::Settings(params=[], ack=false).encode())
+    let enc = @hpack.Encoder::new()
     let mk = (sid : Int, path : Bytes) => {
       let block = enc.encode([
         { name: b":method", value: b"GET", },
@@ -304,7 +304,7 @@ async test "h2c: two streams multiplex on one connection and each gets its reply
         { name: b":authority", value: b"127.0.0.1", },
       ])
       conn.write(
-        @moonrpc.Frame::Headers(
+        @http2.Frame::Headers(
           stream_id=sid,
           fragment=block,
           end_stream=true,
@@ -316,7 +316,7 @@ async test "h2c: two streams multiplex on one connection and each gets its reply
     }
     mk(1, b"/one")
     mk(3, b"/three")
-    let dec = @moonrpc.HpackDecoder::new()
+    let dec = @hpack.Decoder::new()
     let bodies : Map[Int, @buffer.Buffer] = Map([])
     let ended : Map[Int, Bool] = Map([])
     let mut open_streams = 2
@@ -325,7 +325,7 @@ async test "h2c: two streams multiplex on one connection and each gets its reply
       match frame {
         Settings(ack~, ..) =>
           if !ack {
-            conn.write(@moonrpc.Frame::Settings(params=[], ack=true).encode())
+            conn.write(@http2.Frame::Settings(params=[], ack=true).encode())
           }
         Headers(fragment~, stream_id~, end_stream~, ..) => {
           dec.decode(fragment) |> ignore

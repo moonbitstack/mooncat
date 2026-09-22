@@ -23,8 +23,10 @@ fn is_trusted_proxy(client : (String, Int)?, trusted : Array[String]) -> Bool {
 /// The leftmost entry of an `X-Forwarded-For` chain — the original client. Each hop appends its
 /// own peer to the right, so the left end is the address furthest from this server.
 fn first_forwarded(raw : String) -> String {
-  let comma = index_of(raw, ',', 0)
-  let head = if comma >= 0 { raw[0:comma].to_owned() } else { raw }
+  let head = match raw.find(",") {
+    Some(comma) => raw[0:comma].to_owned()
+    None => raw
+  }
   ascii_trim(head)
 }
 

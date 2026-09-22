@@ -3,28 +3,6 @@
 // comparing two integers and a response is only ever dated to the second anyway.
 
 ///|
-/// The three-letter day names of the IMF-fixdate format, indexed from Sunday.
-let day_names : Array[String] = [
-  "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
-]
-
-///|
-/// The three-letter month names of the IMF-fixdate format, indexed from January.
-let month_names : Array[String] = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-]
-
-///|
-/// Two decimal digits, zero-padded — the width IMF-fixdate gives the day and each clock field.
-fn two_digits(n : Int) -> String {
-  if n < 10 {
-    "0\{n}"
-  } else {
-    "\{n}"
-  }
-}
-
-///|
 /// Floor division, so a pre-epoch instant lands on the day that contains it rather than the one
 /// after. Truncating division would round negatives towards zero.
 fn floor_div(a : Int64, b : Int64) -> Int64 {
@@ -40,31 +18,13 @@ fn floor_div(a : Int64, b : Int64) -> Int64 {
 /// makes mandatory for a `Date` header: `Sun, 06 Nov 1994 08:49:37 GMT`, always GMT, always
 /// fixed-width.
 ///
-/// The calendar conversion is the standard civil-from-days one: shift the epoch to a March-based
-/// year so the leap day falls at the end of the era, then divide out 400-year eras. It is exact for
-/// any instant an `Int64` millisecond count can name, and needs no locale and no clock but the one
-/// that produced `ms`.
+/// The calendar and the format are moondate's; what is here is the millisecond clock
+/// mooncat reads, brought down to the whole second the header is written to.
 pub fn http_date(ms : Int64) -> String {
-  let days = floor_div(ms, 86400000L)
-  let ms_of_day = ms - days * 86400000L
-  let sec_of_day = (ms_of_day / 1000L).to_int()
-  let hour = sec_of_day / 3600
-  let minute = sec_of_day % 3600 / 60
-  let second = sec_of_day % 60
-  // 1970-01-01 was a Thursday, so shifting by 4 puts Sunday at 0.
-  let weekday = ((days + 4L) % 7L + 7L) % 7L
-  let z = days + 719468L
-  let era = floor_div(z, 146097L)
-  let doe = z - era * 146097L
-  let yoe = (doe - doe / 1460L + doe / 36524L - doe / 146096L) / 365L
-  let doy = doe - (365L * yoe + yoe / 4L - yoe / 100L)
-  let mp = (5L * doy + 2L) / 153L
-  let day = (doy - (153L * mp + 2L) / 5L + 1L).to_int()
-  let month = (if mp < 10L { mp + 3L } else { mp - 9L }).to_int()
-  let year = (yoe + era * 400L + (if month <= 2 { 1L } else { 0L })).to_int()
-  let name = day_names[weekday.to_int()]
-  let mon = month_names[month - 1]
-  "\{name}, \{two_digits(day)} \{mon} \{year} \{two_digits(hour)}:\{two_digits(minute)}:\{two_digits(second)} GMT"
+  @moondate.Moment::of_epoch(floor_div(ms, 1000L)).http_text() catch {
+    // Only a bare time has no HTTP date, and an epoch instant is never one.
+    _ => abort("an epoch instant always has an HTTP date")
+  }
 }
 
 ///|

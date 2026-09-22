@@ -31,9 +31,9 @@ fn h2t_bytes_to_str(b : Bytes) -> String {
 
 ///|
 /// Read exactly one HTTP/2 frame off the socket with moonrpc's public codec.
-async fn h2t_read_frame(reader : &@io.Reader) -> @moonrpc.Frame {
+async fn h2t_read_frame(reader : &@io.Reader) -> @http2.Frame {
   let head = reader.read_exactly(9)
-  let hdr = @moonrpc.decode_frame_header(head)
+  let hdr = @http2.FrameHeader::decode(head)
   let payload = if hdr.length > 0 {
     reader.read_exactly(hdr.length)
   } else {
@@ -42,7 +42,7 @@ async fn h2t_read_frame(reader : &@io.Reader) -> @moonrpc.Frame {
   let buf = @buffer.Buffer()
   buf.write_bytes(head)
   buf.write_bytes(payload)
-  let (frame, _consumed) = @moonrpc.decode_frame(buf.to_bytes())
+  let (frame, _consumed) = @http2.decode(buf.to_bytes())
   frame
 }
 
@@ -51,9 +51,9 @@ async fn h2t_read_frame(reader : &@io.Reader) -> @moonrpc.Frame {
 /// END_STREAM — reading back `(:status, content-type, body)`.
 async fn h2t_get(port : Int, path : String) -> (String, String, Bytes) {
   let conn = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:\{port}"))
-  conn.write(@moonrpc.connection_preface)
-  conn.write(@moonrpc.Frame::Settings(params=[], ack=false).encode())
-  let enc = @moonrpc.HpackEncoder::new()
+  conn.write(@http2.preface)
+  conn.write(@http2.Frame::Settings(params=[], ack=false).encode())
+  let enc = @hpack.Encoder::new()
   let block = enc.encode([
     { name: b":method", value: b"GET", },
     { name: b":scheme", value: b"http", },
@@ -61,7 +61,7 @@ async fn h2t_get(port : Int, path : String) -> (String, String, Bytes) {
     { name: b":authority", value: b"127.0.0.1", },
   ])
   conn.write(
-    @moonrpc.Frame::Headers(
+    @http2.Frame::Headers(
       stream_id=1,
       fragment=block,
       end_stream=true,
@@ -70,7 +70,7 @@ async fn h2t_get(port : Int, path : String) -> (String, String, Bytes) {
       padding=0,
     ).encode(),
   )
-  let dec = @moonrpc.HpackDecoder::new()
+  let dec = @hpack.Decoder::new()
   let mut status = ""
   let mut content_type = ""
   let acc = @buffer.Buffer()
@@ -80,7 +80,7 @@ async fn h2t_get(port : Int, path : String) -> (String, String, Bytes) {
     match frame {
       Settings(ack~, ..) =>
         if !ack {
-          conn.write(@moonrpc.Frame::Settings(params=[], ack=true).encode())
+          conn.write(@http2.Frame::Settings(params=[], ack=true).encode())
         }
       Headers(fragment~, end_stream~, ..) => {
         for h in dec.decode(fragment) {
@@ -100,7 +100,7 @@ async fn h2t_get(port : Int, path : String) -> (String, String, Bytes) {
         acc.write_bytes(data)
         if data.length() > 0 {
           conn.write(
-            @moonrpc.Frame::WindowUpdate(stream_id~, increment=data.length()).encode(),
+            @http2.Frame::WindowUpdate(stream_id~, increment=data.length()).encode(),
           )
         }
         if end_stream {

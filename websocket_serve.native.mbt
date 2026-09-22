@@ -22,7 +22,7 @@
 /// code, so an app can tell a protocol failure from a peer that simply went away (`1006`).
 async fn serve_websocket_raw(
   app : @moonasgi.AsgiApp,
-  req : Http1Request,
+  req : @http1.Request,
   reader : &@io.Reader,
   writer : &@io.Writer,
   config~ : Config,
@@ -35,7 +35,7 @@ async fn serve_websocket_raw(
   }
   let (client, scheme) = if config.proxy_headers {
     proxy_rewrite(
-      req.headers,
+      fields_map(req.fields),
       peer,
       "ws",
       trusted=config.forwarded_allow_ips,
@@ -51,10 +51,10 @@ async fn serve_websocket_raw(
     raw_path: @utf8.encode(path),
     query_string: @utf8.encode(query),
     root_path: config.root_path,
-    headers: headers_to_pairs(req.headers),
+    headers: fields_pairs(req.fields),
     client,
     server: None,
-    subprotocols: parse_subprotocols(req.headers),
+    subprotocols: parse_subprotocols(fields_map(req.fields)),
     asgi: @moonasgi.AsgiVersion::websocket(),
     extensions: @moonasgi.Extensions::none(),
     state: Map([]),
@@ -109,7 +109,9 @@ async fn serve_websocket_raw(
       WebSocketAccept(subprotocol~, headers~) =>
         if !accepted.val {
           accepted.val = true
-          let key = req.headers.get("sec-websocket-key").unwrap_or("")
+          let key = fields_map(req.fields)
+            .get("sec-websocket-key")
+            .unwrap_or("")
           let protocol = subprotocol
           writer.write(@upgrade.response(key, protocol?, extra=headers[:]))
         }

@@ -63,12 +63,15 @@ async fn handle_https_conn(
 ) -> Unit {
   let tls = tls_accept(conn, cert)
   defer tls.close()
+  // One inbox for the whole connection, so what one request over-read is there for
+  // the next.
+  let inbox = Inbox::new(tls)
   for ;; {
-    guard next_head(tls, config) is Some(req) else { break }
+    guard next_head(inbox, config) is Some(req) else { break }
     let keep = dispatch_http1(
       app,
       req,
-      tls,
+      inbox,
       tls,
       scheme="https",
       config~,

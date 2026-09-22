@@ -33,21 +33,18 @@ async fn ws_raw_echo_app(
 ///|
 /// The RFC 6455 §1.3 handshake request headers (key `dGhlIHNhbXBsZSBub25jZQ==`), offering the
 /// `chat` and `superchat` subprotocols.
-fn ws_upgrade_request() -> Http1Request {
-  {
-    http_method: "GET",
-    target: "/chat",
-    version: "HTTP/1.1",
-    headers: Map([
-      ("upgrade", "websocket"),
-      ("connection", "Upgrade"),
-      ("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ=="),
-      ("sec-websocket-version", "13"),
-      ("sec-websocket-protocol", "chat, superchat"),
-    ]),
-    content_length: 0,
-    chunked: false,
-    expect_continue: false,
+fn ws_upgrade_request() -> @http1.Request {
+  // Read through the real parser, so the test drives exactly what a socket would.
+  let wire = @utf8.encode(
+    "GET /chat HTTP/1.1\r\n" +
+    "Upgrade: websocket\r\n" +
+    "Connection: Upgrade\r\n" +
+    "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
+    "Sec-WebSocket-Version: 13\r\n" +
+    "Sec-WebSocket-Protocol: chat, superchat\r\n\r\n",
+  )
+  @http1.request(wire[:]).0 catch {
+    e => abort("the RFC 6455 §1.3 request should parse: \{e}")
   }
 }
 

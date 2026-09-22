@@ -1,165 +1,105 @@
 ///|
-/// A parsed HTTP/1.1 request line + header block, produced by
-/// `parse_http1_request` from any `@io.Reader` transport (a plain socket, or —
-/// the reason this codec exists — a `@tls.Tls` stream, over which the async
-/// library's own `@http.ServerConnection` cannot be built because it is welded
-/// to `@socket.Tcp`). This is the self-built HTTP/1.1 request parser mandated by
-/// the roadmap (§6.2 "自建解析器"), kept transport-agnostic so it drives both the
-/// TLS accept path and, in later batches, the full h11 knob surface.
-priv struct Http1Request {
-  http_method : String
-  target : String
-  version : String
-  headers : Map[String, String]
-  content_length : Int
-  // `Transfer-Encoding: chunked` — the body is read as chunks, not by content-length.
-  chunked : Bool
-  // `Expect: 100-continue` — the server sends an interim `100 Continue` before it
-  // reads the body, so the client waits for the go-ahead.
-  expect_continue : Bool
+/// What a connection has read but not yet consumed.
+///
+/// A head is read with `read_some`, which hands back whatever has arrived — and a
+/// client that pipelines puts the body, or the next request, in the same segment.
+/// Those octets belong to what comes next, so they are held here rather than
+/// dropped, and every later read on the connection draws from them first. Losing
+/// them is how a keep-alive connection drops a request.
+priv struct Inbox {
+  reader : &@io.Reader
+  mut held : Bytes
 }
 
 ///|
-/// The default cap on a request's head (request line + all header lines). A peer exceeding it is
-/// rejected before its headers can pin unbounded memory — uvicorn's
-/// `h11_max_incomplete_event_size` default of 16 KiB. `Config::max_head_size` overrides it.
-let max_head_size : Int = 16 * 1024
+fn Inbox::new(reader : &@io.Reader) -> Inbox {
+  { reader, held: b"", }
+}
 
 ///|
-/// Index of the first `ch` in `s` at or after `from`, or `-1`. Operates on the
-/// `UInt16` code units `String` indexing yields; HTTP request/header syntax is
-/// ASCII so code-unit scanning is exact.
-fn index_of(s : String, ch : UInt16, from : Int) -> Int {
-  let n = s.length()
-  for i = from; i < n; i = i + 1 {
-    if s[i] == ch {
-      return i
+/// Read more onto what is held. `false` when the peer has closed.
+async fn Inbox::fill(self : Inbox) -> Bool {
+  match self.reader.read_some() {
+    Some(more) => {
+      let buf = Buffer()
+      buf.write_bytes(self.held)
+      buf.write_bytes(more)
+      self.held = buf.to_bytes()
+      true
     }
+    None => false
   }
-  -1
 }
 
 ///|
-/// Split an HTTP/1.1 request line `METHOD SP request-target SP HTTP-version`
-/// into its three tokens, or `None` if it is malformed (fewer than two spaces).
-fn split_request_line(line : String) -> (String, String, String)? {
-  let sp1 = index_of(line, ' ', 0)
-  guard sp1 >= 0 else { return None }
-  let sp2 = index_of(line, ' ', sp1 + 1)
-  guard sp2 >= 0 else { return None }
-  let verb = line[0:sp1].to_owned()
-  let target = line[sp1 + 1:sp2].to_owned()
-  let version = line[sp2 + 1:line.length()].to_owned()
-  Some((verb, target, version))
+/// Drop the first `n` held octets, which a parse has consumed.
+fn Inbox::consume(self : Inbox, n : Int) -> Unit {
+  self.held = self.held[n:].to_owned()
 }
 
 ///|
-/// Whether a `Content-Length` field value is well-formed: after trimming OWS, a
-/// non-empty run of ASCII digits and nothing else. A value like `4a` or `abc` is a
-/// framing error, not a lenient zero (RFC 7230 §3.3.2 / §3.3.3).
-fn is_valid_content_length(s : String) -> Bool {
-  let t = ascii_trim(s)
-  if t.length() == 0 {
-    return false
-  }
-  for i = 0; i < t.length(); i = i + 1 {
-    let c = t[i]
-    if c < '0' || c > '9' {
-      return false
-    }
-  }
-  true
-}
-
-///|
-/// Parse a `Content-Length` field value into a non-negative `Int`, stopping at
-/// the first non-digit (lenient like a production parser's fast path).
-fn parse_content_length(s : String) -> Int {
-  let t = ascii_trim(s)
-  let mut acc = 0
-  for i = 0; i < t.length(); i = i + 1 {
-    let c = t[i]
-    if c >= '0' && c <= '9' {
-      acc = acc * 10 + (c.to_int() - 48)
-    } else {
-      return acc
-    }
-  }
-  acc
-}
-
-///|
-/// Read one HTTP/1.1 request head (request line + header block, terminated by a
-/// blank line) from `reader`. Returns `None` on a clean end-of-stream — the
-/// signal the keep-alive accept loop uses to stop reading further requests from
-/// a closed connection — or on a malformed request line. Header names are
-/// lowercased per ASGI's latin1-lowercased convention; values are OWS-trimmed
-/// per RFC 7230 §3.2. `max_head` bounds the whole head (← uvicorn's
-/// `h11_max_incomplete_event_size`).
-async fn parse_http1_request(
-  reader : &@io.Reader,
-  max_head? : Int = max_head_size,
-) -> Http1Request? {
-  let line = reader.read_until("\r\n")
-  guard line is Some(request_line) else { return None }
-  guard split_request_line(request_line) is Some((verb, target, version)) else {
-    return None
-  }
-  let headers : Map[String, String] = Map([])
-  // Bound the request head: a peer that never sends the terminating blank line (an
-  // endless stream of header lines) must not grow the buffer without limit.
-  let mut head_bytes = request_line.length() + 2
+/// The next request head, or `None` when the peer went away or sent something
+/// that is not one.
+///
+/// The parse is moonhttp's: this only feeds it until it stops saying `Partial`. A
+/// head that fails any check — including the request-smuggling ones — ends the
+/// connection, which is what uvicorn does with a malformed request too.
+async fn Inbox::head(self : Inbox, limits : @http1.Limits) -> @http1.Request? {
   for ;; {
-    let h = reader.read_until("\r\n")
-    guard h is Some(header_line) else { break }
-    if header_line.length() == 0 {
+    let outcome : Result[(@http1.Request, Int), @http1.Refused] = Ok(
+      @http1.request(self.held[:], limits~),
+    ) catch {
+      e => Err(e)
+    }
+    match outcome {
+      Ok((req, used)) => {
+        self.consume(used)
+        return Some(req)
+      }
+      Err(Partial) => if !self.fill() { return None }
+      Err(_) => return None
+    }
+  }
+}
+
+///|
+/// Exactly `n` octets of body, from what is held and then from the connection.
+async fn Inbox::exactly(self : Inbox, n : Int) -> Bytes {
+  while self.held.length() < n {
+    if !self.fill() {
       break
     }
-    head_bytes = head_bytes + header_line.length() + 2
-    if head_bytes > max_head {
-      return None
+  }
+  let take = if self.held.length() < n { self.held.length() } else { n }
+  let out = self.held[0:take].to_owned()
+  self.consume(take)
+  out
+}
+
+///|
+/// A chunked body, decoded, with any trailer fields read and dropped.
+async fn Inbox::chunks(self : Inbox) -> Bytes {
+  let body = Buffer()
+  for ;; {
+    let outcome : Result[@http1.Chunk, @http1.Refused] = Ok(
+      @http1.chunked(self.held[:]),
+    ) catch {
+      e => Err(e)
     }
-    let colon = index_of(header_line, ':', 0)
-    if colon >= 0 {
-      let key = ascii_trim(header_line[0:colon].to_owned()).to_lower()
-      let value = ascii_trim(
-        header_line[colon + 1:header_line.length()].to_owned(),
-      )
-      headers[key] = value
+    match outcome {
+      Ok(Piece(part, used)) => {
+        body.write_bytes(part)
+        self.consume(used)
+      }
+      Ok(Done(_, used)) => {
+        self.consume(used)
+        break
+      }
+      Err(Partial) => if !self.fill() { break }
+      Err(_) => break
     }
   }
-  let has_content_length = headers.get("content-length") is Some(_)
-  let content_length = match headers.get("content-length") {
-    Some(v) => {
-      // An invalid Content-Length is an unrecoverable framing error (RFC 7230 §3.3.3),
-      // not a lenient zero: reject the request rather than misframe its body.
-      guard is_valid_content_length(v) else { return None }
-      parse_content_length(v)
-    }
-    None => 0
-  }
-  let chunked = match headers.get("transfer-encoding") {
-    Some(v) => v.to_lower().contains("chunked")
-    None => false
-  }
-  // Both a Content-Length and a chunked Transfer-Encoding is ambiguous — a request-
-  // smuggling vector — so reject it rather than pick one (RFC 7230 §3.3.3).
-  if chunked && has_content_length {
-    return None
-  }
-  let expect_continue = match headers.get("expect") {
-    Some(v) => v.to_lower().contains("100-continue")
-    None => false
-  }
-  Some({
-    http_method: verb,
-    target,
-    version,
-    headers,
-    content_length,
-    chunked,
-    expect_continue,
-  })
+  body.to_bytes()
 }
 
 ///|
@@ -167,10 +107,10 @@ async fn parse_http1_request(
 /// `Config::timeout_keep_alive` (← uvicorn's `--timeout-keep-alive`). `None` means the peer went
 /// quiet or went away — either way the connection is finished, and holding it open costs a socket
 /// and a task for as long as the peer cares to say nothing.
-async fn next_head(reader : &@io.Reader, config : Config) -> Http1Request? {
+async fn next_head(inbox : Inbox, config : Config) -> @http1.Request? {
   match
     @async.with_timeout_opt(config.timeout_keep_alive, () => {
-      parse_http1_request(reader, max_head=config.max_head_size)
+      inbox.head(@http1.Limits::new(head=config.max_head_size))
     }) {
     Some(req) => req
     None => None
@@ -178,104 +118,36 @@ async fn next_head(reader : &@io.Reader, config : Config) -> Http1Request? {
 }
 
 ///|
-/// Parse a chunked-body chunk-size line (RFC 7230 §4.1): hexadecimal, up to an
-/// optional `;chunk-ext` or the line end. A non-hex character stops the scan.
-fn parse_chunk_size(s : String) -> Int {
-  let t = ascii_trim(s)
-  let mut acc = 0
-  for i = 0; i < t.length(); i = i + 1 {
-    let c = t[i]
-    let d = if c >= '0' && c <= '9' {
-      c.to_int() - '0'.to_int()
-    } else if c >= 'a' && c <= 'f' {
-      c.to_int() - 'a'.to_int() + 10
-    } else if c >= 'A' && c <= 'F' {
-      c.to_int() - 'A'.to_int() + 10
-    } else {
-      return acc
-    }
-    acc = acc * 16 + d
+/// The fields as a map, for the helpers that look one up by name.
+///
+/// A repeated field keeps its last value, which is what those lookups always did.
+/// The ASGI scope is built from [`fields_pairs`] instead, which keeps every one.
+fn fields_map(fields : Array[@header.Header]) -> Map[String, String] {
+  let out : Map[String, String] = Map([])
+  for f in fields {
+    let (k, v) = f.ascii()
+    out[k] = v
   }
-  acc
+  out
 }
 
 ///|
-/// Read a `Transfer-Encoding: chunked` request body to its decoded bytes (RFC 7230
-/// §4.1): each chunk is a hex size line, that many octets, then a CRLF; a zero-size
-/// chunk ends the body, after which any trailer fields up to the blank line are
-/// consumed.
-async fn read_chunked_body(reader : &@io.Reader) -> Bytes {
-  let buf = Buffer()
-  for ;; {
-    let size_line = reader.read_until("\r\n")
-    guard size_line is Some(sl) else { break }
-    let size = parse_chunk_size(sl)
-    if size <= 0 {
-      // A zero chunk ends the body; drain any trailer fields to the blank line.
-      for ;; {
-        let t = reader.read_until("\r\n")
-        guard t is Some(tl) else { break }
-        if tl.length() == 0 {
-          break
-        }
-      }
-      break
-    }
-    buf.write_bytes(reader.read_exactly(size))
-    let _ = reader.read_exactly(2) // the CRLF terminating the chunk data
-  }
-  buf.to_bytes()
+/// The fields as ASGI's header pairs, in order and with repeats kept.
+///
+/// ASGI's `headers` is a list precisely so that two `Cookie` or two `Forwarded`
+/// lines survive; building it from a map would collapse them.
+fn fields_pairs(fields : Array[@header.Header]) -> Array[(String, String)] {
+  fields.map(f => f.ascii())
 }
 
 ///|
-/// Lowercase hexadecimal encoding of a non-negative `Int`, for HTTP/1.1 chunked
-/// transfer-encoding chunk-size prefixes.
-fn hex_of(n : Int) -> String {
-  let table = [
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
-  ]
-  if n == 0 {
-    return "0"
-  }
-  let digits : Array[Char] = []
-  let mut v = n
-  while v > 0 {
-    digits.push(table[v % 16])
-    v = v / 16
-  }
-  let out = StringBuilder()
-  for i = digits.length() - 1; i >= 0; i = i - 1 {
-    out.write_char(digits[i])
-  }
-  out.to_string()
-}
-
-///|
-/// Should the connection be kept alive after this request? HTTP/1.1 defaults to
-/// keep-alive unless `Connection: close`; HTTP/1.0 defaults to close unless
-/// `Connection: keep-alive` (RFC 7230 §6.3).
-fn should_keep_alive(req : Http1Request) -> Bool {
-  let conn = match req.headers.get("connection") {
-    Some(c) => c.to_lower()
-    None => ""
-  }
-  if req.version == "HTTP/1.0" {
-    conn.contains("keep-alive")
-  } else {
-    !conn.contains("close")
-  }
-}
-
-///|
-/// Write one HTTP/1.1 chunked-encoding chunk. A zero-length body is skipped so
-/// it is never mistaken for the terminating chunk.
+/// One chunk of a streamed response. A zero-length body is skipped so it is never
+/// mistaken for the terminating chunk.
 async fn write_chunk(writer : &@io.Writer, body : Bytes) -> Unit {
   if body.length() == 0 {
     return
   }
-  writer.write("\{hex_of(body.length())}\r\n")
-  writer.write(body)
-  writer.write("\r\n")
+  writer.write(@http1.chunk(body[:]))
 }
 
 ///|
@@ -294,8 +166,8 @@ async fn write_chunk(writer : &@io.Writer, body : Bytes) -> Unit {
 /// connection should be kept alive for a further request.
 async fn dispatch_http1(
   app : @moonasgi.AsgiApp,
-  req : Http1Request,
-  reader : &@io.Reader,
+  req : @http1.Request,
+  inbox : Inbox,
   writer : &@io.Writer,
   scheme~ : String,
   config? : Config = Config::new(),
@@ -304,8 +176,10 @@ async fn dispatch_http1(
   let server_headers = config.server_headers
   // A WebSocket upgrade is bridged over the raw stream (with subprotocol echo) and ends the
   // connection — it never returns to the keep-alive HTTP loop.
-  if is_websocket_upgrade(req.headers) {
-    serve_websocket_raw(app, req, reader, writer, config~, client_addr?)
+  // A conforming client sends nothing after an upgrade request until it has the 101
+  // (RFC 6455 §4.1), so nothing is held here to hand over with the stream.
+  if is_websocket_upgrade(fields_map(req.fields)) {
+    serve_websocket_raw(app, req, inbox.reader, writer, config~, client_addr?)
     return false
   }
   let (path, query) = split_query(req.target)
@@ -314,7 +188,12 @@ async fn dispatch_http1(
     None => None
   }
   let (client, req_scheme) = if config.proxy_headers {
-    proxy_rewrite(req.headers, peer, scheme, trusted=config.forwarded_allow_ips)
+    proxy_rewrite(
+      fields_map(req.fields),
+      peer,
+      scheme,
+      trusted=config.forwarded_allow_ips,
+    )
   } else {
     (peer, scheme)
   }
@@ -324,13 +203,13 @@ async fn dispatch_http1(
     } else {
       "1.1"
     },
-    http_method: req.http_method,
+    http_method: req.verb,
     scheme: req_scheme,
     path,
     raw_path: @utf8.encode(path),
     query_string: @utf8.encode(query),
     root_path: config.root_path,
-    headers: headers_to_pairs(req.headers),
+    headers: fields_pairs(req.fields),
     client,
     server: None,
     asgi: @moonasgi.AsgiVersion::http(),
@@ -344,15 +223,13 @@ async fn dispatch_http1(
     } else {
       body_sent.val = true
       // Expect: 100-continue — let the client know it may send the body now.
-      if req.expect_continue {
-        writer.write("HTTP/1.1 100 Continue\r\n\r\n")
+      if req.expects {
+        writer.write(@http1.continue_)
       }
-      let body = if req.chunked {
-        read_chunked_body(reader)
-      } else if req.content_length == 0 {
-        b""
-      } else {
-        reader.read_exactly(req.content_length)
+      let body = match req.body {
+        Chunked => inbox.chunks()
+        Sized(n) => inbox.exactly(n)
+        _ => b""
       }
       @moonasgi.Event::HttpRequest(body~, more_body=false)
     }
@@ -367,12 +244,12 @@ async fn dispatch_http1(
   let is_http10 = req.version == "HTTP/1.0"
   let resp_version = if is_http10 { "HTTP/1.0" } else { "HTTP/1.1" }
   // A HEAD response carries the same headers as GET but no body (RFC 7231 §4.3.2).
-  let is_head = req.http_method == "HEAD"
+  let is_head = req.verb == "HEAD"
   let close_delimited = Ref(false)
   let head = fn(extra : String) -> String {
     let sb = StringBuilder()
     sb.write_string(
-      "\{resp_version} \{resp_status.val} \{reason(resp_status.val)}\r\n",
+      "\{resp_version} \{resp_status.val} \{@http1.phrase(resp_status.val)}\r\n",
     )
     let sent : Map[String, Bool] = Map([])
     for pair in resp_headers.val {
@@ -402,7 +279,7 @@ async fn dispatch_http1(
     // that will close SHOULD say so (RFC 7230 §6.1), and HTTP/1.0 needs an explicit
     // `keep-alive` since it defaults to close.
     if !sent.contains("connection") {
-      let will_keep_alive = should_keep_alive(req) && !close_delimited.val
+      let will_keep_alive = req.keep_alive && !close_delimited.val
       if !will_keep_alive {
         sb.write_string("connection: close\r\n")
       } else if is_http10 {
@@ -445,7 +322,7 @@ async fn dispatch_http1(
         } else if chunked.val {
           write_chunk(writer, body)
           if !more_body {
-            writer.write("0\r\n\r\n")
+            writer.write(@http1.last_chunk())
             ended.val = true
           }
         } else if close_delimited.val {
@@ -461,55 +338,10 @@ async fn dispatch_http1(
   if !started.val {
     writer.write(head("content-length: 0\r\n\r\n"))
   } else if chunked.val && !ended.val {
-    writer.write("0\r\n\r\n")
+    writer.write(@http1.last_chunk())
   }
   // A close-delimited response has no length signal, so the connection must close.
-  should_keep_alive(req) && !close_delimited.val
-}
-
-///|
-test "http1 codec: request-line split, content-length, hex, keep-alive" {
-  assert_eq(
-    split_request_line("GET /a?b=1 HTTP/1.1"),
-    Some(("GET", "/a?b=1", "HTTP/1.1")),
-  )
-  assert_eq(split_request_line("garbage"), None)
-  assert_eq(parse_content_length(" 42 "), 42)
-  assert_eq(parse_content_length("0"), 0)
-  assert_eq(is_valid_content_length(" 42 "), true)
-  assert_eq(is_valid_content_length("0"), true)
-  assert_eq(is_valid_content_length("4a"), false)
-  assert_eq(is_valid_content_length("abc"), false)
-  assert_eq(is_valid_content_length(""), false)
-  assert_eq(hex_of(0), "0")
-  assert_eq(hex_of(255), "ff")
-  assert_eq(hex_of(4096), "1000")
-  let ka_11 : Http1Request = {
-    http_method: "GET",
-    target: "/",
-    version: "HTTP/1.1",
-    headers: Map([]),
-    content_length: 0,
-    chunked: false,
-    expect_continue: false,
-  }
-  assert_eq(parse_chunk_size("1a"), 26)
-  assert_eq(parse_chunk_size("ff;name=v"), 255)
-  assert_eq(parse_chunk_size("0"), 0)
-  assert_eq(should_keep_alive(ka_11), true)
-  let close_11 : Http1Request = {
-    ..ka_11,
-    headers: Map([("connection", "close")]),
-  }
-  assert_eq(should_keep_alive(close_11), false)
-  let ka_10 : Http1Request = {
-    ..ka_11,
-    version: "HTTP/1.0",
-    headers: Map([("connection", "keep-alive")]),
-  }
-  assert_eq(should_keep_alive(ka_10), true)
-  let close_10 : Http1Request = { ..ka_11, version: "HTTP/1.0", }
-  assert_eq(should_keep_alive(close_10), false)
+  req.keep_alive && !close_delimited.val
 }
 
 ///|
@@ -551,7 +383,7 @@ fn bytes_has(hay : Bytes, needle : Bytes) -> Bool {
 /// Drive `dispatch_http1` for `req` with a trivial 200 app over in-memory pipes and
 /// return the raw response bytes (test helper).
 async fn run_h1(
-  req : Http1Request,
+  req : @http1.Request,
   config? : Config = Config::new(),
   headers? : Array[(String, String)] = [],
 ) -> Bytes {
@@ -564,14 +396,21 @@ async fn run_h1(
     )
     send(@moonasgi.Event::HttpResponseBody(body=b"hi", more_body=false))
   }
-  let _ = dispatch_http1(app, req, req_r, resp_w, scheme="http", config~)
+  let _ = dispatch_http1(
+    app,
+    req,
+    Inbox::new(req_r),
+    resp_w,
+    scheme="http",
+    config~,
+  )
   resp_w.close()
   drain_pipe(resp_r)
 }
 
 ///|
 async test "http1: a HEAD request keeps content-length but suppresses the body" {
-  let head_resp = run_h1({ ..h1_req("HTTP/1.1"), http_method: "HEAD", })
+  let head_resp = run_h1(h1("HEAD", "HTTP/1.1", ""))
   // The framing header a GET would send is present...
   assert_eq(bytes_has(head_resp, b"content-length: 2"), true)
   // ...but the body ("hi") is not.
@@ -583,35 +422,34 @@ async test "http1: a HEAD request keeps content-length but suppresses the body" 
 ///|
 async test "http1: the response signals connection close and HTTP/1.0 keep-alive" {
   // HTTP/1.1 with Connection: close -> the response echoes connection: close.
-  let close_11 = run_h1({
-    ..h1_req("HTTP/1.1"),
-    headers: Map([("connection", "close")]),
-  })
+  let close_11 = run_h1(h1("GET", "HTTP/1.1", "connection: close\r\n"))
   assert_eq(bytes_has(close_11, b"connection: close"), true)
   // HTTP/1.0 defaults to close -> connection: close.
   assert_eq(bytes_has(run_h1(h1_req("HTTP/1.0")), b"connection: close"), true)
   // HTTP/1.0 with keep-alive requested -> connection: keep-alive.
-  let ka_10 = run_h1({
-    ..h1_req("HTTP/1.0"),
-    headers: Map([("connection", "keep-alive")]),
-  })
+  let ka_10 = run_h1(h1("GET", "HTTP/1.0", "connection: keep-alive\r\n"))
   assert_eq(bytes_has(ka_10, b"connection: keep-alive"), true)
   // HTTP/1.1 defaults to keep-alive -> no connection: close header.
   assert_eq(bytes_has(run_h1(h1_req("HTTP/1.1")), b"connection: close"), false)
 }
 
 ///|
-/// A fixed Http1Request head for driving `dispatch_http1` in tests.
-fn h1_req(version : String) -> Http1Request {
-  {
-    http_method: "GET",
-    target: "/",
-    version,
-    headers: Map([]),
-    content_length: 0,
-    chunked: false,
-    expect_continue: false,
+/// A request head for driving `dispatch_http1` in tests, read through the real parser.
+///
+/// Built from octets rather than as a record, so keep-alive, framing and the rest
+/// are derived from the version and the fields exactly as they are for a request off
+/// a socket — a record could set them to values no real request would produce.
+fn h1(verb : String, version : String, fields : String) -> @http1.Request {
+  let wire = @utf8.encode(verb + " / " + version + "\r\n" + fields + "\r\n")
+  @http1.request(wire[:]).0 catch {
+    e => abort("a test request should parse: \{e}")
   }
+}
+
+///|
+/// A plain `GET /` in the given version.
+fn h1_req(version : String) -> @http1.Request {
+  h1("GET", version, "")
 }
 
 ///|
@@ -628,7 +466,7 @@ async test "http1: an HTTP/1.0 request is answered with an HTTP/1.0 status line"
   let keep = dispatch_http1(
     app,
     h1_req("HTTP/1.0"),
-    req_r,
+    Inbox::new(req_r),
     resp_w,
     scheme="http",
   )
@@ -654,7 +492,7 @@ async test "http1: a streamed HTTP/1.0 response is close-delimited, not chunked"
   let keep = dispatch_http1(
     app,
     h1_req("HTTP/1.0"),
-    req_r,
+    Inbox::new(req_r),
     resp_w,
     scheme="http",
   )
@@ -683,7 +521,7 @@ async test "http1: configured server headers ride the response, unless the app s
   let _ = dispatch_http1(
     plain,
     h1_req("HTTP/1.1"),
-    req_r,
+    Inbox::new(req_r),
     resp_w,
     scheme="http",
     config=Config::new(server_headers=Map([("server", "mooncat")])),
@@ -708,7 +546,7 @@ async test "http1: configured server headers ride the response, unless the app s
   let _ = dispatch_http1(
     overrides,
     h1_req("HTTP/1.1"),
-    req_r2,
+    Inbox::new(req_r2),
     resp_w2,
     scheme="http",
     config=Config::new(server_headers=Map([("server", "mooncat")])),
@@ -720,86 +558,12 @@ async test "http1: configured server headers ride the response, unless the app s
 }
 
 ///|
-async test "http1: a request with a non-numeric Content-Length is rejected" {
-  let (r, w) = @pipe.pipe()
-  w.write(b"POST /u HTTP/1.1\r\ncontent-length: 4a\r\n\r\n")
-  w.close()
-  assert_eq(parse_http1_request(r) is None, true)
-}
-
-///|
-async test "http1: a request with both Content-Length and chunked is rejected" {
-  let (r, w) = @pipe.pipe()
-  // Content-Length + Transfer-Encoding: chunked is a request-smuggling ambiguity.
-  w.write(
-    b"POST /u HTTP/1.1\r\ncontent-length: 5\r\ntransfer-encoding: chunked\r\n\r\n",
-  )
-  w.close()
-  assert_eq(parse_http1_request(r) is None, true)
-}
-
-///|
-async test "http1: parse detects Transfer-Encoding chunked and Expect 100-continue" {
-  let (r, w) = @pipe.pipe()
-  w.write(
-    b"POST /u HTTP/1.1\r\nTransfer-Encoding: chunked\r\nExpect: 100-continue\r\n\r\n",
-  )
-  w.close()
-  guard parse_http1_request(r) is Some(req) else {
-    fail("expected a parsed request")
-  }
-  assert_eq(req.chunked, true)
-  assert_eq(req.expect_continue, true)
-  assert_eq(req.http_method, "POST")
-}
-
-///|
-async test "http1: a request head past the size cap is rejected" {
-  @async.with_task_group(g => {
-    let (r, w) = @pipe.pipe()
-    // A header block well past max_head_size (16 KiB) with no terminating blank line
-    // before the cap; parsing must give up with None rather than buffer on. The write
-    // is larger than a pipe buffer, so it runs concurrently with the read.
-    let writer = g.spawn(() => {
-      let head = StringBuilder()
-      head.write_string("GET / HTTP/1.1\r\n")
-      for _i = 0; _i < 400; _i = _i + 1 {
-        head.write_string("x-pad: ")
-        for _j = 0; _j < 60; _j = _j + 1 {
-          head.write_string("a")
-        }
-        head.write_string("\r\n")
-      }
-      w.write(@utf8.encode(head.to_string())) catch {
-        _ => ()
-      }
-      w.close()
-    })
-    assert_eq(parse_http1_request(r) is None, true)
-    // The parser stops reading once the cap is hit, so the writer may still be blocked
-    // on the unread tail; release it now that the assertion holds.
-    writer.cancel()
-  })
-}
-
-///|
-async test "http1: a normal small request head parses under the cap" {
-  let (r, w) = @pipe.pipe()
-  w.write(b"GET /ok HTTP/1.1\r\nhost: x\r\n\r\n")
-  w.close()
-  guard parse_http1_request(r) is Some(req) else {
-    fail("expected a parsed request")
-  }
-  assert_eq(req.target, "/ok")
-}
-
-///|
 async test "http1: a chunked request body decodes to the joined chunk data" {
   let (r, w) = @pipe.pipe()
   // Two data chunks ("hello" + " world") then the terminating zero chunk.
   w.write(b"5\r\nhello\r\n6\r\n world\r\n0\r\n\r\n")
   w.close()
-  assert_eq(read_chunked_body(r) == b"hello world", true)
+  assert_eq(Inbox::new(r).chunks() == b"hello world", true)
 }
 
 ///|
@@ -808,7 +572,7 @@ async test "http1: a chunked body with a chunk extension and a trailer decodes c
   // A chunk-size line carries a `;ext`, and a trailer field follows the zero chunk.
   w.write(b"4;n=v\r\ndata\r\n0\r\nx-checksum: 1\r\n\r\n")
   w.close()
-  assert_eq(read_chunked_body(r) == b"data", true)
+  assert_eq(Inbox::new(r).chunks() == b"data", true)
 }
 
 ///|
@@ -823,7 +587,7 @@ async test "http1: an idle keep-alive read gives up after timeout_keep_alive" {
     // Bounded from outside as well, so a read that ignores the configured deadline fails this
     // test instead of wedging the suite in the very wait it was supposed to end.
     let head = @async.with_timeout_opt(3000, () => {
-      next_head(r, Config::new(timeout_keep_alive=250))
+      next_head(Inbox::new(r), Config::new(timeout_keep_alive=250))
     })
     let waited = @async.now() - opened
     assert_eq(head is Some(None), true)
@@ -836,7 +600,8 @@ async test "http1: an idle keep-alive read gives up after timeout_keep_alive" {
       }
       w.close()
     })
-    guard next_head(r, Config::new(timeout_keep_alive=3000)) is Some(req) else {
+    guard next_head(Inbox::new(r), Config::new(timeout_keep_alive=3000))
+      is Some(req) else {
       fail("a request that arrives inside the timeout should be read")
     }
     assert_eq(req.target, "/ok")
@@ -858,7 +623,10 @@ async test "http1: the keep-alive read applies the configured head cap" {
       w.close()
     })
     assert_eq(
-      next_head(r, Config::new(max_head_size=64, timeout_keep_alive=3000))
+      next_head(
+        Inbox::new(r),
+        Config::new(max_head_size=64, timeout_keep_alive=3000),
+      )
       is None,
       true,
     )
@@ -871,7 +639,8 @@ async test "http1: the keep-alive read applies the configured head cap" {
       }
       w2.close()
     })
-    guard next_head(r2, Config::new(timeout_keep_alive=3000)) is Some(req) else {
+    guard next_head(Inbox::new(r2), Config::new(timeout_keep_alive=3000))
+      is Some(req) else {
       fail("the default 16 KiB cap should accept a 130-byte head")
     }
     assert_eq(req.target, "/ok")
@@ -910,13 +679,9 @@ async test "http1: a trusted proxy's forwarded headers reach the self-built scop
     )
     send(@moonasgi.Event::HttpResponseBody(body=b"ok", more_body=false))
   }
-  let req = {
-    ..h1_req("HTTP/1.1"),
-    headers: Map([
-      ("x-forwarded-for", "203.0.113.7"),
-      ("x-forwarded-proto", "https"),
-    ]),
-  }
+  let req = h1(
+    "GET", "HTTP/1.1", "x-forwarded-for: 203.0.113.7\r\nx-forwarded-proto: https\r\n",
+  )
   let (req_r, req_w) = @pipe.pipe()
   req_w.close()
   let (_resp_r, resp_w) = @pipe.pipe()
@@ -924,7 +689,7 @@ async test "http1: a trusted proxy's forwarded headers reach the self-built scop
   let _ = dispatch_http1(
     watcher,
     req,
-    req_r,
+    Inbox::new(req_r),
     resp_w,
     scheme="http",
     config=Config::new(forwarded_allow_ips=["*"]),
@@ -940,7 +705,7 @@ async test "http1: a trusted proxy's forwarded headers reach the self-built scop
   let _ = dispatch_http1(
     watcher,
     req,
-    req_r2,
+    Inbox::new(req_r2),
     resp_w2,
     scheme="http",
     config=Config::new(forwarded_allow_ips=strict),
@@ -1001,12 +766,12 @@ async test "http1: the request-head cap is configurable, not fixed" {
   let (r1, w1) = @pipe.pipe()
   w1.write(head)
   w1.close()
-  guard parse_http1_request(r1, max_head=max_head_size) is Some(req) else {
+  guard Inbox::new(r1).head(@http1.limits) is Some(req) else {
     fail("the default cap should accept a 130-byte head")
   }
   assert_eq(req.target, "/ok")
   let (r2, w2) = @pipe.pipe()
   w2.write(head)
   w2.close()
-  assert_eq(parse_http1_request(r2, max_head=64) is None, true)
+  assert_eq(Inbox::new(r2).head(@http1.Limits::new(head=64)) is None, true)
 }

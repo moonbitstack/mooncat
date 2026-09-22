@@ -31,7 +31,7 @@ const H2_MAX_WINDOW : Int = 2147483647
 priv struct H2Stream {
   id : Int
   mut header_block : Bytes
-  mut headers : Array[@moonrpc.Header]
+  mut headers : Array[@header.Header]
   mut headers_done : Bool
   body : @buffer.Buffer
   mut request_ended : Bool
@@ -47,8 +47,8 @@ priv struct H2Stream {
 /// the peer asks the connection to wind down.
 priv struct H2Conn {
   conn : @socket.Tcp
-  dec : @moonrpc.HpackDecoder
-  enc : @moonrpc.HpackEncoder
+  dec : @hpack.Decoder
+  enc : @hpack.Encoder
   mut conn_send_window : Int
   mut peer_max_frame : Int
   mut peer_initial_window : Int
@@ -60,8 +60,8 @@ priv struct H2Conn {
 fn H2Conn::new(conn : @socket.Tcp) -> H2Conn {
   {
     conn,
-    dec: @moonrpc.HpackDecoder::new(),
-    enc: @moonrpc.HpackEncoder::new(),
+    dec: @hpack.Decoder::new(),
+    enc: @hpack.Encoder::new(),
     conn_send_window: H2_DEFAULT_WINDOW,
     peer_max_frame: H2_DEFAULT_MAX_FRAME,
     peer_initial_window: H2_DEFAULT_WINDOW,
@@ -115,9 +115,9 @@ fn h2_cat(a : Bytes, b : Bytes) -> Bytes {
 /// declared payload — and decode it with moonrpc's pure frame codec. Raises when
 /// the peer closes mid-frame (a short read) or the bytes are malformed; the accept
 /// loop treats that as the end of the connection.
-async fn h2_read_frame(reader : &@io.Reader) -> @moonrpc.Frame {
+async fn h2_read_frame(reader : &@io.Reader) -> @http2.Frame {
   let head = reader.read_exactly(9)
-  let hdr = @moonrpc.decode_frame_header(head)
+  let hdr = @http2.FrameHeader::decode(head)
   let payload = if hdr.length > 0 {
     reader.read_exactly(hdr.length)
   } else {
@@ -126,7 +126,7 @@ async fn h2_read_frame(reader : &@io.Reader) -> @moonrpc.Frame {
   let buf = @buffer.Buffer()
   buf.write_bytes(head)
   buf.write_bytes(payload)
-  let (frame, _consumed) = @moonrpc.decode_frame(buf.to_bytes())
+  let (frame, _consumed) = @http2.decode(buf.to_bytes())
   frame
 }
 
@@ -163,14 +163,14 @@ fn H2Conn::stream(self : H2Conn, id : Int) -> H2Stream {
 /// block completes — and DATA appends to the request body. Dispatching a ready
 /// stream is deferred to `dispatch_ready`, which keeps this reentrancy-free so the
 /// outbound flow-control pump can call it while a response is in flight.
-async fn H2Conn::apply(self : H2Conn, frame : @moonrpc.Frame) -> Unit {
+async fn H2Conn::apply(self : H2Conn, frame : @http2.Frame) -> Unit {
   match frame {
     Settings(params~, ack~) =>
       if !ack {
         for pair in params {
-          if pair.0 == @moonrpc.settings_max_frame_size {
+          if pair.0 == @http2.settings_max_frame_size {
             self.peer_max_frame = pair.1
-          } else if pair.0 == @moonrpc.settings_initial_window_size {
+          } else if pair.0 == @http2.settings_initial_window_size {
             let delta = pair.1 - self.peer_initial_window
             self.peer_initial_window = pair.1
             for _id, s in self.streams {
@@ -178,11 +178,11 @@ async fn H2Conn::apply(self : H2Conn, frame : @moonrpc.Frame) -> Unit {
             }
           }
         }
-        self.conn.write(@moonrpc.Frame::Settings(params=[], ack=true).encode())
+        self.conn.write(@http2.Frame::Settings(params=[], ack=true).encode())
       }
     Ping(payload~, ack~) =>
       if !ack {
-        self.conn.write(@moonrpc.Frame::Ping(payload~, ack=true).encode())
+        self.conn.write(@http2.Frame::Ping(payload~, ack=true).encode())
       }
     WindowUpdate(stream_id~, increment~) =>
       if stream_id == 0 {
@@ -250,7 +250,7 @@ async fn H2Conn::write_body(
   if n == 0 {
     if end_stream {
       self.conn.write(
-        @moonrpc.Frame::Data(stream_id~, data=b"", end_stream=true, padding=0).encode(),
+        @http2.Frame::Data(stream_id~, data=b"", end_stream=true, padding=0).encode(),
       )
     }
     return
@@ -268,7 +268,7 @@ async fn H2Conn::write_body(
     let chunk = data[off:off + take].to_owned()
     let last = off + take == n && end_stream
     self.conn.write(
-      @moonrpc.Frame::Data(stream_id~, data=chunk, end_stream=last, padding=0).encode(),
+      @http2.Frame::Data(stream_id~, data=chunk, end_stream=last, padding=0).encode(),
     )
     s.send_window = s.send_window - take
     self.conn_send_window = self.conn_send_window - take
@@ -300,8 +300,8 @@ fn h2_is_dropped_response_header(name : String) -> Bool {
 fn h2_response_headers(
   status : Int,
   headers : Array[(String, String)],
-) -> Array[@moonrpc.Header] {
-  let out : Array[@moonrpc.Header] = [
+) -> Array[@header.Header] {
+  let out : Array[@header.Header] = [
     { name: b":status", value: h2_str_to_bytes(status.to_string()), },
   ]
   for pair in headers {
@@ -322,7 +322,7 @@ fn h2_response_headers(
 /// header is carried through; a synthetic `host` is derived from `:authority` when
 /// the request has no explicit `host`, matching how HTTP/2 servers present the
 /// authority to an application. `http_version` is `"2"`.
-fn h2_build_scope(headers : Array[@moonrpc.Header]) -> @moonasgi.Scope {
+fn h2_build_scope(headers : Array[@header.Header]) -> @moonasgi.Scope {
   let mut verb = "GET"
   let mut target = "/"
   let mut scheme = "http"
@@ -403,7 +403,7 @@ async fn H2Conn::dispatch_stream(
         started.val = true
         let block = self.enc.encode(h2_response_headers(status, headers))
         self.conn.write(
-          @moonrpc.Frame::Headers(
+          @http2.Frame::Headers(
             stream_id=s.id,
             fragment=block,
             end_stream=false,
@@ -428,7 +428,7 @@ async fn H2Conn::dispatch_stream(
   } else if !started.val {
     let block = self.enc.encode([{ name: b":status", value: b"500", }])
     self.conn.write(
-      @moonrpc.Frame::Headers(
+      @http2.Frame::Headers(
         stream_id=s.id,
         fragment=block,
         end_stream=true,
@@ -463,19 +463,19 @@ async fn H2Conn::dispatch_ready(self : H2Conn, app : @moonasgi.AsgiApp) -> Unit 
 /// request — until the peer closes the socket or sends GOAWAY. A read error (a
 /// closed connection) ends the loop cleanly.
 async fn drive_h2c(app : @moonasgi.AsgiApp, conn : @socket.Tcp) -> Unit {
-  let preface = conn.read_exactly(@moonrpc.connection_preface.length())
-  if !@moonrpc.has_connection_preface(preface) {
+  let preface = conn.read_exactly(@http2.preface.length())
+  if !@http2.has_preface(preface) {
     return
   }
   let h2 = H2Conn::new(conn)
   conn.write(
-    @moonrpc.Frame::Settings(
-      params=[(@moonrpc.settings_initial_window_size, H2_MAX_WINDOW)],
+    @http2.Frame::Settings(
+      params=[(@http2.settings_initial_window_size, H2_MAX_WINDOW)],
       ack=false,
     ).encode(),
   )
   conn.write(
-    @moonrpc.Frame::WindowUpdate(
+    @http2.Frame::WindowUpdate(
       stream_id=0,
       increment=H2_MAX_WINDOW - H2_DEFAULT_WINDOW,
     ).encode(),
