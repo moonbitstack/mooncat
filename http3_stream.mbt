@@ -21,16 +21,16 @@ pub(all) enum Http3UniStream {
 /// push stream (RFC 9114 §6.2.2).
 pub fn http3_encode_stream_type(stream : Http3UniStream) -> Bytes {
   match stream {
-    ControlStream => quic_varint_encode(0x00)
+    ControlStream => @varint.encode(0x00)
     PushStream(push_id) => {
       let buf = Buffer()
-      buf.write_bytes(quic_varint_encode(0x01))
-      buf.write_bytes(quic_varint_encode(push_id))
+      buf.write_bytes(@varint.encode(0x01))
+      buf.write_bytes(@varint.encode(push_id))
       buf.to_bytes()
     }
-    QpackEncoderStream => quic_varint_encode(0x02)
-    QpackDecoderStream => quic_varint_encode(0x03)
-    ReservedStream(t) => quic_varint_encode(t)
+    QpackEncoderStream => @varint.encode(0x02)
+    QpackDecoderStream => @varint.encode(0x03)
+    ReservedStream(t) => @varint.encode(t)
   }
 }
 
@@ -38,14 +38,14 @@ pub fn http3_encode_stream_type(stream : Http3UniStream) -> Bytes {
 /// Decode a unidirectional stream's opening bytes: the type varint (and a push id for a push
 /// stream). Returns the stream kind and bytes consumed, or `None` on a partial read.
 pub fn http3_decode_stream_type(input : BytesView) -> (Http3UniStream, Int)? {
-  let (stream_type, type_len) = match quic_varint_decode(input) {
+  let (stream_type, type_len) = match @varint.decode(input) {
     Some(v) => v
     None => return None
   }
   match stream_type {
     0x00 => Some((ControlStream, type_len))
     0x01 =>
-      match quic_varint_decode(input[type_len:]) {
+      match @varint.decode(input[type_len:]) {
         Some((push_id, id_len)) =>
           Some((PushStream(push_id), type_len + id_len))
         None => None

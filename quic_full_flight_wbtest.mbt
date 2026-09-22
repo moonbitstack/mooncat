@@ -33,16 +33,16 @@ test "full flight: the server's Handshake flight carries real EE, Certificate, a
     ],
   }
   let ch_msg = @msg.hello(ch)
-  let server = QuicServerConn::new(dcid)
+  let server = @conn.Server::new(dcid)
   let _ = server.receive_initial(
-    quic_send_initial(
+    @conn.send_long(
+      Initial,
       1U,
       dcid,
       b"",
-      b"",
       0,
       4,
-      [Crypto(offset=0, data=ch_msg)],
+      [@frame.Crypto(offset=0, data=ch_msg)],
       client_initial_keys(dcid),
     ),
   )
@@ -66,8 +66,8 @@ test "full flight: the server's Handshake flight carries real EE, Certificate, a
   )
   // The real flight: EncryptedExtensions (ALPN + transport params) and a Certificate chain.
   let params = [
-    transport_param_int(tp_initial_max_data, 66666),
-    transport_param_int(tp_active_connection_id_limit, 8),
+    @conn.Param::int(@conn.MaxData, 66666),
+    @conn.Param::int(@conn.ActiveConnectionIdLimit, 8),
   ]
   let ee_body = tls13_quic_encrypted_extensions(@ext.h3, params)
   // A real self-signed X.509 certificate whose key is the one that signs the CertificateVerify,
@@ -76,20 +76,26 @@ test "full flight: the server's Handshake flight carries real EE, Certificate, a
     cert_key, b"\x2a", "mooncat.example", "250101000000Z", "350101000000Z",
   )
   let cert_body = @msg.certificate([der][:])
-  let flight = server.send_handshake_flight_signed(
-    server_hs_secret, ee_body, cert_body, cert_key, b"", b"\x0a\x0b\x0c\x0d", 0,
+  let flight = server.send_handshake_flight(
+    server_hs_secret,
+    ee_body,
+    cert_body,
+    @conn.signed(cert_key),
+    b"",
+    b"\x0a\x0b\x0c\x0d",
+    0,
   )
   // The client derives the same server handshake secret and splits the flight into messages.
   let server_hs_secret_client = tls13_ecdhe_handshake_traffic_secret(
     client_priv, server_pub, th_ch_sh, false,
   )
   let msgs : Array[(@msg.Kind, Bytes)] = match
-    quic_recv_handshake(flight, quic_packet_keys(server_hs_secret_client)) {
+    @conn.recv_long(flight, @crypto.Keys::of(server_hs_secret_client)) {
     Some((frames, _)) => {
       let mut crypto = b""
       for frame in frames {
         match frame {
-          Crypto(data~, ..) => crypto = bytes_concat(crypto, data)
+          @frame.Crypto(data~, ..) => crypto = bytes_concat(crypto, data)
           _ => ()
         }
       }

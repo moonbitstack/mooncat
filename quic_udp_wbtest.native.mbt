@@ -29,7 +29,7 @@ async test "quic over udp: a real Initial packet with a ClientHello drives the s
     let dcid = qv_hexb("8394c8f03e515708")
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
-    let server_conn = QuicServerConn::new(dcid)
+    let server_conn = @conn.Server::new(dcid)
     let processed : Ref[Array[@msg.Kind]] = { val: [], }
     // Server task: receive one datagram and drive the handshake with it.
     let _ = g.spawn(() => {
@@ -41,14 +41,14 @@ async test "quic over udp: a real Initial packet with a ClientHello drives the s
     let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let keys = client_initial_keys(dcid)
     let ch = @msg.frame(ClientHello, b"clienthello-over-real-udp"[:])
-    let initial = quic_send_initial(
+    let initial = @conn.send_long(
+      Initial,
       1U,
       dcid,
       b"",
-      b"",
       0,
       4,
-      [Crypto(offset=0, data=ch)],
+      [@frame.Crypto(offset=0, data=ch)],
       keys,
     )
     client_ep.send_datagram(initial, server_addr)
@@ -68,7 +68,7 @@ async test "quic over udp: client ClientHello and server ServerHello complete an
     let dcid = qv_hexb("8394c8f03e515708")
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
-    let server_conn = QuicServerConn::new(dcid)
+    let server_conn = @conn.Server::new(dcid)
     // Server task: receive the ClientHello, then send back a protected ServerHello Initial
     // packet to the client's address.
     let _ = g.spawn(() => {
@@ -88,25 +88,25 @@ async test "quic over udp: client ClientHello and server ServerHello complete an
     @async.sleep(100)
     let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let keys = client_initial_keys(dcid)
-    let initial = quic_send_initial(
+    let initial = @conn.send_long(
+      Initial,
       1U,
       dcid,
       b"",
-      b"",
       0,
       4,
-      [Crypto(offset=0, data=@msg.frame(ClientHello, b"ch"[:]))],
+      [@frame.Crypto(offset=0, data=@msg.frame(ClientHello, b"ch"[:]))],
       keys,
     )
     client_ep.send_datagram(initial, server_addr)
     // Receive the server's ServerHello Initial packet and decode it.
     let (sh_datagram, _) = client_ep.recv_datagram()
-    let decoded = match quic_recv_initial(sh_datagram, keys) {
+    let decoded = match @conn.recv_long(sh_datagram, keys) {
       Some((frames, _)) => {
         let mut result : @msg.Server? = None
         for frame in frames {
           match frame {
-            Crypto(data~, ..) =>
+            @frame.Crypto(data~, ..) =>
               match @msg.unframe(data[:]) {
                 Some((ServerHello, body)) =>
                   result = @msg.read_server_hello(body[:])
@@ -131,11 +131,11 @@ async test "quic over udp: client ClientHello and server ServerHello complete an
 
 ///|
 /// Every CRYPTO frame's bytes from a decoded packet's frames, in order.
-fn wire_crypto(frames : Array[QuicFrame]) -> Bytes {
+fn wire_crypto(frames : Array[@frame.Frame]) -> Bytes {
   let mut out = b""
   for frame in frames {
     match frame {
-      Crypto(data~, ..) => out = bytes_concat(out, data)
+      @frame.Crypto(data~, ..) => out = bytes_concat(out, data)
       _ => ()
     }
   }
@@ -178,7 +178,7 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
     let initial_keys = client_initial_keys(dcid)
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
-    let server_conn = QuicServerConn::new(dcid)
+    let server_conn = @conn.Server::new(dcid)
     let connected : Ref[Bool] = { val: false, }
     // The server: receive the ClientHello, reply with a ServerHello then its Handshake flight
     // (protected with keys it derives from the wire ClientHello), then verify the client
@@ -213,7 +213,13 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
         None => abort("server could not derive its handshake secrets")
       }
       let flight = server_conn.send_handshake_flight(
-        server_hs_secret, b"ee", b"cert", b"cv", b"", b"\x0a\x0b\x0c\x0d", 0,
+        server_hs_secret,
+        b"ee",
+        b"cert",
+        _ => b"cv",
+        b"",
+        b"\x0a\x0b\x0c\x0d",
+        0,
       ) catch {
         _ => b""
       }
@@ -221,7 +227,7 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
       let (fin_dg, _) = server_ep.recv_datagram()
       connected.val = server_conn.receive_handshake(
         fin_dg,
-        quic_packet_keys(client_hs_secret),
+        @crypto.Keys::of(client_hs_secret),
         client_hs_secret,
       ) catch {
         _ => false
@@ -244,21 +250,21 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
     }
     let ch_msg = @msg.hello(ch)
     client_ep.send_datagram(
-      quic_send_initial(
+      @conn.send_long(
+        Initial,
         1U,
         dcid,
         b"",
-        b"",
         0,
         4,
-        [Crypto(offset=0, data=ch_msg)],
+        [@frame.Crypto(offset=0, data=ch_msg)],
         initial_keys,
       ),
       server_addr,
     )
     // ServerHello over the wire: the raw SH bytes for the transcript and the server key_share.
     let (sh_dg, _) = client_ep.recv_datagram()
-    let sh_msg = match quic_recv_initial(sh_dg, initial_keys) {
+    let sh_msg = match @conn.recv_long(sh_dg, initial_keys) {
       Some((frames, _)) => wire_crypto(frames)
       None => abort("client could not open the ServerHello Initial")
     }
@@ -285,7 +291,7 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
     // reconstruct the transcript through the server Finished.
     let (flight_dg, _) = client_ep.recv_datagram()
     let msgs = match
-      quic_recv_handshake(flight_dg, quic_packet_keys(server_hs_secret)) {
+      @conn.recv_long(flight_dg, @crypto.Keys::of(server_hs_secret)) {
       Some((frames, _)) => split_hs(wire_crypto(frames))
       None => abort("client could not decrypt the server Handshake flight")
     }
@@ -320,14 +326,15 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
       ),
     )
     client_ep.send_datagram(
-      quic_send_handshake(
+      @conn.send_long(
+        Handshake,
         1U,
         b"",
         b"",
         0,
         4,
-        [Crypto(offset=0, data=client_fin)],
-        quic_packet_keys(client_hs_secret),
+        [@frame.Crypto(offset=0, data=client_fin)],
+        @crypto.Keys::of(client_hs_secret),
       ),
       server_addr,
     )

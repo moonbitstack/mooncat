@@ -10,8 +10,8 @@ async test "quic http3 serve over udp: the server routes a request through a han
       "6666666666666666666666666666666666666666666666666666666666666666",
     )
     let th = @sha2.hash(b"http3-serve-wire-lfanke"[:])
-    let client_app_keys = quic_application_keys(master_secret, th, true)
-    let server_app_keys = quic_application_keys(master_secret, th, false)
+    let client_app_keys = @crypto.application(master_secret, th, client=true)
+    let server_app_keys = @crypto.application(master_secret, th, client=false)
     let server_cid = qv_hexb("00112233aabbccdd")
     let client_cid = qv_hexb("66778899eeff0011")
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
@@ -31,7 +31,7 @@ async test "quic http3 serve over udp: the server routes a request through a han
     let _ = g.spawn(() => {
       let (dg, client_addr) = server_ep.recv_datagram()
       let frames = match
-        (quic_recv_short(dg, server_cid.length(), client_app_keys) catch {
+        (@conn.recv_short(dg, server_cid.length(), client_app_keys) catch {
           _ => None
         }) {
         Some((fr, _)) => fr
@@ -40,18 +40,16 @@ async test "quic http3 serve over udp: the server routes a request through a han
       let mut req = b""
       for frame in frames {
         match frame {
-          Stream(id~, data~, ..) => if id == 0UL { req = data }
+          @frame.Stream(id~, data~, ..) => if id == 0UL { req = data }
           _ => ()
         }
       }
       let resp = http3_serve(req, handler) catch { _ => b"" }
-      let resp_packet = quic_send_short(
-        false,
-        false,
+      let resp_packet = @conn.send_short(
         client_cid,
         0,
         4,
-        [Stream(id=0UL, offset=0UL, fin=true, data=resp)],
+        [@frame.Stream(id=0UL, offset=0UL, fin=true, data=resp)],
         server_app_keys,
       )
       server_ep.send_datagram(resp_packet, client_addr)
@@ -60,26 +58,24 @@ async test "quic http3 serve over udp: the server routes a request through a han
     // Client: send an HTTP/3 GET /hello and read the routed response.
     let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let req = http3_request("GET", "https", "lfanke.example", "/hello", [], b"")
-    let req_packet = quic_send_short(
-      false,
-      false,
+    let req_packet = @conn.send_short(
       server_cid,
       0,
       4,
-      [Stream(id=0UL, offset=0UL, fin=true, data=req)],
+      [@frame.Stream(id=0UL, offset=0UL, fin=true, data=req)],
       client_app_keys,
     )
     client_ep.send_datagram(req_packet, server_addr)
     let (resp_dg, _) = client_ep.recv_datagram()
     let resp_frames = match
-      quic_recv_short(resp_dg, client_cid.length(), server_app_keys) {
+      @conn.recv_short(resp_dg, client_cid.length(), server_app_keys) {
       Some((fr, _)) => fr
       None => abort("client could not open the response over the wire")
     }
     let mut resp = b""
     for frame in resp_frames {
       match frame {
-        Stream(id~, data~, ..) => if id == 0UL { resp = data }
+        @frame.Stream(id~, data~, ..) => if id == 0UL { resp = data }
         _ => ()
       }
     }

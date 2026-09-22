@@ -1,6 +1,6 @@
 name = "moonbitstack/mooncat"
 
-version = "0.10.0"
+version = "0.11.0"
 
 readme = "README.md"
 
@@ -18,7 +18,7 @@ keywords = [
   "native",
 ]
 
-description = "mooncat — a native ASGI 3.0 server for MoonBit (← uvicorn), built on moonbitlang/async and the moonasgi SEAM."
+description = "mooncat — a native ASGI 3.0 server for MoonBit (← uvicorn), built on moonbitlang/async and the moonasgi SEAM. HTTP/1.1, HTTP/2, WebSocket and HTTP/3 over moonquic."
 
 preferred_target = "native"
 
@@ -30,6 +30,7 @@ import {
   "moonbitstack/mooncred@0.6.0",
   "moonbitstack/moonlog@0.1.0",
   "moonbitstack/moontls@0.5.0",
+  "moonbitstack/moonquic@0.1.1",
   "moonbitstack/moonapi@0.11.0",
   "moonbitstack/moonrpc@0.14.0",
 }

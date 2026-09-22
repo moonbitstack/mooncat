@@ -10,26 +10,13 @@ import {
   "moonbitstack/moonasgi/spec",
   "moonbitstack/mooncrypt/sign/ecdsa",
   "moonbitstack/moonlog",
-  "moonbitstack/moontls/alert",
+  "moonbitstack/moonquic/conn",
   "moonbitstack/moontls/ext",
-  "moonbitstack/moontls/hs",
   "moonbitstack/moontls/msg",
 }
 
 // Values
-pub fn ack_fields_to_ranges(UInt64, UInt64, Array[(UInt64, UInt64)]) -> Array[(UInt64, UInt64)] raise QuicAckError
-
-pub fn decode_transport_params(BytesView) -> Array[TransportParam]?
-
 pub fn ec_private(String) -> @ecdsa.PrivateKey
-
-pub fn encode_frame(QuicFrame) -> Bytes
-
-pub fn encode_long_header(QuicLongHeader) -> Bytes
-
-pub fn encode_short_header(QuicShortHeader) -> Bytes
-
-pub fn encode_transport_params(Array[TransportParam]) -> Bytes
 
 pub let h3_settings_max_field_section_size : UInt64
 
@@ -77,12 +64,6 @@ pub fn http_date(Int64) -> String
 
 pub fn http_date_now() -> String
 
-pub fn parse_frame(BytesView) -> (QuicFrame, Int)?
-
-pub fn parse_long_header(BytesView) -> (QuicLongHeader, Int)?
-
-pub fn parse_short_header(BytesView, Int) -> (QuicShortHeader, Int)?
-
 pub let port : Int
 
 pub fn proxy_rewrite(Map[String, String], (String, Int)?, String, trusted~ : Array[String], websocket? : Bool) -> ((String, Int)?, String)
@@ -129,99 +110,13 @@ pub fn qpack_static_get(Int) -> (String, String)?
 
 pub fn qpack_static_len() -> Int
 
-pub fn quic_ack_frame_ranges(QuicFrame) -> Array[(Int64, Int64)] raise
-
-pub let quic_amplification_factor : Int64
-
-pub fn quic_application_keys(Bytes, Bytes, Bool) -> QuicPacketKeys
-
-pub fn quic_client_initial_secret(Bytes) -> Bytes
-
-pub fn quic_effective_idle_timeout(Int64, Int64) -> Int64
-
-pub fn quic_encode_payload(Array[QuicFrame]) -> Bytes
-
-pub fn quic_frame_is_ack_eliciting(QuicFrame) -> Bool
-
-pub fn quic_handshake_keys(Bytes, Bytes, Bool) -> QuicPacketKeys
-
-pub fn quic_handshake_pn_offset(Bytes) -> Int raise QuicPayloadError
-
-pub fn quic_header_protect(Bytes, Int, Int, Bytes) -> Bytes
-
-pub fn quic_header_unprotect(Bytes, Int, Bytes) -> (Bytes, Int)
-
-pub fn quic_hp_mask(Bytes, Bytes) -> Bytes
-
-pub fn quic_initial_pn_offset(Bytes) -> Int raise QuicPayloadError
-
-pub fn quic_initial_secret(Bytes) -> Bytes
-
-pub fn quic_key_update(Bytes) -> Bytes
-
-pub fn quic_loss_time_threshold(RttEstimator, Int64) -> Int64
-
-pub let quic_min_initial_datagram : Int
-
-pub fn quic_next_keys(Bytes) -> (Bytes, QuicPacketKeys)
-
 pub fn quic_now() -> Int64
 
-pub fn quic_packet_keys(Bytes) -> QuicPacketKeys
+pub async fn quic_serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int) -> Unit
 
-pub fn quic_pad_payload(Bytes, Int) -> Bytes
-
-pub fn quic_parse_payload(Bytes) -> Array[QuicFrame] raise QuicPayloadError
-
-pub fn quic_payload_is_ack_eliciting(Array[QuicFrame]) -> Bool
-
-pub fn quic_pn_decode(Int64, Int64, Int) -> Int64
-
-pub fn quic_pn_encode(Int64, Int64?) -> Bytes
-
-pub fn quic_pn_len(Int64, Int64?) -> Int
-
-pub fn quic_protect_handshake(UInt, Bytes, Bytes, Int64, Int, Bytes, Bytes, Bytes, Bytes) -> Bytes
-
-pub fn quic_protect_initial(UInt, Bytes, Bytes, Bytes, Int64, Int, Bytes, Bytes, Bytes, Bytes) -> Bytes
-
-pub fn quic_protect_short(Bool, Bool, Bytes, Int64, Int, Bytes, Bytes, Bytes, Bytes) -> Bytes
-
-pub fn quic_recv_handshake(Bytes, QuicPacketKeys) -> (Array[QuicFrame], Int64)? raise QuicPayloadError
-
-pub fn quic_recv_initial(Bytes, QuicPacketKeys) -> (Array[QuicFrame], Int64)? raise QuicPayloadError
-
-pub fn quic_recv_short(Bytes, Int, QuicPacketKeys) -> (Array[QuicFrame], Int64)? raise QuicPayloadError
-
-pub fn quic_retry_integrity_tag(Bytes, Bytes) -> Bytes
-
-pub fn quic_retry_verify(Bytes, Bytes) -> Bool
-
-pub fn quic_send_handshake(UInt, Bytes, Bytes, Int64, Int, Array[QuicFrame], QuicPacketKeys) -> Bytes
-
-pub fn quic_send_initial(UInt, Bytes, Bytes, Bytes, Int64, Int, Array[QuicFrame], QuicPacketKeys) -> Bytes
-
-pub fn quic_send_short(Bool, Bool, Bytes, Int64, Int, Array[QuicFrame], QuicPacketKeys) -> Bytes
-
-pub async fn quic_serve(String, QuicServer[@socket.Addr], tick_ms? : Int) -> Unit
-
-pub async fn quic_serve_endpoint(QuicUdpEndpoint, QuicServer[@socket.Addr], tick_ms? : Int) -> Unit
-
-pub fn quic_server_initial_secret(Bytes) -> Bytes
-
-pub fn quic_unprotect_initial(Bytes, Int, Bytes, Bytes, Bytes) -> (Bytes, Int64)?
-
-pub fn quic_unprotect_short(Bytes, Int, Bytes, Bytes, Bytes) -> (Bytes, Int64)?
-
-pub fn quic_varint_decode(BytesView) -> (UInt64, Int)?
-
-pub fn quic_varint_encode(UInt64) -> Bytes
-
-pub fn recv_stream_next(RecvStreamState, RecvStreamEvent) -> RecvStreamState raise StreamStateError
+pub async fn quic_serve_endpoint(QuicUdpEndpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int) -> Unit
 
 pub async fn reload_watch(String, async () -> Unit) -> Unit
-
-pub fn send_stream_next(SendStreamState, SendStreamEvent) -> SendStreamState raise StreamStateError
 
 pub async fn serve(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int, backlog? : Int) -> Unit
 
@@ -237,22 +132,6 @@ pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec
 
 pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, Config, TlsCert) -> Unit
 
-pub fn stream_direction(UInt64) -> StreamDirection
-
-pub fn stream_id_of(StreamInitiator, StreamDirection, UInt64) -> UInt64
-
-pub fn stream_initiator(UInt64) -> StreamInitiator
-
-pub fn stream_is_bidi(UInt64) -> Bool
-
-pub fn stream_is_client_initiated(UInt64) -> Bool
-
-pub fn stream_is_locally_initiated(UInt64, Bool) -> Bool
-
-pub fn stream_is_writable(UInt64, Bool) -> Bool
-
-pub fn stream_sequence(UInt64) -> UInt64
-
 pub fn tls13_certificate_verify_check(@ecdsa.PublicKey, String, Bytes, Bytes) -> Bool
 
 pub fn tls13_certificate_verify_sign(@ecdsa.PrivateKey, String, Bytes) -> Bytes
@@ -267,45 +146,17 @@ pub fn tls13_ecdhe_shared(Bytes, Bytes) -> Bytes
 
 pub fn tls13_handshake_secret_from_ecdhe(Bytes, Bytes) -> Bytes
 
-pub fn tls13_quic_encrypted_extensions(String, Array[TransportParam]) -> Bytes
+pub fn tls13_quic_encrypted_extensions(String, Array[@conn.Param]) -> Bytes
 
 pub fn tls13_server_hs_secret_from_client_hello(Bytes, Bytes, Bytes) -> Bytes?
 
 pub fn tls13_x25519_public(Bytes) -> Bytes
 
-pub fn tls_hello_quic_transport_params(Array[@ext.Ext]) -> Array[TransportParam]
+pub fn tls_hello_quic_transport_params(Array[@ext.Ext]) -> Array[@conn.Param]
 
 pub fn tls_selected_alpn(Array[@ext.Ext]) -> String?
 
 pub fn tls_server_hello_key_share(@msg.Server) -> (Int, Bytes)?
-
-pub let tp_ack_delay_exponent : UInt64
-
-pub let tp_active_connection_id_limit : UInt64
-
-pub let tp_initial_max_data : UInt64
-
-pub let tp_initial_max_stream_data_bidi_local : UInt64
-
-pub let tp_initial_max_stream_data_bidi_remote : UInt64
-
-pub let tp_initial_max_stream_data_uni : UInt64
-
-pub let tp_initial_max_streams_bidi : UInt64
-
-pub let tp_initial_max_streams_uni : UInt64
-
-pub let tp_initial_source_connection_id : UInt64
-
-pub let tp_max_ack_delay : UInt64
-
-pub let tp_max_idle_timeout : UInt64
-
-pub let tp_max_udp_payload_size : UInt64
-
-pub fn transport_param_as_int(TransportParam) -> UInt64?
-
-pub fn transport_param_int(UInt64, UInt64) -> TransportParam
 
 pub fn websocket_accept_key(String) -> String
 
@@ -332,10 +183,6 @@ pub async fn ws_read_frame(&@io.Reader, from_client? : Bool, max_size? : Int) ->
 pub async fn ws_read_message(&@io.Reader, &@io.Writer, max_size? : Int) -> WsMessage
 
 // Errors
-pub suberror FlowError {
-  FlowError(String)
-}
-
 pub suberror Http3ConnError {
   Http3ConnError(String)
 }
@@ -352,37 +199,11 @@ pub suberror QpackError {
   QpackError(String)
 }
 
-pub suberror QuicAckError {
-  QuicAckError(String)
-}
-
-pub suberror QuicPayloadError {
-  QuicPayloadError(String)
-}
-
-pub suberror ReassemblyError {
-  ReassemblyError(String)
-}
-
-pub suberror StreamStateError {
-  StreamStateError(String)
-}
-
 pub suberror WsError {
   WsError(Int, String)
 }
 
 // Types and methods
-pub struct AckRangeSet {
-  mut ranges : Array[(UInt64, UInt64)]
-}
-pub fn AckRangeSet::add(Self, UInt64) -> Unit
-pub fn AckRangeSet::contains(Self, UInt64) -> Bool
-pub fn AckRangeSet::is_empty(Self) -> Bool
-pub fn AckRangeSet::largest(Self) -> UInt64?
-pub fn AckRangeSet::new() -> Self
-pub fn AckRangeSet::to_ack_fields(Self) -> (UInt64, UInt64, Array[(UInt64, UInt64)])?
-
 pub(all) struct Config {
   host : String
   port : Int
@@ -522,37 +343,6 @@ pub fn Logger::log(Self, @moonlog.Level, String) -> Unit
 pub fn Logger::new(level? : @moonlog.Level, access? : Bool, write? : (String) -> Unit) -> Self
 pub fn Logger::silent() -> Self
 
-pub struct NewReno {
-  mut cwnd : Int64
-  mut ssthresh : Int64
-  mut bytes_in_flight : Int64
-  max_datagram_size : Int64
-}
-pub fn NewReno::can_send(Self, Int64) -> Bool
-pub fn NewReno::in_flight(Self) -> Int64
-pub fn NewReno::new(Int64) -> Self
-pub fn NewReno::on_ack(Self, Int64) -> Unit
-pub fn NewReno::on_congestion(Self) -> Unit
-pub fn NewReno::on_packet_lost(Self, Int64) -> Unit
-pub fn NewReno::on_sent(Self, Int64) -> Unit
-pub fn NewReno::ssthresh(Self) -> Int64
-pub fn NewReno::window(Self) -> Int64
-
-pub struct PacketNumberSpace {
-  mut next_pn : Int64
-  received : AckRangeSet
-  mut largest_acked : Int64?
-  mut ack_eliciting_pending : Bool
-}
-pub fn PacketNumberSpace::ack_pending(Self) -> Bool
-pub fn PacketNumberSpace::advance_past(Self, Int64) -> Unit
-pub fn PacketNumberSpace::build_ack(Self, UInt64) -> QuicFrame?
-pub fn PacketNumberSpace::largest_acked(Self) -> Int64?
-pub fn PacketNumberSpace::new() -> Self
-pub fn PacketNumberSpace::next_packet_number(Self) -> Int64
-pub fn PacketNumberSpace::on_ack_received(Self, Int64) -> Unit
-pub fn PacketNumberSpace::on_packet_received(Self, Int64, Bool) -> Unit
-
 pub(all) enum QpackDecoderInst {
   SectionAck(stream_id~ : Int)
   StreamCancel(stream_id~ : Int)
@@ -586,269 +376,6 @@ pub fn QpackEncoderInst::equal(Self, Self) -> Bool
 pub fn QpackEncoderInst::not_equal(Self, Self) -> Bool
 pub fn QpackEncoderInst::to_repr(Self) -> @debug.Repr
 
-pub(all) enum QuicConnPhase {
-  Active
-  Closing
-  Draining
-} derive(Eq, @debug.Debug)
-pub fn QuicConnPhase::equal(Self, Self) -> Bool
-pub fn QuicConnPhase::not_equal(Self, Self) -> Bool
-pub fn QuicConnPhase::to_repr(Self) -> @debug.Repr
-
-pub struct QuicConnection {
-  is_server : Bool
-  initial_space : PacketNumberSpace
-  handshake_space : PacketNumberSpace
-  application_space : PacketNumberSpace
-  initial_crypto : StreamReassembler
-  handshake_crypto : StreamReassembler
-  application_crypto : StreamReassembler
-}
-pub fn QuicConnection::build_ack(Self, QuicLevel, UInt64) -> QuicFrame?
-pub fn QuicConnection::crypto_stream(Self, QuicLevel) -> StreamReassembler
-pub fn QuicConnection::is_server(Self) -> Bool
-pub fn QuicConnection::new(Bool) -> Self
-pub fn QuicConnection::next_packet_number(Self, QuicLevel) -> Int64
-pub fn QuicConnection::on_ack_received(Self, QuicLevel, Int64) -> Unit
-pub fn QuicConnection::on_crypto_frame(Self, QuicLevel, UInt64, Bytes) -> Bytes raise ReassemblyError
-pub fn QuicConnection::on_packet_received(Self, QuicLevel, Int64, Bool) -> Unit
-pub fn QuicConnection::space(Self, QuicLevel) -> PacketNumberSpace
-
-pub(all) enum QuicFrame {
-  Padding(Int)
-  Ping
-  Crypto(offset~ : UInt64, data~ : Bytes)
-  Stream(id~ : UInt64, offset~ : UInt64, fin~ : Bool, data~ : Bytes)
-  Ack(largest~ : UInt64, delay~ : UInt64, first_range~ : UInt64, ranges~ : Array[(UInt64, UInt64)])
-  AckEcn(largest~ : UInt64, delay~ : UInt64, first_range~ : UInt64, ranges~ : Array[(UInt64, UInt64)], ect0~ : UInt64, ect1~ : UInt64, ce~ : UInt64)
-  ResetStream(id~ : UInt64, error_code~ : UInt64, final_size~ : UInt64)
-  StopSending(id~ : UInt64, error_code~ : UInt64)
-  NewToken(token~ : Bytes)
-  MaxData(UInt64)
-  MaxStreamData(id~ : UInt64, max~ : UInt64)
-  MaxStreams(bidi~ : Bool, max~ : UInt64)
-  DataBlocked(UInt64)
-  StreamDataBlocked(id~ : UInt64, max~ : UInt64)
-  StreamsBlocked(bidi~ : Bool, max~ : UInt64)
-  NewConnectionId(seq~ : UInt64, retire_prior_to~ : UInt64, conn_id~ : Bytes, reset_token~ : Bytes)
-  RetireConnectionId(UInt64)
-  PathChallenge(Bytes)
-  PathResponse(Bytes)
-  HandshakeDone
-  ConnectionClose(error_code~ : UInt64, frame_type~ : UInt64?, reason~ : Bytes)
-} derive(Eq, @debug.Debug)
-pub fn QuicFrame::equal(Self, Self) -> Bool
-pub fn QuicFrame::not_equal(Self, Self) -> Bool
-pub fn QuicFrame::to_repr(Self) -> @debug.Repr
-
-pub(all) enum QuicLevel {
-  Initial
-  Handshake
-  Application
-} derive(Eq, @debug.Debug)
-pub fn QuicLevel::equal(Self, Self) -> Bool
-pub fn QuicLevel::not_equal(Self, Self) -> Bool
-pub fn QuicLevel::to_repr(Self) -> @debug.Repr
-
-pub(all) struct QuicLongHeader {
-  packet_type : QuicLongPacketType
-  type_specific : Int
-  version : UInt
-  dcid : Bytes
-  scid : Bytes
-} derive(Eq, @debug.Debug)
-pub fn QuicLongHeader::equal(Self, Self) -> Bool
-pub fn QuicLongHeader::not_equal(Self, Self) -> Bool
-pub fn QuicLongHeader::to_repr(Self) -> @debug.Repr
-
-pub(all) enum QuicLongPacketType {
-  Initial
-  ZeroRtt
-  Handshake
-  Retry
-} derive(Eq, @debug.Debug)
-pub fn QuicLongPacketType::equal(Self, Self) -> Bool
-pub fn QuicLongPacketType::not_equal(Self, Self) -> Bool
-pub fn QuicLongPacketType::to_repr(Self) -> @debug.Repr
-
-pub(all) struct QuicPacketKeys {
-  key : Bytes
-  iv : Bytes
-  hp : Bytes
-} derive(Eq, @debug.Debug)
-pub fn QuicPacketKeys::equal(Self, Self) -> Bool
-pub fn QuicPacketKeys::not_equal(Self, Self) -> Bool
-pub fn QuicPacketKeys::to_repr(Self) -> @debug.Repr
-
-pub struct QuicRecovery {
-  rtt : RttEstimator
-  tracker : SentPacketTracker
-  cc : NewReno
-  max_ack_delay : Int64
-  granularity : Int64
-  packet_threshold : Int64
-  mut pto_count : Int
-  mut last_sent_time : Int64
-}
-pub fn QuicRecovery::can_send(Self, Int64) -> Bool
-pub fn QuicRecovery::in_flight(Self) -> Int64
-pub fn QuicRecovery::new(Int64, Int64, Int64) -> Self
-pub fn QuicRecovery::on_ack_received(Self, QuicFrame, Int64, Int64) -> Array[Int64] raise
-pub fn QuicRecovery::on_packet_sent(Self, Int64, Int64, Int64) -> Unit
-pub fn QuicRecovery::on_pto(Self) -> Unit
-pub fn QuicRecovery::outstanding(Self) -> Array[Int64]
-pub fn QuicRecovery::pto(Self) -> Int64
-pub fn QuicRecovery::pto_count(Self) -> Int
-pub fn QuicRecovery::pto_deadline(Self) -> Int64?
-pub fn QuicRecovery::smoothed_rtt(Self) -> Int64
-pub fn QuicRecovery::window(Self) -> Int64
-
-pub struct QuicSendFlow {
-  connection : SendFlow
-  streams : Map[UInt64, SendFlow]
-  initial_max_stream_data : UInt64
-}
-pub fn QuicSendFlow::connection_available(Self) -> UInt64
-pub fn QuicSendFlow::new(UInt64, UInt64) -> Self
-pub fn QuicSendFlow::on_max_data(Self, UInt64) -> Unit
-pub fn QuicSendFlow::on_max_stream_data(Self, UInt64, UInt64) -> Unit
-pub fn QuicSendFlow::record_stream_sent(Self, UInt64, UInt64) -> Unit raise FlowError
-pub fn QuicSendFlow::stream_window(Self, UInt64) -> UInt64
-
-pub struct QuicSender {
-  sched : QuicStreamScheduler
-  recovery : QuicRecovery
-  data : Map[UInt64, Bytes]
-  in_packet : Map[Int64, Array[StreamSend]]
-  retransmit : Array[StreamSend]
-  mut next_pn : Int64
-}
-pub fn QuicSender::advance_past(Self, Int64) -> Unit
-pub fn QuicSender::new(UInt64, UInt64, Int64, Int64, Int64, UInt64) -> Self
-pub fn QuicSender::on_ack(Self, QuicFrame, Int64) -> Unit raise
-pub fn QuicSender::on_max_data(Self, UInt64) -> Unit
-pub fn QuicSender::on_pto_timeout(Self, Int64) -> Bool
-pub fn QuicSender::outstanding(Self) -> Array[Int64]
-pub fn QuicSender::poll_send(Self, Int64) -> (Int64, Array[QuicFrame])? raise
-pub fn QuicSender::queue_fin(Self, UInt64) -> Unit
-pub fn QuicSender::queue_stream(Self, UInt64, Bytes) -> Unit
-pub fn QuicSender::window(Self) -> Int64
-
-pub(all) struct QuicServeConfig {
-  version : UInt
-  idle_timeout : Int64
-  close_period : Int64
-  max_datagram : Int64
-  max_ack_delay : Int64
-  granularity : Int64
-  initial_max_data : UInt64
-  initial_max_stream_data : UInt64
-  max_frame : UInt64
-}
-pub fn QuicServeConfig::default() -> Self
-
-pub struct QuicServeConn[A] {
-  peer : A
-  cid : Bytes
-  peer_cid : Bytes
-  core : QuicServerConn
-  sender : QuicSender
-  cfg : QuicServeConfig
-  out : Array[Bytes]
-  received : Array[(QuicLevel, QuicFrame)]
-  mut rx : Int64
-  mut tx : Int64
-  mut packets : Int
-  mut validated : Bool
-  mut last_rx : Int64
-  mut idle_timeout : Int64
-  mut phase : QuicConnPhase
-  mut close_at : Int64
-  mut close_frame : QuicFrame?
-  mut close_level : QuicLevel
-  mut hs_rx : QuicPacketKeys?
-  mut hs_rx_secret : Bytes
-  mut hs_tx : QuicPacketKeys?
-  mut app_rx : QuicPacketKeys?
-  mut app_tx : QuicPacketKeys?
-}
-pub fn[A] QuicServeConn::apply_peer_params(Self[A], Array[TransportParam]) -> Unit
-pub fn[A] QuicServeConn::can_send(Self[A], Int) -> Bool
-pub fn[A] QuicServeConn::cid(Self[A]) -> Bytes
-pub fn[A] QuicServeConn::close(Self[A], UInt64, Bytes, Int64) -> Unit
-pub fn[A] QuicServeConn::core(Self[A]) -> QuicServerConn
-pub fn[A] QuicServeConn::idle_timeout(Self[A]) -> Int64
-pub fn[A] QuicServeConn::install_app_keys(Self[A], Bytes, Bytes) -> Unit
-pub fn[A] QuicServeConn::install_handshake_keys(Self[A], Bytes, Bytes) -> Unit
-pub fn[A] QuicServeConn::largest_acked(Self[A], QuicLevel) -> Int64?
-pub fn[A] QuicServeConn::packets_received(Self[A]) -> Int
-pub fn[A] QuicServeConn::peer(Self[A]) -> A
-pub fn[A] QuicServeConn::pending(Self[A]) -> Int
-pub fn[A] QuicServeConn::phase(Self[A]) -> QuicConnPhase
-pub fn[A] QuicServeConn::queue_stream(Self[A], UInt64, Bytes) -> Unit
-pub fn[A] QuicServeConn::rx_bytes(Self[A]) -> Int64
-pub fn[A] QuicServeConn::send(Self[A], QuicLevel, Array[QuicFrame]) -> Unit
-pub fn[A] QuicServeConn::send_level(Self[A]) -> QuicLevel
-pub fn[A] QuicServeConn::take_received(Self[A]) -> Array[(QuicLevel, QuicFrame)]
-pub fn[A] QuicServeConn::tx_bytes(Self[A]) -> Int64
-pub fn[A] QuicServeConn::validated(Self[A]) -> Bool
-
-pub struct QuicServer[A] {
-  conns : Map[Bytes, QuicServeConn[A]]
-  cfg : QuicServeConfig
-}
-pub fn[A] QuicServer::close(Self[A], Bytes, UInt64, Bytes, Int64) -> Unit
-pub fn[A] QuicServer::conn(Self[A], Bytes) -> QuicServeConn[A]?
-pub fn[A] QuicServer::conn_ids(Self[A]) -> Array[Bytes]
-pub fn[A] QuicServer::count(Self[A]) -> Int
-pub fn[A] QuicServer::new(QuicServeConfig) -> Self[A]
-pub fn[A] QuicServer::poll_out(Self[A], Int64) -> (Bytes, A)? raise
-pub fn[A] QuicServer::recv(Self[A], Bytes, A, Int64) -> Unit raise
-pub fn[A] QuicServer::tick(Self[A], Int64) -> Unit
-
-pub struct QuicServerConn {
-  initial_keys : QuicPacketKeys
-  handshake : @hs.Handshake
-  conn : QuicConnection
-}
-pub fn QuicServerConn::client_hello(Self) -> Bytes
-pub fn QuicServerConn::handshake_state(Self) -> @hs.Server
-pub fn QuicServerConn::initial_ack_pending(Self) -> Bool
-pub fn QuicServerConn::negotiate(Self) -> @hs.Choice raise @alert.Alert
-pub fn QuicServerConn::new(Bytes) -> Self
-pub fn QuicServerConn::on_frames(Self, QuicLevel, Array[QuicFrame], Int64) -> Array[@msg.Kind] raise
-pub fn QuicServerConn::on_handshake_frames(Self, Array[QuicFrame], Int64, Bytes) -> Bool raise
-pub fn QuicServerConn::receive_handshake(Self, Bytes, QuicPacketKeys, Bytes) -> Bool raise
-pub fn QuicServerConn::receive_initial(Self, Bytes) -> Array[@msg.Kind] raise
-pub fn QuicServerConn::send_handshake_flight(Self, Bytes, Bytes, Bytes, Bytes, Bytes, Bytes, Int64) -> Bytes raise
-pub fn QuicServerConn::send_handshake_flight_signed(Self, Bytes, Bytes, Bytes, @ecdsa.PrivateKey, Bytes, Bytes, Int64) -> Bytes raise
-pub fn QuicServerConn::send_server_hello(Self, @msg.Server, Bytes, Bytes, Int64) -> Bytes
-pub fn QuicServerConn::transcript_hash(Self) -> Bytes
-
-pub(all) struct QuicShortHeader {
-  spin : Bool
-  key_phase : Bool
-  pn_length : Int
-  dcid : Bytes
-} derive(Eq, @debug.Debug)
-pub fn QuicShortHeader::equal(Self, Self) -> Bool
-pub fn QuicShortHeader::not_equal(Self, Self) -> Bool
-pub fn QuicShortHeader::to_repr(Self) -> @debug.Repr
-
-pub struct QuicStreamScheduler {
-  flow : QuicSendFlow
-  streams : Map[UInt64, StreamOut]
-  order : Array[UInt64]
-  mut cursor : Int
-  max_frame : UInt64
-}
-pub fn QuicStreamScheduler::new(QuicSendFlow, UInt64) -> Self
-pub fn QuicStreamScheduler::next(Self) -> StreamSend? raise FlowError
-pub fn QuicStreamScheduler::on_max_data(Self, UInt64) -> Unit
-pub fn QuicStreamScheduler::on_max_stream_data(Self, UInt64, UInt64) -> Unit
-pub fn QuicStreamScheduler::queue(Self, UInt64, UInt64) -> Unit
-pub fn QuicStreamScheduler::queue_fin(Self, UInt64) -> Unit
-
 pub struct QuicUdpEndpoint {
   server : @socket.UdpServer
 }
@@ -858,113 +385,6 @@ pub fn QuicUdpEndpoint::local_addr(Self) -> @socket.Addr
 pub async fn QuicUdpEndpoint::recv_datagram(Self, max? : Int) -> (Bytes, @socket.Addr)
 pub async fn QuicUdpEndpoint::send_datagram(Self, Bytes, @socket.Addr) -> Unit
 
-pub struct RecvFlow {
-  mut received : UInt64
-  mut consumed : UInt64
-  mut limit : UInt64
-  window : UInt64
-}
-pub fn RecvFlow::consume(Self, UInt64) -> Unit
-pub fn RecvFlow::extend_limit(Self) -> UInt64
-pub fn RecvFlow::limit(Self) -> UInt64
-pub fn RecvFlow::new(UInt64) -> Self
-pub fn RecvFlow::record_received(Self, UInt64) -> Unit raise FlowError
-pub fn RecvFlow::should_extend(Self) -> Bool
-
-type RecvStream
-
-pub(all) enum RecvStreamEvent {
-  Receive(fin~ : Bool)
-  AllReceived
-  AppRead
-  ReceiveReset
-  AppReadReset
-} derive(Eq, @debug.Debug)
-pub fn RecvStreamEvent::equal(Self, Self) -> Bool
-pub fn RecvStreamEvent::not_equal(Self, Self) -> Bool
-pub fn RecvStreamEvent::to_repr(Self) -> @debug.Repr
-
-pub(all) enum RecvStreamState {
-  Recv
-  SizeKnown
-  DataReceived
-  DataRead
-  ResetReceived
-  ResetRead
-} derive(Eq, @debug.Debug)
-pub fn RecvStreamState::equal(Self, Self) -> Bool
-pub fn RecvStreamState::not_equal(Self, Self) -> Bool
-pub fn RecvStreamState::to_repr(Self) -> @debug.Repr
-
-pub struct RttEstimator {
-  mut latest_rtt : Int64
-  mut min_rtt : Int64
-  mut smoothed_rtt : Int64
-  mut rttvar : Int64
-  mut has_sample : Bool
-}
-pub fn RttEstimator::latest(Self) -> Int64
-pub fn RttEstimator::min(Self) -> Int64
-pub fn RttEstimator::new() -> Self
-pub fn RttEstimator::pto(Self, Int64, Int64) -> Int64
-pub fn RttEstimator::smoothed(Self) -> Int64
-pub fn RttEstimator::update(Self, Int64, Int64, Int64) -> Unit
-pub fn RttEstimator::variation(Self) -> Int64
-
-pub struct SendFlow {
-  mut sent : UInt64
-  mut limit : UInt64
-}
-pub fn SendFlow::available(Self) -> UInt64
-pub fn SendFlow::is_blocked(Self) -> Bool
-pub fn SendFlow::new(UInt64) -> Self
-pub fn SendFlow::record_sent(Self, UInt64) -> Unit raise FlowError
-pub fn SendFlow::sent(Self) -> UInt64
-pub fn SendFlow::update_limit(Self, UInt64) -> Unit
-
-pub(all) enum SendStreamEvent {
-  Write(fin~ : Bool)
-  AllAcked
-  ResetStream
-  ResetAcked
-} derive(Eq, @debug.Debug)
-pub fn SendStreamEvent::equal(Self, Self) -> Bool
-pub fn SendStreamEvent::not_equal(Self, Self) -> Bool
-pub fn SendStreamEvent::to_repr(Self) -> @debug.Repr
-
-pub(all) enum SendStreamState {
-  Ready
-  Send
-  DataSent
-  DataRecvd
-  ResetSent
-  ResetRecvd
-} derive(Eq, @debug.Debug)
-pub fn SendStreamState::equal(Self, Self) -> Bool
-pub fn SendStreamState::not_equal(Self, Self) -> Bool
-pub fn SendStreamState::to_repr(Self) -> @debug.Repr
-
-pub(all) struct SentPacket {
-  pn : Int64
-  time_sent : Int64
-  size : Int64
-}
-
-pub struct SentPacketTracker {
-  mut outstanding : Array[SentPacket]
-  mut largest_acked : Int64
-}
-pub fn SentPacketTracker::detect_lost(Self, Int64) -> Array[Int64]
-pub fn SentPacketTracker::detect_lost_packets(Self, Int64, Int64, Int64) -> Array[SentPacket]
-pub fn SentPacketTracker::detect_lost_time(Self, Int64, Int64) -> Array[Int64]
-pub fn SentPacketTracker::largest_acked(Self) -> Int64
-pub fn SentPacketTracker::new() -> Self
-pub fn SentPacketTracker::on_ack(Self, Array[Int64]) -> Int64
-pub fn SentPacketTracker::on_ack_ranges(Self, Array[(Int64, Int64)]) -> Int64
-pub fn SentPacketTracker::on_sent(Self, Int64, Int64, Int64) -> Unit
-pub fn SentPacketTracker::outstanding(Self) -> Array[Int64]
-pub fn SentPacketTracker::time_of(Self, Int64) -> Int64?
-
 pub struct ShutdownHandle {
   request : @aqueue.Queue[Unit]
   done : @aqueue.Queue[Unit]
@@ -973,73 +393,11 @@ pub fn ShutdownHandle::new() -> Self
 pub async fn ShutdownHandle::request_stop(Self) -> Unit
 pub async fn ShutdownHandle::shutdown(Self) -> Unit
 
-pub(all) enum StreamDirection {
-  Bidirectional
-  Unidirectional
-} derive(Eq, @debug.Debug)
-pub fn StreamDirection::equal(Self, Self) -> Bool
-pub fn StreamDirection::not_equal(Self, Self) -> Bool
-pub fn StreamDirection::to_repr(Self) -> @debug.Repr
-
-pub(all) enum StreamInitiator {
-  Client
-  Server
-} derive(Eq, @debug.Debug)
-pub fn StreamInitiator::equal(Self, Self) -> Bool
-pub fn StreamInitiator::not_equal(Self, Self) -> Bool
-pub fn StreamInitiator::to_repr(Self) -> @debug.Repr
-
-pub struct StreamManager {
-  streams : Map[UInt64, RecvStream]
-  conn_flow : RecvFlow
-  mut conn_bytes : UInt64
-  stream_window : UInt64
-}
-pub fn StreamManager::connection_max_data_update(Self) -> UInt64?
-pub fn StreamManager::new(UInt64, UInt64) -> Self
-pub fn StreamManager::on_stream_frame(Self, UInt64, UInt64, Bytes, Bool) -> Bytes raise
-pub fn StreamManager::read(Self, UInt64) -> Bytes
-pub fn StreamManager::stream_count(Self) -> Int
-
-pub(all) struct StreamOut {
-  mut pending : UInt64
-  mut offset : UInt64
-  mut fin_queued : Bool
-  mut fin_sent : Bool
-}
-
-pub struct StreamReassembler {
-  mut consumed : UInt64
-  mut intervals : Array[(UInt64, Bytes)]
-  mut final_size : UInt64?
-}
-pub fn StreamReassembler::consumed(Self) -> UInt64
-pub fn StreamReassembler::final_size(Self) -> UInt64?
-pub fn StreamReassembler::insert(Self, UInt64, Bytes, Bool) -> Unit raise ReassemblyError
-pub fn StreamReassembler::is_complete(Self) -> Bool
-pub fn StreamReassembler::new() -> Self
-pub fn StreamReassembler::read(Self) -> Bytes
-
-pub(all) struct StreamSend {
-  stream : UInt64
-  offset : UInt64
-  length : UInt64
-  fin : Bool
-}
-
 pub(all) struct TlsCert {
   certificate_file : String
   private_key_file : String
   pfx_file : String
 }
-
-pub(all) struct TransportParam {
-  id : UInt64
-  value : Bytes
-} derive(Eq, @debug.Debug)
-pub fn TransportParam::equal(Self, Self) -> Bool
-pub fn TransportParam::not_equal(Self, Self) -> Bool
-pub fn TransportParam::to_repr(Self) -> @debug.Repr
 
 pub(all) struct WsConfig {
   max_size : Int

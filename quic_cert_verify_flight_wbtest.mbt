@@ -31,16 +31,16 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
     ],
   }
   let ch_msg = @msg.hello(ch)
-  let server = QuicServerConn::new(dcid)
+  let server = @conn.Server::new(dcid)
   let _ = server.receive_initial(
-    quic_send_initial(
+    @conn.send_long(
+      Initial,
       1U,
       dcid,
       b"",
-      b"",
       0,
       4,
-      [Crypto(offset=0, data=ch_msg)],
+      [@frame.Crypto(offset=0, data=ch_msg)],
       client_initial_keys(dcid),
     ),
   )
@@ -65,8 +65,14 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
   // The server sends its Handshake flight, signing the CertificateVerify with the cert key.
   let ee_body = b"encrypted-extensions"
   let cert_body = b"the-server-certificate"
-  let flight = server.send_handshake_flight_signed(
-    server_hs_secret, ee_body, cert_body, cert_key, b"", b"\x0a\x0b\x0c\x0d", 0,
+  let flight = server.send_handshake_flight(
+    server_hs_secret,
+    ee_body,
+    cert_body,
+    @conn.signed(cert_key),
+    b"",
+    b"\x0a\x0b\x0c\x0d",
+    0,
   )
   // The server protects its flight with the server handshake traffic secret; the client
   // derives the same secret (is_client = false) and decrypts, pulling the CertificateVerify
@@ -76,12 +82,12 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
   )
   assert_eq(server_hs_secret_client, server_hs_secret)
   let cv_body = match
-    quic_recv_handshake(flight, quic_packet_keys(server_hs_secret_client)) {
+    @conn.recv_long(flight, @crypto.Keys::of(server_hs_secret_client)) {
     Some((frames, _)) => {
       let mut crypto = b""
       for frame in frames {
         match frame {
-          Crypto(data~, ..) => crypto = bytes_concat(crypto, data)
+          @frame.Crypto(data~, ..) => crypto = bytes_concat(crypto, data)
           _ => ()
         }
       }

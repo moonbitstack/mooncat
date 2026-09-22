@@ -106,12 +106,12 @@ pub fn tls13_certificate_verify_check(
 /// without reading it, so encoding them is this side's job.
 pub fn tls13_quic_encrypted_extensions(
   alpn : String,
-  params : Array[TransportParam],
+  params : Array[@conn.Param],
 ) -> Bytes {
   let alpn_ext : @ext.Ext = { kind: Alpn, data: @ext.protocols([alpn][:]), }
   let quic_ext : @ext.Ext = {
     kind: QuicTransportParameters,
-    data: encode_transport_params(params),
+    data: @conn.encode(params),
   }
   @msg.encrypted_extensions([alpn_ext, quic_ext][:])
 }
@@ -124,10 +124,10 @@ pub fn tls13_quic_encrypted_extensions(
 /// defaults RFC 9000 §18.2 gives.
 pub fn tls_hello_quic_transport_params(
   extensions : Array[@ext.Ext],
-) -> Array[TransportParam] {
+) -> Array[@conn.Param] {
   match @ext.find(extensions[:], QuicTransportParameters) {
     Some(e) =>
-      match decode_transport_params(e.data[:]) {
+      match @conn.decode(e.data[:]) {
         Some(params) => params
         None => []
       }

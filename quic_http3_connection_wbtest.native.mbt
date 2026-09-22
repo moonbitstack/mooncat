@@ -19,7 +19,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
     let initial_keys = client_initial_keys(dcid)
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
-    let server_conn = QuicServerConn::new(dcid)
+    let server_conn = @conn.Server::new(dcid)
     let client_cid = qv_hexb("66778899eeff0011")
     let connected : Ref[Bool] = { val: false, }
     let handler = fn(r : Http3Request) -> Http3Response {
@@ -53,7 +53,13 @@ async test "quic http3 connection: handshake then serve a request on one connect
         server_priv, client_pub, th_ch_sh, false,
       )
       let flight = server_conn.send_handshake_flight(
-        server_hs_secret, b"ee", b"cert", b"cv", b"", b"\x0a\x0b\x0c\x0d", 0,
+        server_hs_secret,
+        b"ee",
+        b"cert",
+        _ => b"cv",
+        b"",
+        b"\x0a\x0b\x0c\x0d",
+        0,
       ) catch {
         _ => b""
       }
@@ -65,7 +71,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
       let (fin_dg, _) = server_ep.recv_datagram()
       connected.val = server_conn.receive_handshake(
         fin_dg,
-        quic_packet_keys(client_hs_secret),
+        @crypto.Keys::of(client_hs_secret),
         client_hs_secret,
       ) catch {
         _ => false
@@ -74,11 +80,11 @@ async test "quic http3 connection: handshake then serve a request on one connect
       let master = @keys.master(
         tls13_handshake_secret_from_ecdhe(server_priv, client_pub),
       )
-      let client_app_keys = quic_application_keys(master, th_app, true)
-      let server_app_keys = quic_application_keys(master, th_app, false)
+      let client_app_keys = @crypto.application(master, th_app, client=true)
+      let server_app_keys = @crypto.application(master, th_app, client=false)
       let (req_dg, from2) = server_ep.recv_datagram()
       let frames = match
-        (quic_recv_short(req_dg, dcid.length(), client_app_keys) catch {
+        (@conn.recv_short(req_dg, dcid.length(), client_app_keys) catch {
           _ => None
         }) {
         Some((fr, _)) => fr
@@ -87,19 +93,17 @@ async test "quic http3 connection: handshake then serve a request on one connect
       let mut req = b""
       for frame in frames {
         match frame {
-          Stream(id~, data~, ..) => if id == 0UL { req = data }
+          @frame.Stream(id~, data~, ..) => if id == 0UL { req = data }
           _ => ()
         }
       }
       let resp = http3_serve(req, handler) catch { _ => b"" }
       server_ep.send_datagram(
-        quic_send_short(
-          false,
-          false,
+        @conn.send_short(
           client_cid,
           0,
           4,
-          [Stream(id=0UL, offset=0UL, fin=true, data=resp)],
+          [@frame.Stream(id=0UL, offset=0UL, fin=true, data=resp)],
           server_app_keys,
         ),
         from2,
@@ -121,20 +125,20 @@ async test "quic http3 connection: handshake then serve a request on one connect
     }
     let ch_msg = @msg.hello(ch)
     client_ep.send_datagram(
-      quic_send_initial(
+      @conn.send_long(
+        Initial,
         1U,
         dcid,
         b"",
-        b"",
         0,
         4,
-        [Crypto(offset=0, data=ch_msg)],
+        [@frame.Crypto(offset=0, data=ch_msg)],
         initial_keys,
       ),
       server_addr,
     )
     let (sh_dg, _) = client_ep.recv_datagram()
-    let sh_msg = match quic_recv_initial(sh_dg, initial_keys) {
+    let sh_msg = match @conn.recv_long(sh_dg, initial_keys) {
       Some((frames, _)) => wire_crypto(frames)
       None => abort("client could not open the ServerHello")
     }
@@ -156,7 +160,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
     )
     let (flight_dg, _) = client_ep.recv_datagram()
     let msgs = match
-      quic_recv_handshake(flight_dg, quic_packet_keys(server_hs_secret)) {
+      @conn.recv_long(flight_dg, @crypto.Keys::of(server_hs_secret)) {
       Some((frames, _)) => split_hs(wire_crypto(frames))
       None => abort("client could not decrypt the flight")
     }
@@ -177,14 +181,15 @@ async test "quic http3 connection: handshake then serve a request on one connect
       @keys.finished(client_hs_secret[:], th_app[:][:]),
     )
     client_ep.send_datagram(
-      quic_send_handshake(
+      @conn.send_long(
+        Handshake,
         1U,
         b"",
         b"",
         0,
         4,
-        [Crypto(offset=0, data=client_fin)],
-        quic_packet_keys(client_hs_secret),
+        [@frame.Crypto(offset=0, data=client_fin)],
+        @crypto.Keys::of(client_hs_secret),
       ),
       server_addr,
     )
@@ -192,17 +197,15 @@ async test "quic http3 connection: handshake then serve a request on one connect
     let master = @keys.master(
       tls13_handshake_secret_from_ecdhe(client_priv, server_pub_wire),
     )
-    let client_app_keys = quic_application_keys(master, th_app, true)
-    let server_app_keys = quic_application_keys(master, th_app, false)
+    let client_app_keys = @crypto.application(master, th_app, client=true)
+    let server_app_keys = @crypto.application(master, th_app, client=false)
     client_ep.send_datagram(
-      quic_send_short(
-        false,
-        false,
+      @conn.send_short(
         dcid,
         0,
         4,
         [
-          Stream(
+          @frame.Stream(
             id=0UL,
             offset=0UL,
             fin=true,
@@ -222,14 +225,14 @@ async test "quic http3 connection: handshake then serve a request on one connect
     )
     let (resp_dg, _) = client_ep.recv_datagram()
     let resp_frames = match
-      quic_recv_short(resp_dg, client_cid.length(), server_app_keys) {
+      @conn.recv_short(resp_dg, client_cid.length(), server_app_keys) {
       Some((fr, _)) => fr
       None => abort("client could not open the response")
     }
     let mut resp = b""
     for frame in resp_frames {
       match frame {
-        Stream(id~, data~, ..) => if id == 0UL { resp = data }
+        @frame.Stream(id~, data~, ..) => if id == 0UL { resp = data }
         _ => ()
       }
     }

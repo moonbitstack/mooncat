@@ -18,52 +18,6 @@ pub fn ec_private(scalar : String) -> @ecdsa.PrivateKey {
 }
 
 ///|
-/// An expanded AES-128 key.
-///
-/// The key is always 16 bytes here: TLS 1.3 and QUIC both name AES-128-GCM, and
-/// header protection samples a block under the same cipher. A key of another
-/// length is a mistake in the program rather than something a peer can cause.
-fn aes_key(key : Bytes) -> @aes.Cipher {
-  @aes.Cipher::new(key[:]) catch {
-    _ => abort("mooncat: a \{key.length()}-byte AES key is not AES-128")
-  }
-}
-
-///|
-/// One block under an expanded key — QUIC header protection samples exactly one
-/// (RFC 9001 §5.4.3).
-fn aes_block(cipher : @aes.Cipher, block : Bytes) -> Bytes {
-  cipher.encrypt(block[:])
-}
-
-///|
-/// AEAD_AES_128_GCM seal: the packet protection of RFC 9001 §5.3, and the record
-/// protection of RFC 8446 §5.2.
-fn gcm_seal(key : Bytes, nonce : Bytes, plain : Bytes, aad : Bytes) -> Bytes {
-  aead(key).seal(nonce=nonce[:], plain=plain[:], aad=aad[:])
-}
-
-///|
-/// The same, opened.
-///
-/// It answers `None` rather than raising because every caller here is reading
-/// from the wire, where a tag that does not match is an ordinary event — a
-/// corrupted datagram, a packet for a key that has been retired — and not an
-/// exception.
-fn gcm_open(key : Bytes, nonce : Bytes, packet : Bytes, aad : Bytes) -> Bytes? {
-  Some(aead(key).open(nonce=nonce[:], cipher=packet[:], aad=aad[:])) catch {
-    _ => None
-  }
-}
-
-///|
-fn aead(key : Bytes) -> @gcm.Gcm {
-  @gcm.Gcm::new(aes_key(key)) catch {
-    _ => abort("mooncat: AES-128-GCM refused a 16-byte key")
-  }
-}
-
-///|
 /// X25519, the group TLS 1.3 offers first.
 ///
 /// A low-order peer share makes the shared secret all zeroes, which `mooncrypt`

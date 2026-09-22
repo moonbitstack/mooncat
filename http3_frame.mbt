@@ -65,17 +65,17 @@ pub fn http3_frame_encode(frame : Http3Frame) -> Bytes {
   let (frame_type, payload) = match frame {
     Data(body) => (h3_frame_data, body)
     Headers(block) => (h3_frame_headers, block)
-    CancelPush(id) => (h3_frame_cancel_push, quic_varint_encode(id))
+    CancelPush(id) => (h3_frame_cancel_push, @varint.encode(id))
     Settings(pairs) => (h3_frame_settings, http3_settings_encode(pairs))
     PushPromise(id, block) => (h3_frame_push_promise, http3_prefixed(id, block))
-    GoAway(id) => (h3_frame_goaway, quic_varint_encode(id))
-    MaxPushId(id) => (h3_frame_max_push_id, quic_varint_encode(id))
+    GoAway(id) => (h3_frame_goaway, @varint.encode(id))
+    MaxPushId(id) => (h3_frame_max_push_id, @varint.encode(id))
     Reserved(t, body) => (t, body)
     ReservedHttp2(t) => (t, b"")
   }
   let buf = Buffer()
-  buf.write_bytes(quic_varint_encode(frame_type))
-  buf.write_bytes(quic_varint_encode(payload.length().to_uint64()))
+  buf.write_bytes(@varint.encode(frame_type))
+  buf.write_bytes(@varint.encode(payload.length().to_uint64()))
   buf.write_bytes(payload)
   buf.to_bytes()
 }
@@ -84,7 +84,7 @@ pub fn http3_frame_encode(frame : Http3Frame) -> Bytes {
 /// A varint-prefixed id followed by an opaque block (a PUSH_PROMISE payload).
 fn http3_prefixed(id : UInt64, block : Bytes) -> Bytes {
   let buf = Buffer()
-  buf.write_bytes(quic_varint_encode(id))
+  buf.write_bytes(@varint.encode(id))
   buf.write_bytes(block)
   buf.to_bytes()
 }
@@ -95,8 +95,8 @@ fn http3_prefixed(id : UInt64, block : Bytes) -> Bytes {
 pub fn http3_settings_encode(pairs : Array[(UInt64, UInt64)]) -> Bytes {
   let buf = Buffer()
   for pair in pairs {
-    buf.write_bytes(quic_varint_encode(pair.0))
-    buf.write_bytes(quic_varint_encode(pair.1))
+    buf.write_bytes(@varint.encode(pair.0))
+    buf.write_bytes(@varint.encode(pair.1))
   }
   buf.to_bytes()
 }
@@ -109,12 +109,12 @@ pub fn http3_settings_encode(pairs : Array[(UInt64, UInt64)]) -> Bytes {
 pub fn http3_frame_decode(
   input : BytesView,
 ) -> (Http3Frame, Int)? raise Http3FrameError {
-  let (frame_type, type_len) = match quic_varint_decode(input) {
+  let (frame_type, type_len) = match @varint.decode(input) {
     Some(v) => v
     None => return None
   }
   let rest = input[type_len:]
-  let (length, len_len) = match quic_varint_decode(rest) {
+  let (length, len_len) = match @varint.decode(rest) {
     Some(v) => v
     None => return None
   }
@@ -168,12 +168,12 @@ pub fn http3_settings_decode(
   let mut off = 0
   let n = view.length()
   while off < n {
-    let (id, id_len) = match quic_varint_decode(view[off:]) {
+    let (id, id_len) = match @varint.decode(view[off:]) {
       Some(v) => v
       None => raise Http3FrameError("truncated SETTINGS identifier")
     }
     off += id_len
-    let (value, val_len) = match quic_varint_decode(view[off:]) {
+    let (value, val_len) = match @varint.decode(view[off:]) {
       Some(v) => v
       None => raise Http3FrameError("truncated SETTINGS value")
     }
@@ -199,7 +199,7 @@ fn http3_lead_varint(
   payload : Bytes,
   name : String,
 ) -> (UInt64, Int) raise Http3FrameError {
-  match quic_varint_decode(payload[:]) {
+  match @varint.decode(payload[:]) {
     Some(v) => v
     None => raise Http3FrameError(name + " frame missing its varint field")
   }

@@ -1,8 +1,8 @@
-// The QUIC server event loop over a real UDP socket (RFC 9000 §5). `QuicServer` is the whole
+// The QUIC server event loop over a real UDP socket (RFC 9000 §5). `@conn.Endpoint` is the whole
 // state machine but holds neither socket nor clock; this file gives it both. One task pulls
 // datagrams off the endpoint and demultiplexes them onto connections, another fires the timers
 // on a fixed tick, and both flush whatever the connection table has to send afterwards — which
-// is where `QuicSender::poll_send` finally meets a socket. Native-only, because the socket is.
+// is where `@conn.Sender::poll_send` finally meets a socket. Native-only, because the socket is.
 
 ///|
 /// The event loop's clock, in the microseconds the recovery and idle timers are measured in.
@@ -16,7 +16,7 @@ pub fn quic_now() -> Int64 {
 /// anti-amplification limit stops it.
 async fn quic_pump(
   ep : QuicUdpEndpoint,
-  server : QuicServer[@socket.Addr],
+  server : @conn.Endpoint[@socket.Addr],
 ) -> Unit {
   for ;; {
     match server.poll_out(quic_now()) {
@@ -34,7 +34,7 @@ async fn quic_pump(
 /// killing the loop — an endpoint cannot tell a stray packet from an attack.
 pub async fn quic_serve_endpoint(
   ep : QuicUdpEndpoint,
-  server : QuicServer[@socket.Addr],
+  server : @conn.Endpoint[@socket.Addr],
   tick_ms? : Int = 20,
 ) -> Unit {
   @async.with_task_group(g => {
@@ -65,7 +65,7 @@ pub async fn quic_serve_endpoint(
 /// rather than waking it, so shutdown is cancellation of the task group, not a close.
 pub async fn quic_serve(
   addr : String,
-  server : QuicServer[@socket.Addr],
+  server : @conn.Endpoint[@socket.Addr],
   tick_ms? : Int = 20,
 ) -> Unit {
   quic_serve_endpoint(QuicUdpEndpoint::bind(addr), server, tick_ms~)
