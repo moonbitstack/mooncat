@@ -56,8 +56,13 @@ async test "serve_websocket_raw completes the handshake with a subprotocol echo 
   @async.with_task_group(g => {
     // Inbound: a masked client text "hi", then a masked close.
     let mask = b"\x01\x02\x03\x04"
-    let text = ws_encode_frame(true, Text, b"hi", mask~)
-    let close = ws_encode_frame(true, Close, ws_close_payload(1000, ""), mask~)
+    let text = ({ fin: true, opcode: Text, payload: b"hi", } : @ws.Frame).encode(
+      mask~,
+    )
+    let close = (
+      { fin: true, opcode: Close, payload: @ws.close(1000), } : @ws.Frame).encode(
+      mask~,
+    )
     let reader : &@io.Reader = @io.MemoryReader(async fn(w) {
       w.write(text)
       w.write(close)
@@ -111,7 +116,9 @@ async test "serve_websocket_raw fails a protocol violation with its close code" 
       }
     }
     // An unmasked client text frame — §5.1 says the connection must be failed with 1002.
-    let reader = bytes_reader(ws_encode_frame(true, Text, b"unmasked"))
+    let reader = bytes_reader(
+      ({ fin: true, opcode: Text, payload: b"unmasked", } : @ws.Frame).encode(),
+    )
     let (pr, pw) = @pipe.pipe()
     let writer : &@io.Writer = pw
     let task = g.spawn(() => {
@@ -150,12 +157,9 @@ async test "serve_websocket_raw fails an oversized frame with 1009" {
       }
     }
     let reader = bytes_reader(
-      ws_encode_frame(
-        true,
-        Binary,
-        Bytes::make(64, b'x'),
-        mask=b"\x01\x02\x03\x04",
-      ),
+      (
+        { fin: true, opcode: Binary, payload: Bytes::make(64, b'x'), } :
+        @ws.Frame).encode(mask=b"\x01\x02\x03\x04"),
     )
     let (pr, pw) = @pipe.pipe()
     let writer : &@io.Writer = pw

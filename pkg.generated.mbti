@@ -9,6 +9,7 @@ import {
   "moonbitlang/core/debug",
   "moonbitstack/moonasgi/spec",
   "moonbitstack/mooncrypt/sign/ecdsa",
+  "moonbitstack/moonhttp/ws",
   "moonbitstack/moonlog",
   "moonbitstack/moonquic/conn",
   "moonbitstack/moontls/ext",
@@ -116,6 +117,10 @@ pub async fn quic_serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int) ->
 
 pub async fn quic_serve_endpoint(QuicUdpEndpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int) -> Unit
 
+pub async fn read_frame(&@io.Reader, client? : Bool, limit? : Int) -> @ws.Frame
+
+pub async fn read_message(&@io.Reader, &@io.Writer, limit? : Int) -> @ws.Message
+
 pub async fn reload_watch(String, async () -> Unit) -> Unit
 
 pub async fn serve(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int, backlog? : Int) -> Unit
@@ -158,30 +163,6 @@ pub fn tls_selected_alpn(Array[@ext.Ext]) -> String?
 
 pub fn tls_server_hello_key_share(@msg.Server) -> (Int, Bytes)?
 
-pub fn websocket_accept_key(String) -> String
-
-pub let websocket_guid : String
-
-pub fn websocket_handshake_response(String, String?, Array[(String, String)]) -> Bytes
-
-pub fn websocket_select_subprotocol(Array[String], Array[String]) -> String?
-
-pub fn ws_check_frame(Int, Int, Int64, from_client~ : Bool, max_size~ : Int) -> WsOpcode raise WsError
-
-pub fn ws_close_payload(Int, String) -> Bytes
-
-pub fn ws_decode_frame(BytesView, from_client? : Bool, max_size? : Int) -> (WsFrame, Int)? raise WsError
-
-pub fn ws_encode_frame(Bool, WsOpcode, Bytes, mask? : Bytes) -> Bytes
-
-pub let ws_max_size : Int
-
-pub fn ws_opcode_of_int(Int) -> WsOpcode?
-
-pub async fn ws_read_frame(&@io.Reader, from_client? : Bool, max_size? : Int) -> WsFrame
-
-pub async fn ws_read_message(&@io.Reader, &@io.Writer, max_size? : Int) -> WsMessage
-
 // Errors
 pub suberror Http3ConnError {
   Http3ConnError(String)
@@ -197,10 +178,6 @@ pub suberror LifespanError {
 
 pub suberror QpackError {
   QpackError(String)
-}
-
-pub suberror WsError {
-  WsError(Int, String)
 }
 
 // Types and methods
@@ -403,38 +380,6 @@ pub(all) struct WsConfig {
   max_size : Int
 }
 pub fn WsConfig::new(max_size? : Int) -> Self
-
-pub(all) struct WsFrame {
-  fin : Bool
-  opcode : WsOpcode
-  payload : Bytes
-} derive(Eq, @debug.Debug)
-pub fn WsFrame::equal(Self, Self) -> Bool
-pub fn WsFrame::not_equal(Self, Self) -> Bool
-pub fn WsFrame::to_repr(Self) -> @debug.Repr
-
-pub(all) enum WsMessage {
-  WsText(String)
-  WsBinary(Bytes)
-  WsClose(Int, Bytes)
-} derive(Eq, @debug.Debug)
-pub fn WsMessage::equal(Self, Self) -> Bool
-pub fn WsMessage::not_equal(Self, Self) -> Bool
-pub fn WsMessage::to_repr(Self) -> @debug.Repr
-
-pub(all) enum WsOpcode {
-  Continuation
-  Text
-  Binary
-  Close
-  Ping
-  Pong
-} derive(Eq, @debug.Debug)
-pub fn WsOpcode::equal(Self, Self) -> Bool
-pub fn WsOpcode::is_control(Self) -> Bool
-pub fn WsOpcode::not_equal(Self, Self) -> Bool
-pub fn WsOpcode::to_int(Self) -> Int
-pub fn WsOpcode::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

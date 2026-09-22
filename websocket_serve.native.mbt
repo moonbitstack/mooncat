@@ -68,12 +68,14 @@ async fn serve_websocket_raw(
     } else if closed.val {
       @moonasgi.Event::WebSocketDisconnect(code=1006, reason=None)
     } else {
-      let msg : Result[WsMessage, Int] = Ok(
-        ws_read_message(reader, writer, max_size=config.ws.max_size),
+      let msg : Result[@ws.Message, Int] = Ok(
+        read_message(reader, writer, limit=config.ws.max_size),
       ) catch {
         // A violation names the code the connection must be failed with; anything else is the
         // stream ending under us, which has no status to report.
-        WsError(code, _) => Err(code)
+        @ws.Protocol(_) => Err(1002)
+        @ws.Payload(_) => Err(1007)
+        @ws.Exceeded(..) => Err(1009)
         _ => Err(1006)
       }
       match msg {
@@ -82,20 +84,22 @@ async fn serve_websocket_raw(
           if code != 1006 {
             // §7.1.7: fail the connection, but say why on the wire first.
             writer.write(
-              ws_encode_frame(true, Close, ws_close_payload(code, "")),
+              (
+                { fin: true, opcode: Close, payload: @ws.close(code), } :
+                @ws.Frame).encode(),
             ) catch {
               _ => ()
             }
           }
           @moonasgi.Event::WebSocketDisconnect(code~, reason=None)
         }
-        Ok(WsText(text)) =>
+        Ok(Text(text)) =>
           @moonasgi.Event::WebSocketReceive(text=Some(text), bytes=None)
-        Ok(WsBinary(bytes)) =>
+        Ok(Binary(bytes)) =>
           @moonasgi.Event::WebSocketReceive(text=None, bytes=Some(bytes))
-        Ok(WsClose(code, _)) => {
+        Ok(Close(status~, ..)) => {
           closed.val = true
-          @moonasgi.Event::WebSocketDisconnect(code~, reason=None)
+          @moonasgi.Event::WebSocketDisconnect(code=status, reason=None)
         }
       }
     }
@@ -106,20 +110,29 @@ async fn serve_websocket_raw(
         if !accepted.val {
           accepted.val = true
           let key = req.headers.get("sec-websocket-key").unwrap_or("")
-          writer.write(websocket_handshake_response(key, subprotocol, headers))
+          let protocol = subprotocol
+          writer.write(@upgrade.response(key, protocol?, extra=headers[:]))
         }
       WebSocketSendText(text) =>
         if accepted.val {
-          writer.write(ws_encode_frame(true, Text, @utf8.encode(text)))
+          writer.write(
+            (
+              { fin: true, opcode: Text, payload: @utf8.encode(text), } :
+              @ws.Frame).encode(),
+          )
         }
       WebSocketSendBytes(data) =>
         if accepted.val {
-          writer.write(ws_encode_frame(true, Binary, data))
+          writer.write(
+            ({ fin: true, opcode: Binary, payload: data, } : @ws.Frame).encode(),
+          )
         }
       WebSocketClose(code~, reason~) => {
         if accepted.val {
           writer.write(
-            ws_encode_frame(true, Close, ws_close_payload(code, reason)),
+            (
+              { fin: true, opcode: Close, payload: @ws.close(code, reason~), } :
+              @ws.Frame).encode(),
           )
         } else {
           writer.write(@utf8.encode("HTTP/1.1 403 Forbidden\r\n\r\n"))

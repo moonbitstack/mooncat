@@ -19,7 +19,7 @@ pub(all) struct WsConfig {
 
 ///|
 /// Build a `WsConfig`, defaulting `max_size` to uvicorn's own 16 MiB.
-pub fn WsConfig::new(max_size? : Int = ws_max_size) -> WsConfig {
+pub fn WsConfig::new(max_size? : Int = @ws.limit) -> WsConfig {
   { max_size, }
 }
 
