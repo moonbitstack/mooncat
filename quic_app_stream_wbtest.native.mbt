@@ -7,17 +7,6 @@
 // socket — the last transport seam above the handshake.
 
 ///|
-/// The value of the first header named `name`, or the empty string if none.
-fn find_header(headers : Array[(String, String)], name : String) -> String {
-  for h in headers {
-    if h.0 == name {
-      return h.1
-    }
-  }
-  ""
-}
-
-///|
 async test "quic over udp: an HTTP/3 request and response round-trip over QUIC STREAM frames in 1-RTT packets over a real UDP socket" {
   @async.with_task_group(g => {
     // After the handshake both peers share the master secret and the ClientHello..server-
@@ -54,12 +43,12 @@ async test "quic over udp: an HTTP/3 request and response round-trip over QUIC S
           _ => ()
         }
       }
-      let (headers, _body) = http3_decode_message(req) catch { _ => ([], b"") }
+      let (headers, _body) = @http3.read_message(req) catch { _ => ([], b"") }
       request_ok.val = find_header(headers, ":method") == "GET" &&
         find_header(headers, ":path") == "/heke1228"
-      let resp = http3_response(
+      let resp = @http3.response(
         "200",
-        [("content-type", "text/plain; charset=utf-8")],
+        [@header.Header::of("content-type", "text/plain; charset=utf-8")],
         b"233 from mooncat over http3",
       )
       let resp_packet = @conn.send_short(
@@ -74,12 +63,12 @@ async test "quic over udp: an HTTP/3 request and response round-trip over QUIC S
     @async.sleep(100)
     // The client: send an HTTP/3 GET on stream 0 in a 1-RTT packet, then read the response.
     let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
-    let req = http3_request(
+    let req = @http3.request(
       "GET",
       "https",
       "lfanke.example",
       "/heke1228",
-      [("user-agent", "mooncat")],
+      [@header.Header::of("user-agent", "mooncat")],
       b"",
     )
     let req_packet = @conn.send_short(
@@ -103,7 +92,7 @@ async test "quic over udp: an HTTP/3 request and response round-trip over QUIC S
         _ => ()
       }
     }
-    let (headers, body) = http3_decode_message(resp)
+    let (headers, body) = @http3.read_message(resp)
     assert_eq(find_header(headers, ":status"), "200")
     assert_eq(body, b"233 from mooncat over http3")
     @async.sleep(150)

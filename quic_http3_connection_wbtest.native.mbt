@@ -1,7 +1,7 @@
 // One HTTP/3 connection end to end over a single UDP socket (RFC 9001, RFC 9114): the client and
 // server complete the TLS 1.3 / QUIC handshake to Connected, each derives its 1-RTT application
 // keys from that handshake (master secret + the ClientHello..server-Finished transcript), and
-// then the client sends an HTTP/3 request the server routes through http3_serve — the handshake
+// then the client sends an HTTP/3 request the server routes through @http3.serve — the handshake
 // and the request/response on the same connection, the shape a real HTTP/3 exchange takes.
 
 ///|
@@ -22,11 +22,15 @@ async test "quic http3 connection: handshake then serve a request on one connect
     let server_conn = @conn.Server::new(dcid)
     let client_cid = qv_hexb("66778899eeff0011")
     let connected : Ref[Bool] = { val: false, }
-    let handler = fn(r : Http3Request) -> Http3Response {
+    let handler = fn(r : @http3.Request) -> @http3.Response {
       if r.path == "/hello" {
-        Http3Response::{ status: "200", headers: [], body: b"one connection", }
+        @http3.Response::{
+          status: "200",
+          headers: [],
+          body: b"one connection",
+        }
       } else {
-        Http3Response::{ status: "404", headers: [], body: b"", }
+        @http3.Response::{ status: "404", headers: [], body: b"", }
       }
     }
     // Server: run the handshake to Connected, derive the 1-RTT keys, then serve one request.
@@ -97,7 +101,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
           _ => ()
         }
       }
-      let resp = http3_serve(req, handler) catch { _ => b"" }
+      let resp = @http3.serve(req, handler) catch { _ => b"" }
       server_ep.send_datagram(
         @conn.send_short(
           client_cid,
@@ -209,7 +213,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
             id=0UL,
             offset=0UL,
             fin=true,
-            data=http3_request(
+            data=@http3.request(
               "GET",
               "https",
               "lfanke.example",
@@ -238,10 +242,22 @@ async test "quic http3 connection: handshake then serve a request on one connect
     }
     @async.sleep(50)
     assert_eq(connected.val, true)
-    let (headers, body) = http3_decode_message(resp)
-    assert_eq(h3_header(headers, ":status"), "200")
+    let (headers, body) = @http3.read_message(resp)
+    assert_eq(find_header(headers, ":status"), "200")
     assert_eq(body, b"one connection")
     client_ep.close()
     server_ep.close()
   })
+}
+
+///|
+/// A field's value out of a list, empty when it is not there.
+fn find_header(headers : Array[@header.Header], name : String) -> String {
+  for h in headers {
+    let (n, v) = h.ascii()
+    if n == name {
+      return v
+    }
+  }
+  ""
 }

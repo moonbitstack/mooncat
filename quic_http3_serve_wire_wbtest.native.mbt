@@ -1,6 +1,6 @@
 // An HTTP/3 server routing a real request over a UDP socket (RFC 9114 §4.1 over RFC 9000): the
 // client sends a request on a stream in a 1-RTT packet; the server opens it off the wire, runs
-// http3_serve against a handler, and writes the response stream back — the request/response path
+// @http3.serve against a handler, and writes the response stream back — the request/response path
 // a mooncat HTTP/3 server drives after the handshake, exercised end to end over the socket.
 
 ///|
@@ -16,15 +16,15 @@ async test "quic http3 serve over udp: the server routes a request through a han
     let client_cid = qv_hexb("66778899eeff0011")
     let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
-    let handler = fn(r : Http3Request) -> Http3Response {
+    let handler = fn(r : @http3.Request) -> @http3.Response {
       if r.meth == "GET" && r.path == "/hello" {
-        Http3Response::{
+        @http3.Response::{
           status: "200",
-          headers: [("content-type", "text/plain")],
+          headers: [@header.Header::of("content-type", "text/plain")],
           body: b"served by mooncat h3",
         }
       } else {
-        Http3Response::{ status: "404", headers: [], body: b"", }
+        @http3.Response::{ status: "404", headers: [], body: b"", }
       }
     }
     // Server: take the request off stream 0, route it, and send the response stream back.
@@ -44,7 +44,7 @@ async test "quic http3 serve over udp: the server routes a request through a han
           _ => ()
         }
       }
-      let resp = http3_serve(req, handler) catch { _ => b"" }
+      let resp = @http3.serve(req, handler) catch { _ => b"" }
       let resp_packet = @conn.send_short(
         client_cid,
         0,
@@ -57,7 +57,14 @@ async test "quic http3 serve over udp: the server routes a request through a han
     @async.sleep(100)
     // Client: send an HTTP/3 GET /hello and read the routed response.
     let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
-    let req = http3_request("GET", "https", "lfanke.example", "/hello", [], b"")
+    let req = @http3.request(
+      "GET",
+      "https",
+      "lfanke.example",
+      "/hello",
+      [],
+      b"",
+    )
     let req_packet = @conn.send_short(
       server_cid,
       0,
@@ -79,8 +86,8 @@ async test "quic http3 serve over udp: the server routes a request through a han
         _ => ()
       }
     }
-    let (headers, body) = http3_decode_message(resp)
-    assert_eq(h3_header(headers, ":status"), "200")
+    let (headers, body) = @http3.read_message(resp)
+    assert_eq(find_header(headers, ":status"), "200")
     assert_eq(body, b"served by mooncat h3")
     client_ep.close()
     server_ep.close()

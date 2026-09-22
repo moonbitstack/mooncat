@@ -28,18 +28,6 @@ fn qv_nibble(c : Int) -> Int {
 }
 
 ///|
-fn qv_hex(b : Bytes) -> String {
-  let digits = "0123456789abcdef"
-  let sb = StringBuilder()
-  for i = 0; i < b.length(); i = i + 1 {
-    let x = b[i].to_int()
-    sb.write_char(digits[x >> 4].unsafe_to_char())
-    sb.write_char(digits[x & 0xf].unsafe_to_char())
-  }
-  sb.to_string()
-}
-
-///|
 /// Two byte strings joined.
 ///
 /// The handshake transcripts and the CRYPTO streams here are built by appending one

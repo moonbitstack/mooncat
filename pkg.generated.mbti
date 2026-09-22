@@ -6,7 +6,6 @@ import {
   "moonbitlang/async/aqueue",
   "moonbitlang/async/io",
   "moonbitlang/async/socket",
-  "moonbitlang/core/debug",
   "moonbitstack/moonasgi/spec",
   "moonbitstack/mooncrypt/sign/ecdsa",
   "moonbitstack/moonhttp/ws",
@@ -19,48 +18,6 @@ import {
 // Values
 pub fn ec_private(String) -> @ecdsa.PrivateKey
 
-pub let h3_settings_max_field_section_size : UInt64
-
-pub let h3_settings_qpack_blocked_streams : UInt64
-
-pub let h3_settings_qpack_max_table_capacity : UInt64
-
-pub fn http3_check_frame(Http3Frame, Http3StreamCtx) -> Unit raise Http3FrameError
-
-pub fn http3_decode_control_stream(BytesView) -> Http3Settings? raise Http3FrameError
-
-pub fn http3_decode_message(Bytes) -> (Array[(String, String)], Bytes) raise Http3FrameError
-
-pub fn http3_decode_stream_type(BytesView) -> (Http3UniStream, Int)?
-
-pub fn http3_encode_control_stream(Array[(UInt64, UInt64)]) -> Bytes
-
-pub fn http3_encode_message(Array[(String, String)], Bytes) -> Bytes
-
-pub fn http3_encode_stream_type(Http3UniStream) -> Bytes
-
-pub fn http3_frame_allowed(Http3Frame, Http3StreamCtx) -> Bool
-
-pub fn http3_frame_decode(BytesView) -> (Http3Frame, Int)? raise Http3FrameError
-
-pub fn http3_frame_decode_all(Bytes) -> (Array[Http3Frame], Int) raise Http3FrameError
-
-pub fn http3_frame_encode(Http3Frame) -> Bytes
-
-pub fn http3_parse_request(Bytes) -> Http3Request? raise Http3FrameError
-
-pub fn http3_parse_request_strict(Bytes) -> Http3Request? raise Http3FrameError
-
-pub fn http3_request(String, String, String, String, Array[(String, String)], Bytes) -> Bytes
-
-pub fn http3_response(String, Array[(String, String)], Bytes) -> Bytes
-
-pub fn http3_serve(Bytes, (Http3Request) -> Http3Response) -> Bytes raise Http3FrameError
-
-pub fn http3_settings_decode(Bytes) -> Array[(UInt64, UInt64)] raise Http3FrameError
-
-pub fn http3_settings_encode(Array[(UInt64, UInt64)]) -> Bytes
-
 pub fn http_date(Int64) -> String
 
 pub fn http_date_now() -> String
@@ -68,48 +25,6 @@ pub fn http_date_now() -> String
 pub let port : Int
 
 pub fn proxy_rewrite(Map[String, String], (String, Int)?, String, trusted~ : Array[String], websocket? : Bool) -> ((String, Int)?, String)
-
-pub fn qpack_decode_decoder_inst(BytesView) -> (QpackDecoderInst, Int)?
-
-pub fn qpack_decode_encoder_inst(BytesView) -> (QpackEncoderInst, Int)? raise QpackError
-
-pub fn qpack_decode_field_section(Bytes) -> Array[(String, String)] raise QpackError
-
-pub fn qpack_decode_field_section_dyn(Bytes, QpackDynamicTable, Int) -> Array[(String, String)] raise QpackError
-
-pub fn qpack_decode_required_insert_count(Int, Int, Int) -> Int raise QpackError
-
-pub fn qpack_decode_section_prefix(BytesView, Int, Int) -> (Int, Int, Int)? raise QpackError
-
-pub fn qpack_decode_string(BytesView, Int) -> (Bytes, Int)? raise QpackError
-
-pub fn qpack_encode_decoder_inst(QpackDecoderInst) -> Bytes
-
-pub fn qpack_encode_dynamic(Array[(String, String)], QpackDynamicTable, Int, huffman? : Bool) -> (Bytes, Bytes)
-
-pub fn qpack_encode_encoder_inst(QpackEncoderInst, huffman? : Bool) -> Bytes
-
-pub fn qpack_encode_field_section(Array[(String, String)], huffman? : Bool) -> Bytes
-
-pub fn qpack_encode_section_prefix(Int, Int, Int) -> Bytes
-
-pub fn qpack_encode_string(Bytes, Int, Int, Bool) -> Bytes
-
-pub fn qpack_entry_size(Bytes, Bytes) -> Int
-
-pub fn qpack_int_decode(BytesView, Int) -> (Int, Int)?
-
-pub fn qpack_int_encode(Int, Int, Int) -> Bytes
-
-pub fn qpack_max_entries(Int) -> Int
-
-pub fn qpack_static_find(String, String) -> Int?
-
-pub fn qpack_static_find_name(String) -> Int?
-
-pub fn qpack_static_get(Int) -> (String, String)?
-
-pub fn qpack_static_len() -> Int
 
 pub fn quic_now() -> Int64
 
@@ -164,20 +79,8 @@ pub fn tls_selected_alpn(Array[@ext.Ext]) -> String?
 pub fn tls_server_hello_key_share(@msg.Server) -> (Int, Bytes)?
 
 // Errors
-pub suberror Http3ConnError {
-  Http3ConnError(String)
-}
-
-pub suberror Http3FrameError {
-  Http3FrameError(String)
-}
-
 pub suberror LifespanError {
   LifespanError(String)
-}
-
-pub suberror QpackError {
-  QpackError(String)
 }
 
 // Types and methods
@@ -205,100 +108,6 @@ pub(all) struct Config {
 pub fn Config::bind(Self) -> String
 pub fn Config::new(host? : String, port? : Int, backlog? : Int, dual_stack? : Bool, reuse_addr? : Bool, server_headers? : Map[String, String], max_connections? : Int, allow_failure? : Bool, graceful_timeout? : Int, root_path? : String, logger? : Logger, timeout_keep_alive? : Int, limit_max_requests? : Int, limit_concurrency? : Int, max_head_size? : Int, date_header? : Bool, proxy_headers? : Bool, forwarded_allow_ips? : Array[String], ws? : WsConfig) -> Self
 
-pub struct Http3Conn {
-  role : Http3Role
-  local_settings : Http3Settings
-  mut peer_settings : Http3Settings?
-  mut control_seen : Bool
-}
-pub fn Http3Conn::accept_uni_stream(Self, Bytes) -> Http3UniEvent raise
-pub fn Http3Conn::new(Http3Role, Http3Settings) -> Self
-pub fn Http3Conn::open_control_stream(Self) -> Bytes
-pub fn Http3Conn::peer_settings(Self) -> Http3Settings?
-pub fn Http3Conn::settings_established(Self) -> Bool
-
-pub(all) enum Http3Frame {
-  Data(Bytes)
-  Headers(Bytes)
-  CancelPush(UInt64)
-  Settings(Array[(UInt64, UInt64)])
-  PushPromise(UInt64, Bytes)
-  GoAway(UInt64)
-  MaxPushId(UInt64)
-  Reserved(UInt64, Bytes)
-  ReservedHttp2(UInt64)
-} derive(Eq, @debug.Debug)
-pub fn Http3Frame::equal(Self, Self) -> Bool
-pub fn Http3Frame::not_equal(Self, Self) -> Bool
-pub fn Http3Frame::to_repr(Self) -> @debug.Repr
-
-pub(all) struct Http3Request {
-  meth : String
-  scheme : String
-  authority : String
-  path : String
-  headers : Array[(String, String)]
-  body : Bytes
-}
-
-pub(all) struct Http3Response {
-  status : String
-  headers : Array[(String, String)]
-  body : Bytes
-}
-pub fn Http3Response::encode(Self) -> Bytes
-
-pub(all) enum Http3Role {
-  ClientSide
-  ServerSide
-} derive(Eq, @debug.Debug)
-pub fn Http3Role::equal(Self, Self) -> Bool
-pub fn Http3Role::not_equal(Self, Self) -> Bool
-pub fn Http3Role::to_repr(Self) -> @debug.Repr
-
-pub(all) struct Http3Settings {
-  qpack_max_table_capacity : UInt64
-  max_field_section_size : UInt64
-  qpack_blocked_streams : UInt64
-} derive(Eq, @debug.Debug)
-pub fn Http3Settings::equal(Self, Self) -> Bool
-pub fn Http3Settings::from_pairs(Array[(UInt64, UInt64)]) -> Self
-pub fn Http3Settings::new(UInt64, UInt64, UInt64) -> Self
-pub fn Http3Settings::not_equal(Self, Self) -> Bool
-pub fn Http3Settings::to_pairs(Self) -> Array[(UInt64, UInt64)]
-pub fn Http3Settings::to_repr(Self) -> @debug.Repr
-
-pub(all) enum Http3StreamCtx {
-  ControlCtx
-  RequestCtx
-  PushCtx
-} derive(Eq, @debug.Debug)
-pub fn Http3StreamCtx::equal(Self, Self) -> Bool
-pub fn Http3StreamCtx::not_equal(Self, Self) -> Bool
-pub fn Http3StreamCtx::to_repr(Self) -> @debug.Repr
-
-pub(all) enum Http3UniEvent {
-  ControlEstablished(Http3Settings)
-  QpackEncoder
-  QpackDecoder
-  Push(UInt64)
-  Reserved(UInt64)
-} derive(Eq, @debug.Debug)
-pub fn Http3UniEvent::equal(Self, Self) -> Bool
-pub fn Http3UniEvent::not_equal(Self, Self) -> Bool
-pub fn Http3UniEvent::to_repr(Self) -> @debug.Repr
-
-pub(all) enum Http3UniStream {
-  ControlStream
-  PushStream(UInt64)
-  QpackEncoderStream
-  QpackDecoderStream
-  ReservedStream(UInt64)
-} derive(Eq, @debug.Debug)
-pub fn Http3UniStream::equal(Self, Self) -> Bool
-pub fn Http3UniStream::not_equal(Self, Self) -> Bool
-pub fn Http3UniStream::to_repr(Self) -> @debug.Repr
-
 pub struct Lifespan {
   app : async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit
   inbox : @aqueue.Queue[@spec.Event]
@@ -319,39 +128,6 @@ pub fn Logger::enabled(Self, @moonlog.Level) -> Bool
 pub fn Logger::log(Self, @moonlog.Level, String) -> Unit
 pub fn Logger::new(level? : @moonlog.Level, access? : Bool, write? : (String) -> Unit) -> Self
 pub fn Logger::silent() -> Self
-
-pub(all) enum QpackDecoderInst {
-  SectionAck(stream_id~ : Int)
-  StreamCancel(stream_id~ : Int)
-  InsertCountIncrement(increment~ : Int)
-} derive(Eq, @debug.Debug)
-pub fn QpackDecoderInst::equal(Self, Self) -> Bool
-pub fn QpackDecoderInst::not_equal(Self, Self) -> Bool
-pub fn QpackDecoderInst::to_repr(Self) -> @debug.Repr
-
-pub(all) struct QpackDynamicTable {
-  entries : Array[(Bytes, Bytes)]
-  mut used : Int
-  mut capacity : Int
-  mut insert_count : Int
-  mut dropped : Int
-}
-pub fn QpackDynamicTable::apply(Self, QpackEncoderInst) -> Bool raise QpackError
-pub fn QpackDynamicTable::get(Self, Int) -> (Bytes, Bytes)?
-pub fn QpackDynamicTable::get_relative(Self, Int) -> (Bytes, Bytes)?
-pub fn QpackDynamicTable::insert(Self, Bytes, Bytes) -> Bool
-pub fn QpackDynamicTable::new(Int) -> Self
-pub fn QpackDynamicTable::set_capacity(Self, Int) -> Unit
-
-pub(all) enum QpackEncoderInst {
-  SetCapacity(Int)
-  InsertNameRef(is_static~ : Bool, index~ : Int, value~ : Bytes)
-  InsertLiteralName(name~ : Bytes, value~ : Bytes)
-  Duplicate(index~ : Int)
-} derive(Eq, @debug.Debug)
-pub fn QpackEncoderInst::equal(Self, Self) -> Bool
-pub fn QpackEncoderInst::not_equal(Self, Self) -> Bool
-pub fn QpackEncoderInst::to_repr(Self) -> @debug.Repr
 
 pub struct QuicUdpEndpoint {
   server : @socket.UdpServer
