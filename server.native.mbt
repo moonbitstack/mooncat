@@ -20,7 +20,7 @@ fn method_str(m : @http.RequestMethod) -> String {
 /// escape passes through as written: the target is attacker-controlled, and refusing
 /// to build a scope would leave the server unable to answer at all.
 fn percent_decode(target : String) -> Bytes {
-  @mime.percent_decode(@utf8.encode(target)[:])
+  @url.unescape(@utf8.encode(target)[:])
 }
 
 ///|
