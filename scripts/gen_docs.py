@@ -234,7 +234,6 @@ def main():
             'drive your app — exactly the role uvicorn plays for Python.</p>'
             '<div class="badges">'
             '<a href="https://github.com/moonbitstack/mooncat/actions"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/moonbitstack/mooncat/ci.yml?branch=master&label=CI&logo=github"></a>'
-            '<img alt="tests" src="https://img.shields.io/badge/tests-17%20passing%20(native)-0ca678">'
             '<a href="https://github.com/moonbitstack/mooncat"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-source-24292f?logo=github"></a>'
             '<img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-6d5efc"></div>'
             '<div class="install"><span class="prompt">$</span><code>moon add moonbitstack/mooncat</code>'

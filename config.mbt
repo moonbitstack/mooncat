@@ -92,14 +92,12 @@ pub(all) struct Config {
 }
 
 ///|
-/// The port every server in this family listens on unless told otherwise.
+/// The default port for the TCP serving entry points.
 ///
-/// Not 8000, which is uvicorn's, and not 8080: on a development machine those
-/// are taken by whatever ran last. One number of our own means every example,
-/// every README and every round of integration testing agree without anyone
-/// having to say which port they meant. HTTP, WebSocket, HTTP/2 and gRPC all
-/// share it — one listener tells them apart — and QUIC takes the same number on
-/// UDP, which is a different port space.
+/// HTTP/1.1, including WebSocket upgrades, uses one listener. TLS and h2c are
+/// separate server modes with their own listeners, so they cannot all bind this
+/// port at once. `quic_serve` takes an explicit UDP address; it may use the same
+/// number because UDP and TCP have separate port spaces.
 pub let port : Int = 12000
 
 ///|

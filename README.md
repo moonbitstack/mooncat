@@ -87,9 +87,9 @@ handle.shutdown()   // stop accepting → drain in-flight → lifespan shutdown 
 
 The framing is [`moonhttp/http2`](https://github.com/moonbitstack/moonhttp) (RFC 9113) and the header compression `moonhttp/hpack` (RFC 7541) — the same two that carry real gRPC in moonrpc, which is why neither lives in either server. mooncat binds it to ASGI: it reads the client connection preface + SETTINGS, HPACK-decodes each request's HEADERS block into an `Http` `Scope` (the `:method` / `:path` / `:scheme` / `:authority` pseudo-headers plus the ordinary headers), streams request DATA to the app as the `Receive` body, and encodes the response — a HEADERS frame with the `:status` pseudo-header, then DATA — back over the connection. Requests multiplex on their own stream ids, and the response DATA is split to the peer's maximum frame size and clamped to the connection- and stream-level send windows, resuming on `WINDOW_UPDATE` (RFC 9113 §6.9).
 
-Proven end to end in CI by a **real HTTP/2 (h2c) client** built on `@socket.Tcp` and the same frame + HPACK codecs: it GETs a route and reads `200` + body, POSTs a body the app echoes, drives two multiplexed streams on one connection, and — with a deliberately small advertised window — checks the server clamps each DATA frame to the granted window. The same greet chain runs over h2c too: a real [`moonapi`](https://github.com/moonbitstack/moonapi) app answers a genuine HTTP/2 GET, the router resolving the path decoded out of the HPACK block.
+Proven end to end in CI by a **real HTTP/2 (h2c) client** built on `@socket.Tcp` and the same frame + HPACK codecs: it GETs a route and reads `200` + body, POSTs a body the app echoes, drives two multiplexed streams on one connection, and — with a deliberately small advertised window — checks the server clamps each DATA frame to the granted window. The h2c greet test reuses the hand-written ASGI handler from the HTTP/1.1 test: `/greet/moon` returns JSON with `200`, and an unmatched path returns `404`.
 
-`h2c` rather than `h2`-over-TLS because the `moonbitlang/async` TLS layer exposes no ALPN, so the protocol can't be negotiated on a TLS connection yet; h2c is the direct, ALPN-free path. HTTP/3 (QUIC) is a separate later self-build.
+`h2c` rather than `h2`-over-TLS because the `moonbitlang/async` TLS layer exposes no ALPN, so the protocol can't be negotiated on a TLS connection yet; h2c is the direct, ALPN-free path. The underlying dependencies provide QUIC and HTTP/3 protocol components, but mooncat does not currently expose an ASGI-over-HTTP/3 server.
 
 ## Status
 
@@ -99,13 +99,13 @@ Proven end to end in CI by a **real HTTP/2 (h2c) client** built on `@socket.Tcp`
 - the **full WebSocket frame↔`Event` bridge** — a `Connection: upgrade` + `Upgrade: websocket` handshake becomes a `websocket` `Scope` driven through the moonasgi SEAM: `receive()` emits `websocket.connect` then real inbound text/binary frames as `WebSocketReceive` (streamed through the `Message`-as-`Reader`, so fragments reassemble) and a peer close as `WebSocketDisconnect(code)`; `send()` turns `WebSocketAccept` into the deferred 101 handshake, `WebSocketSendText`/`WebSocketSendBytes` into message frames, and `WebSocketClose(code, reason)` into a close frame. Rejecting before accept answers `403`; ping/pong are auto-handled at the protocol layer (as in uvicorn). The receive side enforces RFC 6455 rather than trusting the peer: a set RSV bit, a reserved opcode, an unmasked client frame and a malformed control frame each fail the connection with `1002`, a payload past `ws.max_size` with `1009` — checked before the payload is read, so a 64-bit length is never truncated into a short allocation — invalid UTF-8 in a text message with `1007`, and an inbound close is echoed per §5.5.1. Proven by a **real `@websocket` client** doing a full text + binary round-trip and a clean close in CI;
 - a `Config` in the shape of uvicorn's, and honoured rather than merely recorded: `dual_stack`, `reuse_addr`, per-server response `headers`, `max_connections`, `allow_failure`, `timeout_keep_alive` (an idle keep-alive connection is dropped, on both keep-alive loops), `limit_max_requests` (the server stops itself, on the plain acceptor and the graceful one), `limit_concurrency` (uvicorn's `503` rather than a queue), `max_head_size` (uvicorn's `h11_max_incomplete_event_size`), `date_header`, `proxy_headers` / `forwarded_allow_ips`, and `ws.max_size`. `backlog` is the one field that does nothing: `@socket.TcpServer` calls `listen()` itself with a fixed depth and exposes no way to change it. Chunked request/response framing is handled by the codec.
 
-mooncat also **hosts a real [`moonapi`](https://github.com/moonbitstack/moonapi) app end to end**: a CI integration test builds a `moonapi` `App` with a typed `/greet/:name` route, serves it through `serve`, and a real `@http` client `GET`s it and asserts the JSON body and `200` (and a `404` on a route miss). That's the server half of the suite's greet chain — the two repos cooperating over a live socket, not just compiling together.
+mooncat also serves a small hand-written ASGI handler end to end: the HTTP/1.1 integration test answers `/greet/<name>` with JSON over a live socket, and verifies both `200` and a `404` route miss. A matching h2c test exercises the same handler over HTTP/2.
 
 **HTTPS/TLS serving**, the **graceful-shutdown + `--reload` process model**, and **HTTP/2 (h2c) serving** landed too — see the sections above. Roadmap, transliterated from uvicorn feature-by-feature: subprotocol echo into the 101 response on the async-transport path (awaits a transport hook), further TLS detail (ciphers/mTLS), `h2` over TLS once the async layer exposes ALPN, multi-process prefork once it exposes `SO_REUSEPORT` or fork, `backlog` once `TcpServer` takes one, and the remaining WebSocket knobs — `ws-ping-interval` / `ws-ping-timeout` / `ws-max-queue` need a reader that can be interrupted between messages and resumed, and `ws-per-message-deflate` needs a raw DEFLATE codec the async `gzip` package does not expose.
 
 ## Native only
 
-The `moonbitlang/async` HTTP **server** is native-only (Linux/macOS) — there is no JS server backend — so `mooncat` builds and runs on the `native` target. CI covers `ubuntu` + `macos`.
+The `moonbitlang/async` HTTP **server** is native-only — there is no JS server backend — so `mooncat` builds and runs on the `native` target.
 
 ## License
 
@@ -121,20 +121,16 @@ behind the log lines are
 [`moonlog`](https://github.com/moonbitstack/moonlog)'s; base64 is
 [`moonbase`](https://github.com/moonbitstack/moonbase)'s.
 
-What stays is what belongs to a server: the TLS 1.3 and QUIC state machines, the
-HTTP/1.1, HTTP/2 and HTTP/3 codecs, QPACK, the WebSocket framing, the process
-model, and `crypto.mbt` — a file with no algorithm in it, binding those
-primitives to the one suite these protocols name (AES-128-GCM with SHA-256,
-P-256, X25519) so the protocol code says what it is doing rather than restating
-the suite on every line.
-
-The protocol state machines are slated to move to `moonnet` in turn; until then
-they are here.
+The protocol implementations come from `mooncrypt`, `mooncred`, `moontls`,
+`moonhttp`, and `moonquic`. mooncat owns the server-side integration: socket
+listeners, ASGI request and event bridging, graceful process handling, and TLS
+and QUIC endpoint binding. It does not currently provide an ASGI-over-HTTP/3
+server.
 
 ## Listening
 
-The default port is **12000**, for HTTP, HTTPS, WebSocket and h2c alike — one
-listener tells them apart, so TLS gets no shadow port of its own. QUIC takes the
-same number on UDP, which is a different port space. It is a default, not a
-fixture: `Config::new(port=...)` moves it.
-
+The TCP serving entry points default to port **12000**. HTTP, HTTPS, WebSocket,
+and h2c are separate server modes; each binds its own listener, so they cannot
+all share that port at the same time. `Config::new(port=...)` changes the TCP
+port. `quic_serve` binds the UDP address passed by the caller; UDP and TCP use
+separate port spaces, so they may use the same number.
