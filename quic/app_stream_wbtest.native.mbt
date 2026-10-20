@@ -21,7 +21,7 @@ async test "quic over udp: an HTTP/3 request and response round-trip over QUIC S
     let server_app_keys = @crypto.application(master_secret, th, client=false)
     let server_cid = @base16.decode_lossy("00112233aabbccdd")
     let client_cid = @base16.decode_lossy("66778899eeff0011")
-    let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let server_ep = Endpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
     let request_ok : Ref[Bool] = { val: false, }
     // The server: receive the client's 1-RTT packet, unprotect it with the client application
@@ -62,7 +62,7 @@ async test "quic over udp: an HTTP/3 request and response round-trip over QUIC S
     })
     @async.sleep(100)
     // The client: send an HTTP/3 GET on stream 0 in a 1-RTT packet, then read the response.
-    let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let client_ep = Endpoint::bind("127.0.0.1:0")
     let req = @http3.request(
       "GET",
       "https",

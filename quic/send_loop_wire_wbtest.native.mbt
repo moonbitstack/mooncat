@@ -15,7 +15,7 @@ async test "quic send loop over udp: @conn.Sender streams data through 1-RTT pac
     let server_cid = @base16.decode_lossy("00112233aabbccdd")
     let client_cid = @base16.decode_lossy("66778899eeff0011")
     let payload = b"hello-quic-send-loop!" // 21 bytes → three 8/8/5 frames at max_frame 8
-    let receiver_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let receiver_ep = Endpoint::bind("127.0.0.1:0")
     let receiver_addr = receiver_ep.local_addr()
     let reassembled : Ref[Bytes] = { val: b"", }
     // Receiver: take three data packets, reassemble the stream, and send one ACK back.
@@ -65,7 +65,7 @@ async test "quic send loop over udp: @conn.Sender streams data through 1-RTT pac
     })
     @async.sleep(100)
     // Sender: queue the stream and drive @conn.Sender, sealing each polled packet onto the wire.
-    let sender_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let sender_ep = Endpoint::bind("127.0.0.1:0")
     let sender = @conn.Sender::new(
       100000UL, 100000UL, 1200L, 25000L, 1000L, 8UL,
     )
@@ -114,7 +114,7 @@ async test "quic send loop over udp: a probe timeout retransmits over the wire a
     let server_cid = @base16.decode_lossy("00112233aabbccdd")
     let client_cid = @base16.decode_lossy("66778899eeff0011")
     let payload = b"probe!!" // 7 bytes → one STREAM frame at max_frame 8
-    let receiver_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let receiver_ep = Endpoint::bind("127.0.0.1:0")
     let receiver_addr = receiver_ep.local_addr()
     let reassembled : Ref[Bytes] = { val: b"", }
     // Receiver: the first packet's ACK is "lost" — it is received but never acknowledged. Only the
@@ -158,7 +158,7 @@ async test "quic send loop over udp: a probe timeout retransmits over the wire a
       }
     })
     @async.sleep(100)
-    let sender_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let sender_ep = Endpoint::bind("127.0.0.1:0")
     let sender = @conn.Sender::new(
       100000UL, 100000UL, 1200L, 25000L, 1000L, 8UL,
     )

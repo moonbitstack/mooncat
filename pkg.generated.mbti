@@ -5,19 +5,12 @@ import {
   "moonbitlang/async",
   "moonbitlang/async/aqueue",
   "moonbitlang/async/io",
-  "moonbitlang/async/socket",
   "moonbitstack/moonasgi/spec",
-  "moonbitstack/mooncrypt/sign/ecdsa",
   "moonbitstack/moonhttp/ws",
   "moonbitstack/moonlog",
-  "moonbitstack/moonquic/conn",
-  "moonbitstack/moontls/ext",
-  "moonbitstack/moontls/msg",
 }
 
 // Values
-pub fn ec_private(String) -> @ecdsa.PrivateKey
-
 pub fn http_date(Int64) -> String
 
 pub fn http_date_now() -> String
@@ -25,12 +18,6 @@ pub fn http_date_now() -> String
 pub let port : Int
 
 pub fn proxy_rewrite(Map[String, String], (String, Int)?, String, trusted~ : Array[String], websocket? : Bool) -> ((String, Int)?, String)
-
-pub fn quic_now() -> Int64
-
-pub async fn quic_serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int) -> Unit
-
-pub async fn quic_serve_endpoint(QuicUdpEndpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int) -> Unit
 
 pub async fn read_frame(&@io.Reader, client? : Bool, limit? : Int) -> @ws.Frame
 
@@ -51,32 +38,6 @@ pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async
 pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, pfx_file~ : String, host? : String, port? : Int, backlog? : Int) -> Unit
 
 pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, Config, TlsCert) -> Unit
-
-pub fn tls13_certificate_verify_check(@ecdsa.PublicKey, String, Bytes, Bytes) -> Bool
-
-pub fn tls13_certificate_verify_sign(@ecdsa.PrivateKey, String, Bytes) -> Bytes
-
-pub fn tls13_client_hello_x25519(Bytes) -> Bytes?
-
-pub fn tls13_ecdhe_handshake_traffic_secret(Bytes, Bytes, Bytes, Bool) -> Bytes
-
-pub fn tls13_ecdhe_secrets_from_client_hello(Bytes, Bytes, Bytes) -> (Bytes, Bytes)?
-
-pub fn tls13_ecdhe_shared(Bytes, Bytes) -> Bytes
-
-pub fn tls13_handshake_secret_from_ecdhe(Bytes, Bytes) -> Bytes
-
-pub fn tls13_quic_encrypted_extensions(String, Array[@conn.Param]) -> Bytes
-
-pub fn tls13_server_hs_secret_from_client_hello(Bytes, Bytes, Bytes) -> Bytes?
-
-pub fn tls13_x25519_public(Bytes) -> Bytes
-
-pub fn tls_hello_quic_transport_params(Array[@ext.Ext]) -> Array[@conn.Param]
-
-pub fn tls_selected_alpn(Array[@ext.Ext]) -> String?
-
-pub fn tls_server_hello_key_share(@msg.Server) -> (Int, Bytes)?
 
 // Errors
 pub suberror LifespanError {
@@ -128,15 +89,6 @@ pub fn Logger::enabled(Self, @moonlog.Level) -> Bool
 pub fn Logger::log(Self, @moonlog.Level, String) -> Unit
 pub fn Logger::new(level? : @moonlog.Level, access? : Bool, write? : (String) -> Unit) -> Self
 pub fn Logger::silent() -> Self
-
-pub struct QuicUdpEndpoint {
-  server : @socket.UdpServer
-}
-pub async fn QuicUdpEndpoint::bind(String) -> Self
-pub fn QuicUdpEndpoint::close(Self) -> Unit
-pub fn QuicUdpEndpoint::local_addr(Self) -> @socket.Addr
-pub async fn QuicUdpEndpoint::recv_datagram(Self, max? : Int) -> (Bytes, @socket.Addr)
-pub async fn QuicUdpEndpoint::send_datagram(Self, Bytes, @socket.Addr) -> Unit
 
 pub struct ShutdownHandle {
   request : @aqueue.Queue[Unit]

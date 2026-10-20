@@ -15,7 +15,7 @@ async test "quic send loop: a real ACK over UDP drives @recovery.State to detect
     let ack_keys = @crypto.application(master_secret, th, client=false)
     let server_cid = @base16.decode_lossy("00112233aabbccdd")
     let client_cid = @base16.decode_lossy("66778899eeff0011")
-    let receiver_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let receiver_ep = Endpoint::bind("127.0.0.1:0")
     let receiver_addr = receiver_ep.local_addr()
     // Receiver: take five data packets, acknowledge only those numbered 2 and up (0 and 1 stand
     // in for lost packets), then send one ACK back to the sender.
@@ -55,7 +55,7 @@ async test "quic send loop: a real ACK over UDP drives @recovery.State to detect
     })
     @async.sleep(100)
     // Sender: five ack-eliciting 1-RTT packets, each recorded in the recovery state.
-    let sender_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let sender_ep = Endpoint::bind("127.0.0.1:0")
     let rec = @recovery.State::new(
       policy=@recovery.Policy::new(
         datagram=1200L,

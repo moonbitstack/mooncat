@@ -17,7 +17,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
     let client_pub = tls13_x25519_public(client_priv)
     let server_pub = tls13_x25519_public(server_priv)
     let initial_keys = client_initial_keys(dcid)
-    let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let server_ep = Endpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
     let server_conn = @conn.Server::new(dcid)
     let client_cid = @base16.decode_lossy("66778899eeff0011")
@@ -115,7 +115,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
     })
     @async.sleep(100)
     // Client: drive the handshake, derive the 1-RTT keys, then send the request and read the reply.
-    let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let client_ep = Endpoint::bind("127.0.0.1:0")
     let ch = @msg.Hello::{
       random: Bytes::make(32, b'\x23'),
       session_id: b"lfanke",

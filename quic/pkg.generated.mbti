@@ -1,0 +1,61 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitstack/mooncat/quic"
+
+import {
+  "moonbitlang/async/socket",
+  "moonbitstack/mooncrypt/sign/ecdsa",
+  "moonbitstack/moonquic/conn",
+  "moonbitstack/moontls/ext",
+  "moonbitstack/moontls/msg",
+}
+
+// Values
+pub fn ec_private(String) -> @ecdsa.PrivateKey
+
+pub fn now() -> Int64
+
+pub async fn serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int) -> Unit
+
+pub async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int) -> Unit
+
+pub fn tls13_certificate_verify_check(@ecdsa.PublicKey, String, Bytes, Bytes) -> Bool
+
+pub fn tls13_certificate_verify_sign(@ecdsa.PrivateKey, String, Bytes) -> Bytes
+
+pub fn tls13_client_hello_x25519(Bytes) -> Bytes?
+
+pub fn tls13_ecdhe_handshake_traffic_secret(Bytes, Bytes, Bytes, Bool) -> Bytes
+
+pub fn tls13_ecdhe_secrets_from_client_hello(Bytes, Bytes, Bytes) -> (Bytes, Bytes)?
+
+pub fn tls13_ecdhe_shared(Bytes, Bytes) -> Bytes
+
+pub fn tls13_handshake_secret_from_ecdhe(Bytes, Bytes) -> Bytes
+
+pub fn tls13_quic_encrypted_extensions(String, Array[@conn.Param]) -> Bytes
+
+pub fn tls13_server_hs_secret_from_client_hello(Bytes, Bytes, Bytes) -> Bytes?
+
+pub fn tls13_x25519_public(Bytes) -> Bytes
+
+pub fn tls_hello_quic_transport_params(Array[@ext.Ext]) -> Array[@conn.Param]
+
+pub fn tls_selected_alpn(Array[@ext.Ext]) -> String?
+
+pub fn tls_server_hello_key_share(@msg.Server) -> (Int, Bytes)?
+
+// Errors
+
+// Types and methods
+pub struct Endpoint {
+  server : @socket.UdpServer
+}
+pub async fn Endpoint::bind(String) -> Self
+pub fn Endpoint::close(Self) -> Unit
+pub fn Endpoint::local_addr(Self) -> @socket.Addr
+pub async fn Endpoint::recv_datagram(Self, max? : Int) -> (Bytes, @socket.Addr)
+pub async fn Endpoint::send_datagram(Self, Bytes, @socket.Addr) -> Unit
+
+// Type aliases
+
+// Traits

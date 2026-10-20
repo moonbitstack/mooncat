@@ -5,7 +5,7 @@
 ///|
 async test "quic udp: a datagram round-trips over a real async UDP socket (loopback)" {
   @async.with_task_group(g => {
-    let server = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let server = Endpoint::bind("127.0.0.1:0")
     let server_addr = server.local_addr()
     // Server task: receive one datagram and echo it back to its sender.
     let _ = g.spawn(() => {
@@ -13,7 +13,7 @@ async test "quic udp: a datagram round-trips over a real async UDP socket (loopb
       server.send_datagram(data, from)
     })
     @async.sleep(100)
-    let client = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let client = Endpoint::bind("127.0.0.1:0")
     let payload = b"quic-initial-packet-probe"
     client.send_datagram(payload, server_addr)
     let (echo, _from) = client.recv_datagram()
@@ -27,7 +27,7 @@ async test "quic udp: a datagram round-trips over a real async UDP socket (loopb
 async test "quic over udp: a real Initial packet with a ClientHello drives the server handshake over the wire" {
   @async.with_task_group(g => {
     let dcid = @base16.decode_lossy("8394c8f03e515708")
-    let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let server_ep = Endpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
     let server_conn = @conn.Server::new(dcid)
     let processed : Ref[Array[@msg.Kind]] = { val: [], }
@@ -38,7 +38,7 @@ async test "quic over udp: a real Initial packet with a ClientHello drives the s
     })
     @async.sleep(100)
     // Client: build a real protected Initial packet carrying a ClientHello and send it.
-    let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let client_ep = Endpoint::bind("127.0.0.1:0")
     let keys = client_initial_keys(dcid)
     let ch = @msg.frame(ClientHello, b"clienthello-over-real-udp"[:])
     let initial = @conn.send_long(
@@ -66,7 +66,7 @@ async test "quic over udp: a real Initial packet with a ClientHello drives the s
 async test "quic over udp: client ClientHello and server ServerHello complete an Initial flight over the wire" {
   @async.with_task_group(g => {
     let dcid = @base16.decode_lossy("8394c8f03e515708")
-    let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let server_ep = Endpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
     let server_conn = @conn.Server::new(dcid)
     // Server task: receive the ClientHello, then send back a protected ServerHello Initial
@@ -86,7 +86,7 @@ async test "quic over udp: client ClientHello and server ServerHello complete an
       server_ep.send_datagram(sh_packet, client_addr)
     })
     @async.sleep(100)
-    let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let client_ep = Endpoint::bind("127.0.0.1:0")
     let keys = client_initial_keys(dcid)
     let initial = @conn.send_long(
       Initial,
@@ -176,7 +176,7 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
     let client_pub = tls13_x25519_public(client_priv)
     let server_pub = tls13_x25519_public(server_priv)
     let initial_keys = client_initial_keys(dcid)
-    let server_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let server_ep = Endpoint::bind("127.0.0.1:0")
     let server_addr = server_ep.local_addr()
     let server_conn = @conn.Server::new(dcid)
     let connected : Ref[Bool] = { val: false, }
@@ -236,7 +236,7 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
     @async.sleep(100)
     // The client: send its ClientHello, take the server key_share and Handshake flight off the
     // wire, derive the same secrets, authenticate the server Finished, and send its own.
-    let client_ep = QuicUdpEndpoint::bind("127.0.0.1:0")
+    let client_ep = Endpoint::bind("127.0.0.1:0")
     let ch = @msg.Hello::{
       random: Bytes::make(32, b'\x23'),
       session_id: b"lfanke",

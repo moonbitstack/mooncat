@@ -1,26 +1,21 @@
 // mooncat: a native ASGI 3.0 server (← uvicorn). Rides the moonasgi SEAM over
 // moonbitlang/async. Native-only — the async HTTP server has no JS backend.
+//
+// HTTP/1.1, HTTP/2 over cleartext, WebSocket and TLS are here. QUIC and
+// HTTP/3 are in `quic`, which is where the eleven packages they need stay;
+// the command line is in `cli`.
 import {
-  "moonbitstack/moontls/ext",
-  "moonbitstack/moontls/keys",
-  "moonbitstack/moontls/msg",
-  "moonbitstack/moonquic/frame",
-  "moonbitstack/moonquic/crypto",
-  "moonbitstack/moonquic/recovery",
-  "moonbitstack/moonquic/stream",
-  "moonbitstack/moonquic/conn",
-  "moonbitstack/moonhttp/ws",
-  "moonbitstack/moonhttp/http3",
+  "moonbitstack/moonasgi",
+  "moonbitstack/moonhttp/http1",
+  "moonbitstack/moonhttp/http2",
+  "moonbitstack/moonhttp/hpack",
   "moonbitstack/moonhttp/header",
-  "moonbitstack/moonhttp/url",
+  "moonbitstack/moonhttp/ws",
   "moonbitstack/moonhttp/upgrade",
-  "moonbitstack/moonbase/base16",
+  "moonbitstack/moonhttp/url",
   "moonbitstack/moonvar/fixed",
-  "moonbitstack/mooncrypt/hash/sha2",
-  "moonbitstack/mooncrypt/kex/x25519",
-  "moonbitstack/mooncrypt/sign/ecdsa",
-  "moonbitstack/mooncred/x509",
   "moonbitstack/moonlog",
+  "moonbitstack/moondate",
   "moonbitlang/async",
   "moonbitlang/async/io",
   "moonbitlang/async/pipe",
@@ -32,21 +27,16 @@ import {
   "moonbitlang/async/aqueue",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/buffer",
-  "moonbitstack/moonasgi",
-  "moonbitstack/moondate",
-  "moonbitstack/moonhttp/http1",
-  "moonbitstack/moonhttp/http2",
-  "moonbitstack/moonhttp/hpack",
 }
 
 // The async TLS-server constructor is `#internal` ("for internal testing
 // only") — it is the only server-side TLS entry point the library exposes, and
 // its own suite drives HTTPS through it. Opt in to that alert so mooncat can
-// serve HTTPS; the single opt-in is documented in README §TLS and tls.mbt.
-
-// -29 (unused_package): `moonbitlang/async/fs` is used only by `process_reload.native.mbt` (the
-// native-only `--reload` watcher, whose `@fs.Watcher` has no wasm/js backend), so on the non-native
-// targets the import reads as unused. It is genuinely needed on native; suppress the cross-target
-// false positive rather than drop a real dependency.
+// serve HTTPS; the single opt-in is documented in README §TLS.
+//
+// -29 (unused_package): `moonbitlang/async/fs` is used only by
+// `process_reload.native.mbt` (the native-only file watcher, whose
+// `@fs.Watcher` has no wasm or js backend), so on the other targets the import
+// reads as unused. It is genuinely needed on native.
 
 warnings = "-alert_internal-29"

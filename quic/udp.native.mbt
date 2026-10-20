@@ -8,27 +8,27 @@
 
 ///|
 /// A QUIC UDP endpoint: a bound datagram socket.
-pub struct QuicUdpEndpoint {
+pub struct Endpoint {
   server : @socket.UdpServer
 }
 
 ///|
 /// Bind an endpoint to `addr` (e.g. `"0.0.0.0:443"`, or `"127.0.0.1:0"` for an OS-assigned
 /// port). The bound address is available from `local_addr`.
-pub async fn QuicUdpEndpoint::bind(addr : String) -> QuicUdpEndpoint {
+pub async fn Endpoint::bind(addr : String) -> Endpoint {
   { server: @socket.UdpServer::UdpServer(@socket.Addr::parse(addr)), }
 }
 
 ///|
 /// The address the endpoint is bound to (the concrete port when bound to port 0).
-pub fn QuicUdpEndpoint::local_addr(self : QuicUdpEndpoint) -> @socket.Addr {
+pub fn Endpoint::local_addr(self : Endpoint) -> @socket.Addr {
   self.server.addr
 }
 
 ///|
 /// Receive the next datagram and its sender's address, copying up to `max` bytes.
-pub async fn QuicUdpEndpoint::recv_datagram(
-  self : QuicUdpEndpoint,
+pub async fn Endpoint::recv_datagram(
+  self : Endpoint,
   max? : Int = 2048,
 ) -> (Bytes, @socket.Addr) {
   let buf = FixedArray::make(max, b'\x00')
@@ -42,8 +42,8 @@ pub async fn QuicUdpEndpoint::recv_datagram(
 
 ///|
 /// Send `data` as a single datagram to `to`.
-pub async fn QuicUdpEndpoint::send_datagram(
-  self : QuicUdpEndpoint,
+pub async fn Endpoint::send_datagram(
+  self : Endpoint,
   data : Bytes,
   to : @socket.Addr,
 ) -> Unit {
@@ -52,6 +52,6 @@ pub async fn QuicUdpEndpoint::send_datagram(
 
 ///|
 /// Close the endpoint's socket.
-pub fn QuicUdpEndpoint::close(self : QuicUdpEndpoint) -> Unit {
+pub fn Endpoint::close(self : Endpoint) -> Unit {
   self.server.close()
 }
