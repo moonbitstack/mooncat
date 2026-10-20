@@ -42,3 +42,16 @@ curl http://127.0.0.1:12000
 TLS, QUIC, HTTP/3, WebSocket, and cryptographic implementation details are
 covered by their owning packages. This repository's examples focus on the
 server API and the h2c integration surface.
+
+## 34-cli
+
+A whole server program whose body is one line, driven by uvicorn's flags.
+
+```
+moon run examples/34-cli --target native -- --help
+moon run examples/34-cli --target native -- --port 9000 --log-level debug
+curl http://127.0.0.1:9000
+```
+
+`--workers 4` shows the other half of the design: a flag mooncat cannot honour
+answers with the reason.

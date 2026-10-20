@@ -57,6 +57,55 @@ package importing them needs both in its `moon.pkg`. `moon run examples/00-hello
 
 `serve` blocks in a keep-alive accept loop until its task is cancelled. Each request is bridged faithfully: the method/path/query/headers become an `http` `Scope`, the request body streams through `Receive`, and `HttpResponseStart` / `HttpResponseBody` events are written back via the connection.
 
+## Command line
+
+`uvicorn main:app --port 9000` names the app by string because Python imports
+by string. MoonBit links it in, so that half does not carry over — but the half
+a user types does. `@cli.run(app)` is the whole body of a server program:
+
+```moonbit
+async fn main {
+  @cli.run(app) catch {
+    err => println("mooncat: \{err}")
+  }
+}
+```
+
+```
+moon run src/main --target native -- --port 9000 --log-level debug
+moon run src/main --target native -- --help
+```
+
+`--help` lists every flag. The names and meanings are uvicorn's, including
+`--host`, `--backlog`, `--root-path`, `--limit-concurrency`,
+`--limit-max-requests`, `--timeout-keep-alive`, `--timeout-graceful-shutdown`,
+`--h11-max-incomplete-event-size`, `--forwarded-allow-ips`, `--ws-max-size`,
+`--ssl-certfile` with `--ssl-keyfile`, and the `--no-` form of every switch.
+mooncat adds `--pfx-file` (SChannel takes PKCS#12, not PEM), `--h2c`,
+`--max-connections`, `--dual-stack` and `--reuse-addr`.
+
+A uvicorn flag mooncat cannot honour says why, rather than calling it a typo:
+
+```
+$ moon run src/main --target native -- --workers 4
+mooncat: --workers: mooncat serves from one process; there is no fork here
+```
+
+That covers `--reload`, `--workers`, `--uds`, `--fd`, `--factory`, `--app-dir`,
+`--interface`, `--loop`, `--http`, `--ws`, `--log-config`, `--env-file`, the
+three WebSocket timing knobs, and the `--ssl-*` options beyond the two above.
+Each answers with its own reason. Silently ignoring them is worse: somebody who
+writes `--workers 4` would find out at load time.
+
+`cli` is a subpackage because reading argv is a program's business, not a
+library's — mooncat embedded in something larger never touches the command
+line. `@mooncat.serve(app, port=12000)` is unchanged, and both ways of starting
+a server stand.
+
+`@cli.parse(argv)` on its own returns the `Plan` — a `Config`, whether to wrap
+it in TLS, whether to speak h2c — without opening anything, which is how it is
+tested and how a program can look at the plan before serving.
+
 ## HTTPS / TLS
 
 `serve_tls` serves the same ASGI app over TLS (← uvicorn's `--ssl-certfile` / `--ssl-keyfile`):
