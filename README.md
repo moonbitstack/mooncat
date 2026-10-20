@@ -163,13 +163,25 @@ Proven end to end in CI by a **real HTTP/2 (h2c) client** built on `@socket.Tcp`
 
 `h2c` rather than `h2`-over-TLS because the `moonbitlang/async` TLS layer exposes no ALPN, so the protocol can't be negotiated on a TLS connection yet; h2c is the direct, ALPN-free path. The underlying dependencies provide QUIC and HTTP/3 protocol components, but mooncat does not currently expose an ASGI-over-HTTP/3 server.
 
+## Packages
+
+| Package | What | What it costs to link |
+|:--:|:--|:--|
+| `mooncat` | The accept loop, HTTP/1.1, h2c, WebSocket, TLS, the process model, `Config` | moonasgi, moonhttp's http1 / http2 / hpack / ws / upgrade, moonbitlang/async |
+| `mooncat/cli` | uvicorn's flags, and `run(app)` | the above, plus core's argparse |
+| `mooncat/quic` | QUIC and HTTP/3: the UDP socket, the datagram loop, the handshake QUIC does inline | moonquic, moontls, mooncred's certificate reader, moonhttp/http3 |
+
+QUIC is separate because of that third column. It performs its own TLS 1.3
+handshake rather than riding a record layer, so it is the only half of mooncat
+that needs those four; a server answering HTTP/1.1 links none of them.
+
 ## Status
 
 `v0` — HTTP/1.1 request → ASGI `Scope`/`Receive`/`Send` → response is **working and verified by a real socket round-trip in CI** (a server task answers a live `@http.get`). Landed and CI-verified alongside it:
 
 - the **lifespan** protocol — the app runs once under a `Lifespan` scope, `startup` is driven before the listener binds and `shutdown` on the way out, even under cancellation;
 - the **full WebSocket frame↔`Event` bridge** — a `Connection: upgrade` + `Upgrade: websocket` handshake becomes a `websocket` `Scope` driven through the moonasgi SEAM: `receive()` emits `websocket.connect` then real inbound text/binary frames as `WebSocketReceive` (streamed through the `Message`-as-`Reader`, so fragments reassemble) and a peer close as `WebSocketDisconnect(code)`; `send()` turns `WebSocketAccept` into the deferred 101 handshake, `WebSocketSendText`/`WebSocketSendBytes` into message frames, and `WebSocketClose(code, reason)` into a close frame. Rejecting before accept answers `403`; ping/pong are auto-handled at the protocol layer (as in uvicorn). The receive side enforces RFC 6455 rather than trusting the peer: a set RSV bit, a reserved opcode, an unmasked client frame and a malformed control frame each fail the connection with `1002`, a payload past `ws.max_size` with `1009` — checked before the payload is read, so a 64-bit length is never truncated into a short allocation — invalid UTF-8 in a text message with `1007`, and an inbound close is echoed per §5.5.1. Proven by a **real `@websocket` client** doing a full text + binary round-trip and a clean close in CI;
-- a `Config` in the shape of uvicorn's, and honoured rather than merely recorded: `dual_stack`, `reuse_addr`, per-server response `headers`, `max_connections`, `allow_failure`, `timeout_keep_alive` (an idle keep-alive connection is dropped, on both keep-alive loops), `limit_max_requests` (the server stops itself, on the plain acceptor and the graceful one), `limit_concurrency` (uvicorn's `503` rather than a queue), `max_head_size` (uvicorn's `h11_max_incomplete_event_size`), `date_header`, `proxy_headers` / `forwarded_allow_ips`, and `ws.max_size`. `backlog` is the one field that does nothing: `@socket.TcpServer` calls `listen()` itself with a fixed depth and exposes no way to change it. Chunked request/response framing is handled by the codec.
+- a `Config` in the shape of uvicorn's, and honoured rather than merely recorded: `dual_stack`, `reuse_addr`, per-server response `headers`, `max_connections`, `allow_failure`, `timeout_keep_alive` (an idle keep-alive connection is dropped, on both keep-alive loops), `limit_max_requests` (the server stops itself, on the plain acceptor and the graceful one), `limit_concurrency` (uvicorn's `503` rather than a queue), `max_head_size` (uvicorn's `h11_max_incomplete_event_size`), `date_header`, `proxy_headers` / `forwarded_allow_ips`, and `ws.max_size`. One caveat on `forwarded_allow_ips`: on the plaintext path the async transport does not report the socket's peer, so the scope's `client` is null and there is no address for a list to match — `"*"` is the only setting that believes a proxy there, and it is only right when nothing but the proxy can reach the port. `backlog` is the one field that does nothing: `@socket.TcpServer` calls `listen()` itself with a fixed depth and exposes no way to change it. Chunked request/response framing is handled by the codec.
 
 mooncat also serves a small hand-written ASGI handler end to end: the HTTP/1.1 integration test answers `/greet/<name>` with JSON over a live socket, and verifies both `200` and a `404` route miss. A matching h2c test exercises the same handler over HTTP/2.
 
