@@ -15,7 +15,7 @@ SECTIONS = [
      "is believed on. HTTP/1.1 messages are read and written by moonhttp/http1; "
      "what is here is the connection's inbox that keeps a pipelined request from "
      "being lost between them."),
-    ("cli", ('cli/cli.mbt', 'cli/run.native.mbt'), "Command line",
+    ("cli", ('cli/cli.native.mbt', 'cli/run.native.mbt'), "Command line",
      "uvicorn's flags, which are the half of `uvicorn main:app` that carries over "
      "to a language that links its app in rather than importing it by string. "
      "run(app) is the whole body of a server program; parse(argv) returns the plan "

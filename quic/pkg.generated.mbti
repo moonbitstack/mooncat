@@ -14,9 +14,9 @@ pub fn ec_private(String) -> @ecdsa.PrivateKey
 
 pub fn now() -> Int64
 
-pub async fn serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int) -> Unit
+pub async fn serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -> Unit
 
-pub async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int) -> Unit
+pub async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -> Unit
 
 pub fn tls13_certificate_verify_check(@ecdsa.PublicKey, String, Bytes, Bytes) -> Bool
 
@@ -42,7 +42,7 @@ pub fn tls_hello_quic_transport_params(Array[@ext.Ext]) -> Array[@conn.Param]
 
 pub fn tls_selected_alpn(Array[@ext.Ext]) -> String?
 
-pub fn tls_server_hello_key_share(@msg.Server) -> (Int, Bytes)?
+pub fn tls_server_hello_key_share(@msg.Server) -> (Int32, Bytes)?
 
 // Errors
 
@@ -53,7 +53,7 @@ pub struct Endpoint {
 pub async fn Endpoint::bind(String) -> Self
 pub fn Endpoint::close(Self) -> Unit
 pub fn Endpoint::local_addr(Self) -> @socket.Addr
-pub async fn Endpoint::recv_datagram(Self, max? : Int) -> (Bytes, @socket.Addr)
+pub async fn Endpoint::recv_datagram(Self, max? : Int32) -> (Bytes, @socket.Addr)
 pub async fn Endpoint::send_datagram(Self, Bytes, @socket.Addr) -> Unit
 
 // Type aliases

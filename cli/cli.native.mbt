@@ -97,7 +97,7 @@ let refused : Array[(String, Bool, String)] = [
 /// Options carry no defaults on purpose: an absent flag must be
 /// distinguishable from one that happens to match the default, because
 /// everything not given is left as `parse` found it in `base`.
-pub fn command(version? : String = "0.14.6") -> @argparse.Command {
+pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
   let flags = [
     @argparse.FlagArg::FlagArg(
       "date_header",
@@ -185,7 +185,7 @@ pub fn command(version? : String = "0.14.6") -> @argparse.Command {
 fn text(
   name : String,
   about : String,
-  env? : String = "",
+  env~ : String = "",
 ) -> @argparse.OptionArg {
   if env == "" {
     @argparse.OptionArg::OptionArg(name, long=name, about~)
@@ -209,7 +209,7 @@ fn text(
 /// Neither flag leaves `base`'s logger alone.
 pub fn parse(
   argv : ArrayView[String],
-  base? : @mooncat.Config = @mooncat.Config::new(),
+  base~ : @mooncat.Config = @mooncat.Config::new(),
 ) -> Plan raise {
   let got = command().parse(argv~)
   for one in refused {
@@ -234,7 +234,7 @@ fn fold(
   got : @argparse.Matches,
   base : @mooncat.Config,
 ) -> @mooncat.Config raise Refused {
-  let seconds = (flag : String, value : Int) => {
+  let seconds = (flag : String, value : Int32) => {
     ignore(flag)
     value * 1000
   }
@@ -388,8 +388,8 @@ fn word(got : @argparse.Matches, name : String, fallback : String) -> String {
 fn count(
   got : @argparse.Matches,
   name : String,
-  fallback : Int,
-) -> Int raise Refused {
+  fallback : Int32,
+) -> Int32 raise Refused {
   match reading(got, name) {
     Some(text) => number("--" + name, text)
     None => fallback
@@ -400,8 +400,8 @@ fn count(
 fn maybe(
   got : @argparse.Matches,
   name : String,
-  fallback : Int?,
-) -> Int? raise Refused {
+  fallback : Int32?,
+) -> Int32? raise Refused {
   match reading(got, name) {
     Some(text) => Some(number("--" + name, text))
     None => fallback
@@ -417,7 +417,7 @@ fn switched(got : @argparse.Matches, name : String, fallback : Bool) -> Bool {
 }
 
 ///|
-fn number(flag : String, text : String) -> Int raise Refused {
+fn number(flag : String, text : String) -> Int32 raise Refused {
   guard text.length() > 0 else { raise Value(flag~, got=text, want="a number") }
   let mut value = 0
   for i = 0; i < text.length(); i = i + 1 {

@@ -17,8 +17,8 @@
 /// status the connection is then failed with, and passes the stream's end through.
 pub async fn read_frame(
   reader : &@io.Reader,
-  client? : Bool = true,
-  limit? : Int = @ws.limit,
+  client~ : Bool = true,
+  limit~ : Int32 = @ws.limit,
 ) -> @ws.Frame {
   let head = reader.read_exactly(2)
   let b0 = head[0].to_int()
@@ -61,7 +61,7 @@ pub async fn read_frame(
 pub async fn read_message(
   reader : &@io.Reader,
   writer : &@io.Writer,
-  limit? : Int = @ws.limit,
+  limit~ : Int32 = @ws.limit,
 ) -> @ws.Message {
   let assembling = @ws.Reader::new(limit~)
   for ;; {

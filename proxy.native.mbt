@@ -6,7 +6,7 @@
 /// Whether a peer's forwarding headers are believed: its host appears in `trusted`, or `trusted`
 /// holds the wildcard `"*"`. A request with no known peer is never trusted — there is nothing to
 /// match, and defaulting to trust would make an unknown peer more privileged than a known one.
-fn is_trusted_proxy(client : (String, Int)?, trusted : Array[String]) -> Bool {
+fn is_trusted_proxy(client : (String, Int32)?, trusted : Array[String]) -> Bool {
   let host = match client {
     Some((h, _)) => h
     None => ""
@@ -44,11 +44,11 @@ fn first_forwarded(raw : String) -> String {
 /// scope, whose scheme names differ from the `https`/`http` the header spells.
 pub fn proxy_rewrite(
   headers : Map[String, String],
-  client : (String, Int)?,
+  client : (String, Int32)?,
   scheme : String,
   trusted~ : Array[String],
-  websocket? : Bool = false,
-) -> ((String, Int)?, String) {
+  websocket~ : Bool = false,
+) -> ((String, Int32)?, String) {
   guard is_trusted_proxy(client, trusted) else { return (client, scheme) }
   let rewritten = match headers.get("x-forwarded-for") {
     Some(raw) => {

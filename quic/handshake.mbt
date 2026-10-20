@@ -202,7 +202,7 @@ pub fn tls13_ecdhe_secrets_from_client_hello(
 
 ///|
 /// The group and key a ServerHello's `key_share` selected.
-pub fn tls_server_hello_key_share(sh : @msg.Server) -> (Int, Bytes)? {
+pub fn tls_server_hello_key_share(sh : @msg.Server) -> (Int32, Bytes)? {
   match @ext.find(sh.extensions[:], KeyShare) {
     Some(e) => @ext.read_selected_share(e.data[:])
     None => None

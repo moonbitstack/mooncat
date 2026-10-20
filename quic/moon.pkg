@@ -32,3 +32,8 @@ import {
   "moonbitstack/mooncrypt/hash/sha2",
   "moonbitstack/mooncred/x509",
 } for "wbtest"
+
+// The socket and the serving loop are native; on other targets the imports
+// they need are unused.
+
+warnings = "-29"

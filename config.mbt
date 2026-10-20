@@ -14,12 +14,12 @@
 /// library's `gzip` package (gzip-framed streams only) does not provide. Accepting the extension
 /// without one would corrupt every frame.
 pub(all) struct WsConfig {
-  max_size : Int
+  max_size : Int32
 }
 
 ///|
 /// Build a `WsConfig`, defaulting `max_size` to uvicorn's own 16 MiB.
-pub fn WsConfig::new(max_size? : Int = @ws.limit) -> WsConfig {
+pub fn WsConfig::new(max_size~ : Int32 = @ws.limit) -> WsConfig {
   { max_size, }
 }
 
@@ -42,14 +42,14 @@ pub fn WsConfig::new(max_size? : Int = @ws.limit) -> WsConfig {
 /// whether a handler error tears the whole server down.
 pub(all) struct Config {
   host : String
-  port : Int
-  backlog : Int
+  port : Int32
+  backlog : Int32
   dual_stack : Bool
   reuse_addr : Bool
   server_headers : Map[String, String]
-  max_connections : Int?
+  max_connections : Int32?
   allow_failure : Bool
-  graceful_timeout : Int?
+  graceful_timeout : Int32?
   // The path prefix this app is mounted under when something in front strips it
   // (← uvicorn's `--root-path`). It reaches the app as `scope["root_path"]`, which
   // is what lets the app build correct absolute URLs for itself.
@@ -62,22 +62,22 @@ pub(all) struct Config {
   // in milliseconds (← uvicorn's `--timeout-keep-alive`). A connection nobody is using
   // still costs a socket and a task, and a peer that opens many and sends nothing is
   // how a server runs out of both.
-  timeout_keep_alive : Int
+  timeout_keep_alive : Int32
   // Stop serving after this many requests (← uvicorn's `--limit-max-requests`), the
   // knob a supervisor uses to recycle a worker before it accumulates whatever it
   // accumulates. `None` serves forever.
-  limit_max_requests : Int?
+  limit_max_requests : Int32?
   // The concurrent-request ceiling above which a request is refused with `503`
   // (← uvicorn's `--limit-concurrency`). Distinct from `max_connections`, which makes
   // a client *wait* for a slot; this one answers rather than queues.
-  limit_concurrency : Int?
+  limit_concurrency : Int32?
   // The cap on a request's head, request line and header block together, in bytes
   // (← uvicorn's `--h11-max-incomplete-event-size`). A peer that never sends the
   // terminating blank line must not be able to grow the buffer without limit.
   // Applies to the connections mooncat parses itself (HTTPS, and anything else on
   // the self-built HTTP/1.1 codec); the async library's own `ServerConnection`,
   // which the plaintext paths use, bounds its head by rules it does not expose.
-  max_head_size : Int
+  max_head_size : Int32
   // Whether to stamp a `Date` header on every response (← uvicorn's `--date-header`).
   date_header : Bool
   // Whether to trust `X-Forwarded-For` / `X-Forwarded-Proto` from a peer in
@@ -98,7 +98,7 @@ pub(all) struct Config {
 /// separate server modes with their own listeners, so they cannot all bind this
 /// port at once. `quic_serve` takes an explicit UDP address; it may use the same
 /// number because UDP and TCP have separate port spaces.
-pub let port : Int = 12000
+pub let port : Int32 = 12000
 
 ///|
 /// Build a `Config`, defaulting to uvicorn's own defaults: host `127.0.0.1`,
@@ -115,25 +115,25 @@ pub let port : Int = 12000
 /// `timeout_graceful_shutdown`); `None` waits until the last request finishes,
 /// as uvicorn does by default.
 pub fn Config::new(
-  host? : String = "127.0.0.1",
-  port? : Int = port,
-  backlog? : Int = 2048,
-  dual_stack? : Bool = false,
-  reuse_addr? : Bool = true,
-  server_headers? : Map[String, String] = Map([("server", "mooncat")]),
-  max_connections? : Int,
-  allow_failure? : Bool = true,
-  graceful_timeout? : Int,
-  root_path? : String = "",
-  logger? : Logger = Logger::new(),
-  timeout_keep_alive? : Int = 5000,
-  limit_max_requests? : Int,
-  limit_concurrency? : Int,
-  max_head_size? : Int = 16 * 1024,
-  date_header? : Bool = true,
-  proxy_headers? : Bool = true,
-  forwarded_allow_ips? : Array[String] = ["127.0.0.1"],
-  ws? : WsConfig = WsConfig::new(),
+  host~ : String = "127.0.0.1",
+  port~ : Int32 = port,
+  backlog~ : Int32 = 2048,
+  dual_stack~ : Bool = false,
+  reuse_addr~ : Bool = true,
+  server_headers~ : Map[String, String] = Map([("server", "mooncat")]),
+  max_connections? : Int32,
+  allow_failure~ : Bool = true,
+  graceful_timeout? : Int32,
+  root_path~ : String = "",
+  logger~ : Logger = Logger::new(),
+  timeout_keep_alive~ : Int32 = 5000,
+  limit_max_requests? : Int32,
+  limit_concurrency? : Int32,
+  max_head_size~ : Int32 = 16 * 1024,
+  date_header~ : Bool = true,
+  proxy_headers~ : Bool = true,
+  forwarded_allow_ips~ : Array[String] = ["127.0.0.1"],
+  ws~ : WsConfig = WsConfig::new(),
 ) -> Config {
   {
     host,

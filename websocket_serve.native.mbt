@@ -68,7 +68,7 @@ async fn serve_websocket_raw(
     } else if closed.val {
       @moonasgi.Event::WebSocketDisconnect(code=1006, reason=None)
     } else {
-      let msg : Result[@ws.Message, Int] = Ok(
+      let msg : Result[@ws.Message, Int32] = Ok(
         read_message(reader, writer, limit=config.ws.max_size),
       ) catch {
         // A violation names the code the connection must be failed with; anything else is the

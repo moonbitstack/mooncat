@@ -67,7 +67,7 @@ fn parse_subprotocols(headers : Map[String, String]) -> Array[String] {
 ///|
 /// Map a `moonbitlang/async` websocket `CloseCode` to its numeric RFC 6455
 /// status, for the `code` carried on an ASGI `websocket.disconnect`.
-fn close_code_int(code : @websocket.CloseCode) -> Int {
+fn close_code_int(code : @websocket.CloseCode) -> Int32 {
   match code {
     Normal => 1000
     GoingAway => 1001
@@ -86,7 +86,7 @@ fn close_code_int(code : @websocket.CloseCode) -> Int {
 ///|
 /// Map an ASGI `websocket.close` numeric `code` to the transport's `CloseCode`,
 /// so a close initiated by the app is sent with the right status on the wire.
-fn close_code_of_int(n : Int) -> @websocket.CloseCode {
+fn close_code_of_int(n : Int32) -> @websocket.CloseCode {
   match n {
     1000 => Normal
     1001 => GoingAway

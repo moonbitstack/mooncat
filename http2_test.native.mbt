@@ -41,7 +41,7 @@ async fn h2t_read_frame(reader : &@io.Reader) -> @http2.Frame {
 ///|
 /// A minimal real h2c GET on `@socket.Tcp` — preface, SETTINGS, HEADERS with
 /// END_STREAM — reading back `(:status, content-type, body)`.
-async fn h2t_get(port : Int, path : String) -> (String, String, Bytes) {
+async fn h2t_get(port : Int32, path : String) -> (String, String, Bytes) {
   let conn = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:\{port}"))
   conn.write(@http2.preface)
   conn.write(@http2.Frame::Settings(params=[], ack=false).encode())

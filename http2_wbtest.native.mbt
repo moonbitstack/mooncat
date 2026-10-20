@@ -12,11 +12,11 @@
 /// response headers, body)`.
 async fn h2c_request(
   host : String,
-  port : Int,
+  port : Int32,
   verb : String,
   path : String,
-  body? : Bytes = b"",
-  extra_headers? : Array[(Bytes, Bytes)] = [],
+  body~ : Bytes = b"",
+  extra_headers~ : Array[(Bytes, Bytes)] = [],
 ) -> (String, Array[(String, String)], Bytes) {
   let conn = @socket.Tcp::connect(@socket.Addr::parse("\{host}:\{port}"))
   conn.write(@http2.preface)
@@ -296,7 +296,7 @@ async test "h2c: two streams multiplex on one connection and each gets its reply
     conn.write(@http2.preface)
     conn.write(@http2.Frame::Settings(params=[], ack=false).encode())
     let enc = @hpack.Encoder::new()
-    let mk = (sid : Int, path : Bytes) => {
+    let mk = (sid : Int32, path : Bytes) => {
       let block = enc.encode([
         { name: b":method", value: b"GET", },
         { name: b":scheme", value: b"http", },
@@ -317,8 +317,8 @@ async test "h2c: two streams multiplex on one connection and each gets its reply
     mk(1, b"/one")
     mk(3, b"/three")
     let dec = @hpack.Decoder::new()
-    let bodies : Map[Int, @buffer.Buffer] = Map([])
-    let ended : Map[Int, Bool] = Map([])
+    let bodies : Map[Int32, @buffer.Buffer] = Map([])
+    let ended : Map[Int32, Bool] = Map([])
     let mut open_streams = 2
     while open_streams > 0 {
       let frame = h2_read_frame(conn)
@@ -370,7 +370,7 @@ async test "h2c: two streams multiplex on one connection and each gets its reply
 ///|
 /// Whether `stream_id` has not yet been marked ended, for the multiplex test's
 /// stream bookkeeping.
-fn not_ended(ended : Map[Int, Bool], stream_id : Int) -> Bool {
+fn not_ended(ended : Map[Int32, Bool], stream_id : Int32) -> Bool {
   match ended.get(stream_id) {
     Some(true) => false
     _ => true

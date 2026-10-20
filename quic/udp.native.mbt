@@ -29,7 +29,7 @@ pub fn Endpoint::local_addr(self : Endpoint) -> @socket.Addr {
 /// Receive the next datagram and its sender's address, copying up to `max` bytes.
 pub async fn Endpoint::recv_datagram(
   self : Endpoint,
-  max? : Int = 2048,
+  max~ : Int32 = 2048,
 ) -> (Bytes, @socket.Addr) {
   let buf = FixedArray::make(max, b'\x00')
   let (n, from) = self.server.recvfrom(buf)

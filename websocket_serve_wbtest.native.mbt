@@ -97,7 +97,7 @@ async test "serve_websocket_raw completes the handshake with a subprotocol echo 
 /// (the peer simply vanished).
 async test "serve_websocket_raw fails a protocol violation with its close code" {
   @async.with_task_group(g => {
-    let seen : Array[Int] = []
+    let seen : Array[Int32] = []
     let app : @moonasgi.AsgiApp = (scope, receive, send) => {
       guard scope is WebSocket(_) else { return }
       for ;; {

@@ -104,9 +104,9 @@ pub async fn serve_tls(
   certificate_file~ : String,
   private_key_file~ : String,
   pfx_file~ : String,
-  host? : String = "127.0.0.1",
-  port? : Int = port,
-  backlog? : Int = 2048,
+  host~ : String = "127.0.0.1",
+  port~ : Int32 = port,
+  backlog~ : Int32 = 2048,
 ) -> Unit {
   serve_tls_config(app, Config::new(host~, port~, backlog~), {
     certificate_file,

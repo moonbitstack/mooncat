@@ -10,10 +10,10 @@
 ///|
 /// The HTTP/2 default initial flow-control window (RFC 7540 §6.9.2) and default
 /// maximum frame size (§6.5.2), used until the peer's SETTINGS say otherwise.
-const H2_DEFAULT_WINDOW : Int = 65535
+const H2_DEFAULT_WINDOW : Int32 = 65535
 
 ///|
-const H2_DEFAULT_MAX_FRAME : Int = 16384
+const H2_DEFAULT_MAX_FRAME : Int32 = 16384
 
 ///|
 /// The largest flow-control window RFC 7540 §6.9.1 permits (2^31 - 1). mooncat
@@ -21,7 +21,7 @@ const H2_DEFAULT_MAX_FRAME : Int = 16384
 /// plus a connection-level WINDOW_UPDATE up to this ceiling) so inbound request
 /// bodies never stall on flow control — the server side keeps no inbound window
 /// bookkeeping, exactly what a server that trusts its upstream wants.
-const H2_MAX_WINDOW : Int = 2147483647
+const H2_MAX_WINDOW : Int32 = 2147483647
 
 ///|
 /// Per-stream inbound + outbound state for one HTTP/2 stream (RFC 7540 §5). The
@@ -29,14 +29,14 @@ const H2_MAX_WINDOW : Int = 2147483647
 /// and the DATA body until END_STREAM; the response side tracks the remaining
 /// outbound send window the peer has granted this stream.
 priv struct H2Stream {
-  id : Int
+  id : Int32
   mut header_block : Bytes
   mut headers : Array[@header.Header]
   mut headers_done : Bool
   body : @buffer.Buffer
   mut request_ended : Bool
   mut dispatched : Bool
-  mut send_window : Int
+  mut send_window : Int32
 }
 
 ///|
@@ -49,10 +49,10 @@ priv struct H2Conn {
   conn : @socket.Tcp
   dec : @hpack.Decoder
   enc : @hpack.Encoder
-  mut conn_send_window : Int
-  mut peer_max_frame : Int
-  mut peer_initial_window : Int
-  streams : Map[Int, H2Stream]
+  mut conn_send_window : Int32
+  mut peer_max_frame : Int32
+  mut peer_initial_window : Int32
+  streams : Map[Int32, H2Stream]
   mut goaway : Bool
 }
 
@@ -71,7 +71,7 @@ fn H2Conn::new(conn : @socket.Tcp) -> H2Conn {
 }
 
 ///|
-fn imin(a : Int, b : Int) -> Int {
+fn imin(a : Int32, b : Int32) -> Int32 {
   if a < b {
     a
   } else {
@@ -133,7 +133,7 @@ async fn h2_read_frame(reader : &@io.Reader) -> @http2.Frame {
 ///|
 /// Look up an existing stream or create it, seeding a new stream's outbound send
 /// window with the peer's current `SETTINGS_INITIAL_WINDOW_SIZE`.
-fn H2Conn::stream(self : H2Conn, id : Int) -> H2Stream {
+fn H2Conn::stream(self : H2Conn, id : Int32) -> H2Stream {
   match self.streams.get(id) {
     Some(s) => s
     None => {
@@ -241,7 +241,7 @@ async fn H2Conn::pump_one(self : H2Conn) -> Unit {
 /// `end_stream` still emits a lone END_STREAM DATA frame to close the stream.
 async fn H2Conn::write_body(
   self : H2Conn,
-  stream_id : Int,
+  stream_id : Int32,
   s : H2Stream,
   data : Bytes,
   end_stream~ : Bool,
@@ -298,7 +298,7 @@ fn h2_is_dropped_response_header(name : String) -> Bool {
 /// first (RFC 7540 §8.1.2.4), then every app header that is legal to carry over
 /// HTTP/2, lower-cased as the protocol requires (§8.1.2).
 fn h2_response_headers(
-  status : Int,
+  status : Int32,
   headers : Array[(String, String)],
 ) -> Array[@header.Header] {
   let out : Array[@header.Header] = [
@@ -503,8 +503,8 @@ async fn drive_h2c(app : @moonasgi.AsgiApp, conn : @socket.Tcp) -> Unit {
 /// `curl --http2-prior-knowledge` or a gRPC client does).
 pub async fn serve_h2c(
   app : @moonasgi.AsgiApp,
-  host? : String = "127.0.0.1",
-  port? : Int = port,
+  host~ : String = "127.0.0.1",
+  port~ : Int32 = port,
 ) -> Unit {
   serve_h2c_config(app, Config::new(host~, port~))
 }

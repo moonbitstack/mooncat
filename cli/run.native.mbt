@@ -25,7 +25,7 @@
 pub async fn run(
   app : @moonasgi.AsgiApp,
   argv? : ArrayView[String],
-  base? : @mooncat.Config = @mooncat.Config::new(),
+  base~ : @mooncat.Config = @mooncat.Config::new(),
 ) -> Unit {
   let argv = match argv {
     Some(argv) => argv

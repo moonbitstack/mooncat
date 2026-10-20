@@ -15,27 +15,27 @@ pub fn http_date(Int64) -> String
 
 pub fn http_date_now() -> String
 
-pub let port : Int
+pub let port : Int32
 
-pub fn proxy_rewrite(Map[String, String], (String, Int)?, String, trusted~ : Array[String], websocket? : Bool) -> ((String, Int)?, String)
+pub fn proxy_rewrite(Map[String, String], (String, Int32)?, String, trusted~ : Array[String], websocket? : Bool) -> ((String, Int32)?, String)
 
-pub async fn read_frame(&@io.Reader, client? : Bool, limit? : Int) -> @ws.Frame
+pub async fn read_frame(&@io.Reader, client? : Bool, limit? : Int32) -> @ws.Frame
 
-pub async fn read_message(&@io.Reader, &@io.Writer, limit? : Int) -> @ws.Message
+pub async fn read_message(&@io.Reader, &@io.Writer, limit? : Int32) -> @ws.Message
 
 pub async fn reload_watch(String, async () -> Unit) -> Unit
 
-pub async fn serve(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int, backlog? : Int) -> Unit
+pub async fn serve(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32, backlog? : Int32) -> Unit
 
 pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, Config) -> Unit
 
 pub async fn serve_graceful(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, Config, handle? : ShutdownHandle) -> Unit
 
-pub async fn serve_h2c(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int) -> Unit
+pub async fn serve_h2c(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32) -> Unit
 
 pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, Config) -> Unit
 
-pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, pfx_file~ : String, host? : String, port? : Int, backlog? : Int) -> Unit
+pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, pfx_file~ : String, host? : String, port? : Int32, backlog? : Int32) -> Unit
 
 pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, Config, TlsCert) -> Unit
 
@@ -47,27 +47,27 @@ pub suberror LifespanError {
 // Types and methods
 pub(all) struct Config {
   host : String
-  port : Int
-  backlog : Int
+  port : Int32
+  backlog : Int32
   dual_stack : Bool
   reuse_addr : Bool
   server_headers : Map[String, String]
-  max_connections : Int?
+  max_connections : Int32?
   allow_failure : Bool
-  graceful_timeout : Int?
+  graceful_timeout : Int32?
   root_path : String
   logger : Logger
-  timeout_keep_alive : Int
-  limit_max_requests : Int?
-  limit_concurrency : Int?
-  max_head_size : Int
+  timeout_keep_alive : Int32
+  limit_max_requests : Int32?
+  limit_concurrency : Int32?
+  max_head_size : Int32
   date_header : Bool
   proxy_headers : Bool
   forwarded_allow_ips : Array[String]
   ws : WsConfig
 }
 pub fn Config::bind(Self) -> String
-pub fn Config::new(host? : String, port? : Int, backlog? : Int, dual_stack? : Bool, reuse_addr? : Bool, server_headers? : Map[String, String], max_connections? : Int, allow_failure? : Bool, graceful_timeout? : Int, root_path? : String, logger? : Logger, timeout_keep_alive? : Int, limit_max_requests? : Int, limit_concurrency? : Int, max_head_size? : Int, date_header? : Bool, proxy_headers? : Bool, forwarded_allow_ips? : Array[String], ws? : WsConfig) -> Self
+pub fn Config::new(host? : String, port? : Int32, backlog? : Int32, dual_stack? : Bool, reuse_addr? : Bool, server_headers? : Map[String, String], max_connections? : Int32, allow_failure? : Bool, graceful_timeout? : Int32, root_path? : String, logger? : Logger, timeout_keep_alive? : Int32, limit_max_requests? : Int32, limit_concurrency? : Int32, max_head_size? : Int32, date_header? : Bool, proxy_headers? : Bool, forwarded_allow_ips? : Array[String], ws? : WsConfig) -> Self
 
 pub struct Lifespan {
   app : async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit
@@ -84,7 +84,7 @@ pub struct Logger {
   out : @moonlog.Logger
   access : Bool
 }
-pub fn Logger::access_line(Self, String, String, String, String, Int) -> Unit
+pub fn Logger::access_line(Self, String, String, String, String, Int32) -> Unit
 pub fn Logger::enabled(Self, @moonlog.Level) -> Bool
 pub fn Logger::log(Self, @moonlog.Level, String) -> Unit
 pub fn Logger::new(level? : @moonlog.Level, access? : Bool, write? : (String) -> Unit) -> Self
@@ -105,9 +105,9 @@ pub(all) struct TlsCert {
 }
 
 pub(all) struct WsConfig {
-  max_size : Int
+  max_size : Int32
 }
-pub fn WsConfig::new(max_size? : Int) -> Self
+pub fn WsConfig::new(max_size? : Int32) -> Self
 
 // Type aliases
 

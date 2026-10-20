@@ -34,7 +34,7 @@ async fn expect_frame(r : @pipe.PipeRead) -> @ws.Frame {
 
 ///|
 /// The close code `read_message` fails the stream with, or `0` when it returns a message.
-async fn ws_message_status(frames : Bytes, limit? : Int = @ws.limit) -> Int {
+async fn ws_message_status(frames : Bytes, limit~ : Int32 = @ws.limit) -> Int32 {
   let reader = bytes_reader(frames)
   let (_pr, pw) = @pipe.pipe()
   let writer : &@io.Writer = pw

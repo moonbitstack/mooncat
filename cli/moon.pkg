@@ -20,3 +20,8 @@ import {
   "moonbitstack/mooncat/cli",
   "moonbitstack/mooncat",
 } for "test"
+
+// Native only: the flags exist to start a server, and `serve` is native.
+// On other targets the package has no sources, so every import is unused.
+
+warnings = "-29"

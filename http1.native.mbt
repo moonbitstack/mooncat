@@ -33,7 +33,7 @@ async fn Inbox::fill(self : Inbox) -> Bool {
 
 ///|
 /// Drop the first `n` held octets, which a parse has consumed.
-fn Inbox::consume(self : Inbox, n : Int) -> Unit {
+fn Inbox::consume(self : Inbox, n : Int32) -> Unit {
   self.held = self.held[n:].to_owned()
 }
 
@@ -46,7 +46,7 @@ fn Inbox::consume(self : Inbox, n : Int) -> Unit {
 /// connection, which is what uvicorn does with a malformed request too.
 async fn Inbox::head(self : Inbox, limits : @http1.Limits) -> @http1.Request? {
   for ;; {
-    let outcome : Result[(@http1.Request, Int), @http1.Refused] = Ok(
+    let outcome : Result[(@http1.Request, Int32), @http1.Refused] = Ok(
       @http1.request(self.held[:], limits~),
     ) catch {
       e => Err(e)
@@ -64,7 +64,7 @@ async fn Inbox::head(self : Inbox, limits : @http1.Limits) -> @http1.Request? {
 
 ///|
 /// Exactly `n` octets of body, from what is held and then from the connection.
-async fn Inbox::exactly(self : Inbox, n : Int) -> Bytes {
+async fn Inbox::exactly(self : Inbox, n : Int32) -> Bytes {
   while self.held.length() < n {
     if !self.fill() {
       break
@@ -170,7 +170,7 @@ async fn dispatch_http1(
   inbox : Inbox,
   writer : &@io.Writer,
   scheme~ : String,
-  config? : Config = Config::new(),
+  config~ : Config = Config::new(),
   client_addr? : @socket.Addr,
 ) -> Bool {
   let server_headers = config.server_headers
@@ -384,8 +384,8 @@ fn bytes_has(hay : Bytes, needle : Bytes) -> Bool {
 /// return the raw response bytes (test helper).
 async fn run_h1(
   req : @http1.Request,
-  config? : Config = Config::new(),
-  headers? : Array[(String, String)] = [],
+  config~ : Config = Config::new(),
+  headers~ : Array[(String, String)] = [],
 ) -> Bytes {
   let (req_r, req_w) = @pipe.pipe()
   req_w.close()
@@ -737,7 +737,7 @@ async test "http1: an app-supplied Date is not duplicated" {
 ///|
 /// How many times `needle` occurs in `hay` (test helper: a duplicate header is invisible to a
 /// "contains" check).
-fn count_bytes(hay : Bytes, needle : Bytes) -> Int {
+fn count_bytes(hay : Bytes, needle : Bytes) -> Int32 {
   let n = needle.length()
   let mut found = 0
   let mut i = 0

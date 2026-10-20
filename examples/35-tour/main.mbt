@@ -324,7 +324,7 @@ fn joined(items : Array[String]) -> String {
 }
 
 ///|
-fn numbers(items : Array[Int]) -> String {
+fn numbers(items : Array[Int32]) -> String {
   let out = []
   for one in items {
     out.push(one.to_string())

@@ -27,7 +27,7 @@ fn percent_decode(target : String) -> Bytes {
 /// An address as the `(host, port)` pair ASGI's `client` and `server` carry. The
 /// host is rendered from the address rather than looked up: a scope is built per
 /// request, and a reverse DNS lookup there would be a network round trip.
-fn addr_pair(addr : @socket.Addr) -> (String, Int) {
+fn addr_pair(addr : @socket.Addr) -> (String, Int32) {
   let text = addr.to_string()
   // `Show` renders `host:port`; the scope wants them apart.
   for i = text.length() - 1; i >= 0; i = i - 1 {
@@ -88,7 +88,7 @@ fn has_field(pairs : Array[(String, String)], name : String) -> Bool {
 ///|
 /// Whether the served-request count has reached the configured ceiling (← uvicorn's
 /// `--limit-max-requests`). `None` never trips, which is uvicorn's default: serve until stopped.
-fn over_request_limit(served : Int, limit : Int?) -> Bool {
+fn over_request_limit(served : Int32, limit : Int32?) -> Bool {
   match limit {
     Some(n) => served >= n
     None => false
@@ -240,9 +240,9 @@ async fn dispatch(
 /// the running task is cancelled.
 pub async fn serve(
   app : @moonasgi.AsgiApp,
-  host? : String = "127.0.0.1",
-  port? : Int = port,
-  backlog? : Int = 2048,
+  host~ : String = "127.0.0.1",
+  port~ : Int32 = port,
+  backlog~ : Int32 = 2048,
 ) -> Unit {
   serve_config(app, Config::new(host~, port~, backlog~))
 }

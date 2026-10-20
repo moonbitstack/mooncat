@@ -35,7 +35,7 @@ async fn quic_pump(
 pub async fn serve_endpoint(
   ep : Endpoint,
   server : @conn.Endpoint[@socket.Addr],
-  tick_ms? : Int = 20,
+  tick_ms~ : Int32 = 20,
 ) -> Unit {
   @async.with_task_group(g => {
     let _ : @async.Task[Unit] = g.spawn(() => {
@@ -66,7 +66,7 @@ pub async fn serve_endpoint(
 pub async fn serve(
   addr : String,
   server : @conn.Endpoint[@socket.Addr],
-  tick_ms? : Int = 20,
+  tick_ms~ : Int32 = 20,
 ) -> Unit {
   serve_endpoint(Endpoint::bind(addr), server, tick_ms~)
 }

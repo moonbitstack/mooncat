@@ -27,9 +27,9 @@ fn uvicorn(record : @moonlog.Record) -> String {
 /// defaults. `access` off silences the per-request lines while keeping the
 /// server's own.
 pub fn Logger::new(
-  level? : @moonlog.Level = Info,
-  access? : Bool = true,
-  write? : (String) -> Unit = line => println(line),
+  level~ : @moonlog.Level = Info,
+  access~ : Bool = true,
+  write~ : (String) -> Unit = line => println(line),
 ) -> Logger {
   {
     out: @moonlog.Logger::new(
@@ -73,7 +73,7 @@ pub fn Logger::access_line(
   verb : String,
   target : String,
   http_version : String,
-  status : Int,
+  status : Int32,
 ) -> Unit {
   if self.access {
     self.out.info(
@@ -95,7 +95,7 @@ pub fn Logger::access_line(
 ///|
 /// The reason phrase an access line pairs with a status. Lives here rather than
 /// beside the native server because the access line is written on every backend.
-fn reason(code : Int) -> String {
+fn reason(code : Int32) -> String {
   match code {
     200 => "OK"
     201 => "Created"

@@ -44,7 +44,7 @@ fn main {
 
 ///|
 /// Render an optional int knob (`None` = uvicorn's unbounded default).
-fn opt(o : Int?) -> String {
+fn opt(o : Int32?) -> String {
   match o {
     Some(n) => n.to_string()
     None => "unset"

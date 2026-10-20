@@ -58,8 +58,8 @@ async fn serve_conn(
   config : Config,
   bound : @socket.Addr,
   peer : @socket.Addr,
-  inflight : Ref[Int],
-  served : Ref[Int],
+  inflight : Ref[Int32],
+  served : Ref[Int32],
   handle : ShutdownHandle,
 ) -> Unit {
   // The server headers the config asks for are the connection's, not the response's,
@@ -114,7 +114,7 @@ async fn serve_conn(
 /// Whether a further request would pass the concurrency ceiling (← uvicorn's
 /// `--limit-concurrency`). `inflight` counts this connection too, so a limit of `n` lets `n`
 /// requests run and refuses the `n+1`th. `None` never trips.
-fn over_concurrency(inflight : Int, limit : Int?) -> Bool {
+fn over_concurrency(inflight : Int32, limit : Int32?) -> Bool {
   match limit {
     Some(n) => inflight > n
     None => false
@@ -129,8 +129,8 @@ async fn accept_loop(
   g : @async.TaskGroup[Unit],
   server : @socket.TcpServer,
   app : @moonasgi.AsgiApp,
-  inflight : Ref[Int],
-  served : Ref[Int],
+  inflight : Ref[Int32],
+  served : Ref[Int32],
   handle : ShutdownHandle,
   config : Config,
   bound : @socket.Addr,
@@ -200,7 +200,7 @@ async test "allow_failure decides whether a handler failure escapes" {
 /// `timeout` milliseconds if one is set (`None` waits for the last request to
 /// finish, as uvicorn does by default). Polls on a short tick because the count
 /// is only mutated at handler task boundaries.
-async fn drain(inflight : Ref[Int], timeout : Int?) -> Unit {
+async fn drain(inflight : Ref[Int32], timeout : Int32?) -> Unit {
   let mut waited = 0
   for ;; {
     if inflight.val <= 0 {
@@ -268,7 +268,7 @@ async fn drain(inflight : Ref[Int], timeout : Int?) -> Unit {
 pub async fn serve_graceful(
   app : @moonasgi.AsgiApp,
   config : Config,
-  handle? : ShutdownHandle = ShutdownHandle::new(),
+  handle~ : ShutdownHandle = ShutdownHandle::new(),
 ) -> Unit {
   @async.with_task_group(g => {
     let lifespan = Lifespan::new(app)
@@ -389,7 +389,7 @@ async test "concurrent request burst is served by per-connection handlers" {
       serve_graceful(app, Config::new(port=18091), handle~)
     })
     @async.sleep(250)
-    let codes : Array[Int] = []
+    let codes : Array[Int32] = []
     let tasks : Array[@async.Task[Unit]] = []
     for _i in 0..<8 {
       tasks.push(
@@ -522,7 +522,7 @@ async test "limit_concurrency refuses the overflow request with 503" {
       )
     })
     @async.sleep(250)
-    let codes : Array[Int] = []
+    let codes : Array[Int32] = []
     let first = g.spawn(() => {
       let (resp, _b) = @http.get("http://127.0.0.1:18096/slow")
       codes.push(resp.code)
@@ -580,7 +580,7 @@ async test "graceful serve honours max_connections" {
     })
     @async.sleep(250)
     let tasks : Array[@async.Task[Unit]] = []
-    let codes : Array[Int] = []
+    let codes : Array[Int32] = []
     for _i in 0..<4 {
       tasks.push(
         g.spawn(() => {
