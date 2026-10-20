@@ -15,6 +15,12 @@ SECTIONS = [
      "is believed on. HTTP/1.1 messages are read and written by moonhttp/http1; "
      "what is here is the connection's inbox that keeps a pipelined request from "
      "being lost between them."),
+    ("cli", ('cli/cli.mbt', 'cli/run.native.mbt'), "Command line",
+     "uvicorn's flags, which are the half of `uvicorn main:app` that carries over "
+     "to a language that links its app in rather than importing it by string. "
+     "run(app) is the whole body of a server program; parse(argv) returns the plan "
+     "without opening anything. A uvicorn flag mooncat cannot honour answers with "
+     "the reason rather than with 'unexpected argument'."),
     ("websocket", ('websocket.native.mbt', 'websocket_io.native.mbt', 'websocket_serve.native.mbt'), "WebSocket",
      "The frame-to-Event bridge that drives a websocket Scope through the SEAM: "
      "connect / accept / receive / send / disconnect / close. The RFC 6455 frames "
@@ -23,15 +29,16 @@ SECTIONS = [
      "Serving HTTP/2 over cleartext: the frame pump, stream multiplexing and the "
      "send windows, bound to the same dispatch path HTTP/1.1 uses. The frames are "
      "moonhttp/http2 and the header compression moonhttp/hpack."),
-    ("tls", ('tls.mbt', 'tls.native.mbt', 'crypto.mbt'), "TLS",
+    ("tls", ('tls.native.mbt',), "TLS",
      "What is left of TLS in a server once the protocol is moontls: holding the "
      "certificate and key, choosing the suite, and driving the handshake over an "
-     "accepted socket. Every algorithm is mooncrypt's; this binds the choices TLS "
-     "1.3 and QUIC make so the protocol code names an operation rather than "
-     "restating the suite on every call."),
-    ("quic", ('quic_serve.native.mbt', 'quic_udp.native.mbt'), "HTTP/3 over QUIC",
-     "The UDP half: the socket, and the event loop that demultiplexes datagrams "
-     "onto connections. QUIC itself is moonquic, and HTTP/3 with QPACK is moonhttp's."),
+     "accepted socket. Every algorithm is mooncrypt's."),
+    ("quic", ('quic/serve.native.mbt', 'quic/udp.native.mbt', 'quic/handshake.mbt', 'quic/crypto.mbt'), "HTTP/3 over QUIC",
+     "The UDP half, in a package of its own because of what it carries: QUIC "
+     "performs its own TLS 1.3 handshake rather than riding a record layer, so "
+     "this is the only part of mooncat that needs moonquic, moontls and mooncred. "
+     "The socket, the datagram loop that routes by connection ID, the timers, and "
+     "the handshake crypto. QUIC itself is moonquic, HTTP/3 with QPACK moonhttp's."),
 ]
 
 KIND = {"struct": "struct", "enum": "enum", "fn": "fn", "type": "type", "let": "let"}
