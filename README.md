@@ -23,18 +23,37 @@ flowchart LR
 
 ## Quickstart
 
-```moonbit
-// An ASGI app: respond 200 with a text body.
-let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
-  send(@moonasgi.Event::HttpResponseStart(
-    status=200, headers=[("content-type", "text/plain")]))
-  send(@moonasgi.Event::HttpResponseBody(
-    body=b"Hello from mooncat!", more_body=false))
-}
+`serve` is native-only — it opens a socket — and it is `async`, so the entry
+point is `async fn main` and the target is `--target native`:
 
-// Serve it (inside an async context / task group):
-@mooncat.serve(app, host="127.0.0.1", port=12000)
+```moonbit
+async fn main {
+  let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
+    send(
+      @moonasgi.Event::HttpResponseStart(
+        status=200,
+        headers=[("content-type", "text/plain; charset=utf-8")],
+        trailers=false,
+      ),
+    )
+    send(
+      @moonasgi.Event::HttpResponseBody(body=b"Hello from mooncat!", more_body=false),
+    )
+  }
+  @mooncat.serve(app, host="127.0.0.1", port=12000) catch {
+    err => println("mooncat stopped: \{err}")
+  }
+}
 ```
+
+```
+moon run src/main --target native
+curl http://127.0.0.1:12000
+```
+
+`moon.mod` needs `moonbitstack/mooncat` and `moonbitstack/moonasgi`; the
+package importing them needs both in its `moon.pkg`. `moon run examples/00-hello
+--target native` is the same program in this repository.
 
 `serve` blocks in a keep-alive accept loop until its task is cancelled. Each request is bridged faithfully: the method/path/query/headers become an `http` `Scope`, the request body streams through `Receive`, and `HttpResponseStart` / `HttpResponseBody` events are written back via the connection.
 
@@ -43,11 +62,15 @@ let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
 `serve_tls` serves the same ASGI app over TLS (← uvicorn's `--ssl-certfile` / `--ssl-keyfile`):
 
 ```moonbit
-@mooncat.serve_tls(app,
-  certificate_file="certs/cert.pem",  // PEM cert  (OpenSSL platforms)
-  private_key_file="certs/key.pem",   // PEM key   (OpenSSL platforms)
-  pfx_file="certs/dev.pfx",           // PKCS#12   (Windows / SChannel)
-  port=12000)
+// All three are required arguments; `serve_tls` reads the pair its platform
+// accepts and ignores the other, so one call compiles everywhere.
+@mooncat.serve_tls(
+  app,
+  certificate_file="certs/cert.pem", // PEM cert, OpenSSL platforms
+  private_key_file="certs/key.pem",  // PEM key, OpenSSL platforms
+  pfx_file="certs/dev.pfx",          // PKCS#12, Windows and SChannel
+  port=12000,
+)
 ```
 
 Each accepted connection completes a real TLS handshake (`@tls.Tls`), then [`moonhttp/http1`](https://github.com/moonbitstack/moonhttp)'s RFC 9112 codec — which frames single-shot replies with `Content-Length` and streamed replies with `Transfer-Encoding: chunked`, and refuses the request-smuggling framings rather than resolving them — drives the moonasgi app over the encrypted stream. A pipelining client's second request, or a body that arrived with its head, is held for what comes next rather than dropped, with keep-alive and the lifespan protocol intact. Proven end-to-end by a real `@http` TLS client doing `GET` over `https://` and asserting `200` + body in CI. Regenerate the throwaway localhost test cert with `scripts/gen_test_cert.sh`.
