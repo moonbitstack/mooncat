@@ -330,13 +330,13 @@ async test "serve_config stops itself after limit_max_requests" {
     let srv = g.spawn(() => {
       serve_config(
         app,
-        Config::new(port=18104, limit_max_requests=2, logger=Logger::silent()),
+        Config::new(port=18112, limit_max_requests=2, logger=Logger::silent()),
       )
     })
     @async.sleep(300)
-    let (first, _b1) = @http.get("http://127.0.0.1:18104/one")
+    let (first, _b1) = @http.get("http://127.0.0.1:18112/one")
     assert_eq(first.code, 200)
-    let (second, _b2) = @http.get("http://127.0.0.1:18104/two")
+    let (second, _b2) = @http.get("http://127.0.0.1:18112/two")
     assert_eq(second.code, 200)
     // Bounded, so a limit that never trips fails this test rather than parking it forever.
     let stopped = @async.with_timeout_opt(5000, () => srv.wait())
@@ -582,15 +582,15 @@ async test "the server logs each request and turns an app failure into a 500" {
       serve_config(
         app,
         Config::new(
-          port=18101,
+          port=18113,
           logger=Logger::new(write=line => lines.push(line)),
         ),
       )
     })
     @async.sleep(300)
-    let (ok, _b) = @http.get("http://127.0.0.1:18101/hello")
+    let (ok, _b) = @http.get("http://127.0.0.1:18113/hello")
     assert_eq(ok.code, 201)
-    let (boom, _b2) = @http.get("http://127.0.0.1:18101/boom")
+    let (boom, _b2) = @http.get("http://127.0.0.1:18113/boom")
     assert_eq(boom.code, 500)
     @async.sleep(100)
     let joined = lines.join(" | ")

@@ -729,12 +729,12 @@ async test "a trusted proxy's forwarded headers reach a websocket scope" {
     let srv = g.spawn(() => {
       serve_graceful(
         app,
-        Config::new(port=18105, logger=Logger::silent()),
+        Config::new(port=18110, logger=Logger::silent()),
         handle~,
       )
     })
     @async.sleep(250)
-    let ws = @websocket.connect("ws://127.0.0.1:18105/chat", headers={
+    let ws = @websocket.connect("ws://127.0.0.1:18110/chat", headers={
       "x-forwarded-for": "203.0.113.7",
       "x-forwarded-proto": "https",
     })
@@ -758,12 +758,12 @@ async test "a served response carries a Date header" {
     let srv = g.spawn(() => {
       serve_graceful(
         ok_app,
-        Config::new(port=18103, logger=Logger::silent()),
+        Config::new(port=18111, logger=Logger::silent()),
         handle~,
       )
     })
     @async.sleep(250)
-    let (resp, _b) = @http.get("http://127.0.0.1:18103/")
+    let (resp, _b) = @http.get("http://127.0.0.1:18111/")
     assert_eq(resp.code, 200)
     guard resp.headers.get("date") is Some(stamped) else {
       fail("the response carried no Date header")

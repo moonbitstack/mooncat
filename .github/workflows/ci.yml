@@ -45,6 +45,9 @@ jobs:
       - name: every source file has a documentation section
         run: python scripts/check_docs.py
 
+      - name: no two tests bind the same port
+        run: python scripts/check_ports.py
+
       - name: moon check
         run: moon check --target native --deny-warn
 
