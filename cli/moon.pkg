@@ -1,0 +1,22 @@
+// The command line (← uvicorn's), kept out of the library.
+//
+// `uvicorn main:app` works because Python imports by string. MoonBit compiles
+// ahead of time, so that half cannot be copied; what can is the other half,
+// the set of flags, which is what a user actually types. `run(app)` is the
+// whole entry point of a server program.
+//
+// A subpackage because reading argv is the program's business, not the
+// library's: mooncat embedded in something larger must not touch the command
+// line, and only this half needs `env` and `argparse`.
+import {
+  "moonbitstack/mooncat",
+  "moonbitstack/moonasgi",
+  "moonbitstack/moonlog",
+  "moonbitlang/core/argparse",
+  "moonbitlang/core/env",
+}
+
+import {
+  "moonbitstack/mooncat/cli",
+  "moonbitstack/mooncat",
+} for "test"
