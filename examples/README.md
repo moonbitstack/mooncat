@@ -55,3 +55,17 @@ curl http://127.0.0.1:9000
 
 `--workers 4` shows the other half of the design: a flag mooncat cannot honour
 answers with the reason.
+
+## 35-tour
+
+Everything mooncat does, in one program that runs to completion and stops.
+Real servers on real sockets, driven by real clients, printing what came back.
+
+```
+moon run examples/35-tour --target native
+```
+
+Configuration read off a command line, the lifespan protocol, an app on a
+socket, the request limit that retires a server, forwarded headers believed
+and ignored, WebSocket echo, h2c, and a graceful shutdown that lets the
+request in flight finish.
