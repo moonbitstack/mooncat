@@ -177,3 +177,35 @@ async test "serve_websocket_raw fails an oversized frame with 1009" {
     task.wait()
   })
 }
+
+///|
+/// `wss://` end to end: a TLS client sends the RFC 6455 upgrade, gets the 101 back over the
+/// encrypted stream, and a masked text frame comes back echoed by the app. The upgrade rides the
+/// self-built HTTP/1.1 path that `serve_tls` uses, so nothing of the async WebSocket is involved.
+async test "wss: an upgrade over TLS completes and a text frame is echoed" {
+  @async.with_task_group(g => {
+    let task = g.spawn(() => {
+      serve_tls_config(
+        ws_raw_echo_app,
+        Config::new(port=18444, logger=Logger::silent()),
+        test_cert(),
+      )
+    })
+    @async.sleep(400)
+    let tcp = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18444"))
+    let tls = @tls.Tls::client(tcp, trust=NoVerification, host="localhost")
+    defer tls.close()
+    tls.write(
+      "GET /chat HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +
+      "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n" +
+      "Sec-WebSocket-Protocol: chat\r\n\r\n",
+    )
+    let head = tls.read_until("\r\n\r\n").unwrap_or("")
+    assert_true(head.contains("101 Switching Protocols"))
+    assert_true(head.contains("s3pPLMBiTxaQ9kYGzzhZRbK+xOo="))
+    let hi : @ws.Frame = { fin: true, opcode: Text, payload: b"hi", }
+    tls.write(hi.encode(mask=b"\x01\x02\x03\x04"))
+    assert_eq(tls.read_exactly(4), b"\x81\x02hi")
+    task.cancel()
+  })
+}

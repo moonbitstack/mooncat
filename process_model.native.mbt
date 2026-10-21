@@ -244,17 +244,17 @@ async fn drain(inflight : Ref[Int32], timeout : Int32?) -> Unit {
 ///
 /// ## Multi-worker boundary
 ///
-/// uvicorn's `--workers` forks N OS processes that each bind the same port with
-/// `SO_REUSEPORT` for multi-core parallelism. `moonbitlang/async` exposes neither
-/// `SO_REUSEPORT` on `TcpServer` nor a fork primitive, and its event loop allows
-/// only one outstanding `accept` per listener handle (`wait_read` guards on a
-/// single waiter), so even N in-process acceptor tasks on one shared listener
-/// aren't expressible — a second concurrent `accept` on the same listener aborts.
+/// uvicorn's `--workers` binds the port once in the parent (`SO_REUSEADDR`, an
+/// inheritable socket) and hands that socket to N worker processes it starts with
+/// `multiprocessing`'s spawn context. `moonbitlang/async` can start a process but
+/// cannot give it a listening socket, and its event loop allows only one
+/// outstanding `accept` per listener handle (`wait_read` guards on a single
+/// waiter), so even N in-process acceptor tasks on one shared listener aren't
+/// expressible — a second concurrent `accept` on the same listener aborts.
 /// mooncat therefore serves from one acceptor that spawns a concurrent handler
-/// per connection, which is exactly the concurrency a single uvicorn worker
-/// provides on its single event loop. Multi-process fan-out is a transport limit,
-/// not a behavioural choice; it lands when the async layer exposes `SO_REUSEPORT`
-/// or a fork primitive.
+/// per connection, which is the concurrency a single uvicorn worker provides on
+/// its event loop. Multiple workers land when the async layer can pass a
+/// listening socket to a child process.
 ///
 /// ## Signal boundary
 ///

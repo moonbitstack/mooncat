@@ -94,11 +94,9 @@ async fn handle_https_conn(
 /// every accepted connection, completes a TLS handshake and drives the app
 /// through the encrypted HTTP/1.1 codec.
 ///
-/// WebSocket-over-TLS (`wss://`) is not bridged here: the async websocket
-/// upgrade requires an `@http.ServerConnection`, which is welded to
-/// `@socket.Tcp` and cannot wrap a `@tls.Tls` stream. Plaintext `serve` retains
-/// full WebSocket support; this is a transport-capability boundary, not a
-/// behavioural choice (README §TLS).
+/// A WebSocket upgrade on one of these connections is served too (`wss://`): it
+/// goes through the same self-built HTTP/1.1 path, so the 101, the subprotocol
+/// echo and the frames all travel over the encrypted stream.
 pub async fn serve_tls(
   app : @moonasgi.AsgiApp,
   certificate_file~ : String,

@@ -128,7 +128,7 @@ Each accepted connection completes a real TLS handshake (`@tls.Tls`), then [`moo
 
 - The certificate is supplied as **PEM** on OpenSSL platforms (Linux/macOS) and as a **PKCS#12** `.pfx` on Windows (SChannel), because that is what each `moonbitlang/async` TLS backend accepts; `serve_tls` selects the right form at compile time.
 - `moonbitlang/async` exposes its **server-side** TLS constructor as `#internal` ("for internal testing only") — it is the only such entry point, and the async suite itself serves HTTPS through it — so mooncat opts into that one alert (`warnings = "-alert_internal"` in `moon.pkg`) and will migrate the moment a public API lands.
-- **WebSocket-over-TLS (`wss://`) is not bridged**: the async websocket upgrade needs an `@http.ServerConnection`, which is welded to `@socket.Tcp` and cannot wrap a `@tls.Tls` stream. Plaintext `serve` keeps full WebSocket support; this is a transport-capability boundary, not a behavioural choice.
+- **WebSocket over TLS (`wss://`) works**: an upgrade on a TLS connection goes through mooncat's own HTTP/1.1 and WebSocket code over the encrypted stream, with the negotiated subprotocol echoed in the 101. A test does the upgrade with a real TLS client and checks the echoed frame.
 
 ## Process model
 
@@ -147,7 +147,7 @@ handle.shutdown()   // stop accepting → drain in-flight → lifespan shutdown 
 
 `reload_watch(dir, on_reload)` watches a source tree with `@fs.Watcher` and fires `on_reload` on each change — hook it to a `ShutdownHandle` to turn a file save into a graceful restart.
 
-**Multi-worker boundary** (honest, not a stub): uvicorn's `--workers` forks N OS processes that share the port via `SO_REUSEPORT`. `moonbitlang/async` exposes neither `SO_REUSEPORT` nor a fork primitive, and its event loop permits only one outstanding `accept` per listener (a second concurrent `accept` on the same handle aborts), so N in-process acceptor tasks aren't expressible. mooncat serves from one acceptor that spawns a concurrent handler per connection — the same concurrency a single uvicorn worker gives on its one event loop. Multi-process fan-out lands when the async layer exposes `SO_REUSEPORT` or fork.
+**Multi-worker boundary**: uvicorn's `--workers` binds the port once in the parent and hands the socket to N worker processes started with `multiprocessing`'s spawn context. `moonbitlang/async` can start a process but cannot give it a listening socket, and its event loop permits only one outstanding `accept` per listener (a second concurrent `accept` on the same handle aborts), so N in-process acceptor tasks aren't expressible either. mooncat serves from one acceptor that spawns a concurrent handler per connection, the same concurrency a single uvicorn worker gives on its event loop. Multiple workers land when the async layer can pass a listening socket to a child process.
 
 ## HTTP/2 (h2c)
 
@@ -185,7 +185,7 @@ that needs those four; a server answering HTTP/1.1 links none of them.
 
 mooncat also serves a small hand-written ASGI handler end to end: the HTTP/1.1 integration test answers `/greet/<name>` with JSON over a live socket, and verifies both `200` and a `404` route miss. A matching h2c test exercises the same handler over HTTP/2.
 
-**HTTPS/TLS serving**, the **graceful-shutdown + `--reload` process model**, and **HTTP/2 (h2c) serving** landed too — see the sections above. Roadmap, transliterated from uvicorn feature-by-feature: subprotocol echo into the 101 response on the async-transport path (awaits a transport hook), further TLS detail (ciphers/mTLS), `h2` over TLS once the async layer exposes ALPN, multi-process prefork once it exposes `SO_REUSEPORT` or fork, `backlog` once `TcpServer` takes one, and the remaining WebSocket knobs — `ws-ping-interval` / `ws-ping-timeout` / `ws-max-queue` need a reader that can be interrupted between messages and resumed, and `ws-per-message-deflate` needs a raw DEFLATE codec the async `gzip` package does not expose.
+**HTTPS/TLS serving**, the **graceful-shutdown + `--reload` process model**, and **HTTP/2 (h2c) serving** landed too — see the sections above. Roadmap, transliterated from uvicorn feature-by-feature: subprotocol echo into the 101 response on the async-transport path (awaits a transport hook), further TLS detail (ciphers/mTLS), `h2` over TLS once the async layer exposes ALPN, multiple workers once it can pass a listening socket to a child process, `backlog` once `TcpServer` takes one, and the remaining WebSocket knobs — `ws-ping-interval` / `ws-ping-timeout` / `ws-max-queue` need a reader that can be interrupted between messages and resumed, and `ws-per-message-deflate` needs a raw DEFLATE codec the async `gzip` package does not expose.
 
 ## Native only
 
