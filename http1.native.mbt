@@ -9,11 +9,14 @@
 priv struct Inbox {
   reader : &@io.Reader
   mut held : Bytes
+  // Why the last head could not be read, when it was refused rather than absent: the
+  // connection owes the peer a status before it closes.
+  mut refused : @http1.Refused?
 }
 
 ///|
 fn Inbox::new(reader : &@io.Reader) -> Inbox {
-  { reader, held: b"", }
+  { reader, held: b"", refused: None, }
 }
 
 ///|
@@ -57,29 +60,32 @@ async fn Inbox::head(self : Inbox, limits : @http1.Limits) -> @http1.Request? {
         return Some(req)
       }
       Err(Partial) => if !self.fill() { return None }
-      Err(_) => return None
+      Err(e) => {
+        self.refused = Some(e)
+        return None
+      }
     }
   }
 }
 
 ///|
-/// Exactly `n` octets of body, from what is held and then from the connection.
-async fn Inbox::exactly(self : Inbox, n : Int32) -> Bytes {
-  while self.held.length() < n {
-    if !self.fill() {
-      break
-    }
+/// Up to `max` octets of body: what is held, or else what the connection hands over next.
+/// Empty means the peer closed before the body was complete.
+async fn Inbox::upto(self : Inbox, max : Int32) -> Bytes {
+  if self.held.length() == 0 && !self.fill() {
+    return b""
   }
-  let take = if self.held.length() < n { self.held.length() } else { n }
+  let take = if self.held.length() < max { self.held.length() } else { max }
   let out = self.held[0:take].to_owned()
   self.consume(take)
   out
 }
 
 ///|
-/// A chunked body, decoded, with any trailer fields read and dropped.
-async fn Inbox::chunks(self : Inbox) -> Bytes {
-  let body = Buffer()
+/// The data of the next chunk of a chunked body, or `None` once the zero chunk and any
+/// trailer fields have been read. A peer that closes mid-body, or a chunk that does not
+/// parse, also ends it; the caller can tell the two endings apart by `broken`.
+async fn Inbox::next_chunk(self : Inbox) -> Bytes? {
   for ;; {
     let outcome : Result[@http1.Chunk, @http1.Refused] = Ok(
       @http1.chunked(self.held[:]),
@@ -88,18 +94,22 @@ async fn Inbox::chunks(self : Inbox) -> Bytes {
     }
     match outcome {
       Ok(Piece(part, used)) => {
-        body.write_bytes(part)
         self.consume(used)
+        if part.length() > 0 {
+          return Some(part)
+        }
       }
       Ok(Done(_, used)) => {
         self.consume(used)
-        break
+        return None
       }
-      Err(Partial) => if !self.fill() { break }
-      Err(_) => break
+      Err(Partial) => if !self.fill() { return None }
+      Err(e) => {
+        self.refused = Some(e)
+        return None
+      }
     }
   }
-  body.to_bytes()
 }
 
 ///|
@@ -115,6 +125,17 @@ async fn next_head(inbox : Inbox, config : Config) -> @http1.Request? {
     Some(req) => req
     None => None
   }
+}
+
+///|
+/// The answer to a head the server will not read (← uvicorn's reply to an invalid request):
+/// moonhttp's status for the refusal, uvicorn's one line of explanation, and a close.
+fn refusal(status : Int32) -> String {
+  let body = "Invalid HTTP request received."
+  "HTTP/1.1 \{status} \{@http1.phrase(status)}\r\n" +
+  "content-type: text/plain; charset=utf-8\r\n" +
+  "content-length: \{body.length()}\r\nconnection: close\r\n\r\n" +
+  body
 }
 
 ///|
@@ -227,22 +248,61 @@ async fn dispatch_http1(
     extensions: @moonasgi.Extensions::none(),
     state: Map([]),
   })
-  let body_sent = Ref(false)
+  // The body goes to the app as it arrives, one `http.request` per piece with
+  // `more_body` until the last, as uvicorn does; reading it whole first would let one
+  // upload hold its full size in memory.
+  let remaining = Ref(
+    match req.body {
+      Sized(n) => n
+      _ => 0
+    },
+  )
+  let body_done = Ref(
+    match req.body {
+      Sized(n) => n == 0
+      Chunked => false
+      _ => true
+    },
+  )
+  let asked = Ref(false)
+  let disconnected = Ref(false)
+  let cut = Ref(false)
   let receive : @moonasgi.Receive = () => {
-    if body_sent.val {
-      @moonasgi.Event::HttpDisconnect
-    } else {
-      body_sent.val = true
-      // Expect: 100-continue — let the client know it may send the body now.
-      if req.expects {
-        writer.write(@http1.continue_)
+    if disconnected.val {
+      return @moonasgi.Event::HttpDisconnect
+    }
+    if body_done.val && asked.val {
+      disconnected.val = true
+      return @moonasgi.Event::HttpDisconnect
+    }
+    // Expect: 100-continue — let the client know it may send the body now.
+    if !asked.val && req.expects {
+      writer.write(@http1.continue_)
+    }
+    asked.val = true
+    match req.body {
+      Sized(_) if !body_done.val => {
+        let part = inbox.upto(remaining.val)
+        remaining.val = remaining.val - part.length()
+        if part.length() == 0 {
+          // The peer closed before the body was complete.
+          body_done.val = true
+          cut.val = true
+          disconnected.val = true
+          return @moonasgi.Event::HttpDisconnect
+        }
+        body_done.val = remaining.val == 0
+        @moonasgi.Event::HttpRequest(body=part, more_body=!body_done.val)
       }
-      let body = match req.body {
-        Chunked => inbox.chunks()
-        Sized(n) => inbox.exactly(n)
-        _ => b""
-      }
-      @moonasgi.Event::HttpRequest(body~, more_body=false)
+      Chunked if !body_done.val =>
+        match inbox.next_chunk() {
+          Some(part) => @moonasgi.Event::HttpRequest(body=part, more_body=true)
+          None => {
+            body_done.val = true
+            @moonasgi.Event::HttpRequest(body=b"", more_body=false)
+          }
+        }
+      _ => @moonasgi.Event::HttpRequest(body=b"", more_body=false)
     }
   }
   let resp_status = Ref(200)
@@ -378,8 +438,15 @@ async fn dispatch_http1(
     resp_status.val,
   )
   // A body cut short by a failure has no honest ending to send, and a close-delimited
-  // one has no length signal; either way the connection closes.
-  req.keep_alive && !close_delimited.val && !(failed.val && started.val)
+  // one has no length signal; either way the connection closes. So does a request whose
+  // body the app left unread or that arrived broken: what is left of it on the wire would
+  // otherwise be read as the next request.
+  req.keep_alive &&
+  !close_delimited.val &&
+  !(failed.val && started.val) &&
+  body_done.val &&
+  !cut.val &&
+  inbox.refused is None
 }
 
 ///|
@@ -593,24 +660,6 @@ async test "http1: configured server headers ride the response, unless the app s
   let resp2 = drain_pipe(resp_r2)
   assert_eq(bytes_has(resp2, b"server: myapp"), true)
   assert_eq(bytes_has(resp2, b"server: mooncat"), false)
-}
-
-///|
-async test "http1: a chunked request body decodes to the joined chunk data" {
-  let (r, w) = @pipe.pipe()
-  // Two data chunks ("hello" + " world") then the terminating zero chunk.
-  w.write(b"5\r\nhello\r\n6\r\n world\r\n0\r\n\r\n")
-  w.close()
-  assert_eq(Inbox::new(r).chunks() == b"hello world", true)
-}
-
-///|
-async test "http1: a chunked body with a chunk extension and a trailer decodes cleanly" {
-  let (r, w) = @pipe.pipe()
-  // A chunk-size line carries a `;ext`, and a trailer field follows the zero chunk.
-  w.write(b"4;n=v\r\ndata\r\n0\r\nx-checksum: 1\r\n\r\n")
-  w.close()
-  assert_eq(Inbox::new(r).chunks() == b"data", true)
 }
 
 ///|

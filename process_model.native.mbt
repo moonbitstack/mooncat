@@ -58,7 +58,13 @@ async fn serve_conn(
 ) -> Unit {
   let inbox = Inbox::new(reader)
   for ;; {
-    guard next_head(inbox, config) is Some(req) else { break }
+    guard next_head(inbox, config) is Some(req) else {
+      if inbox.refused is Some(e) {
+        config.logger.log(Warning, "Invalid HTTP request received.")
+        writer.write(refusal(e.status()))
+      }
+      break
+    }
     // uvicorn answers `503` rather than queueing once it is already at its concurrency
     // ceiling — a request refused promptly is better for a caller than one that waits.
     if over_concurrency(inflight.val, config.limit_concurrency) {
