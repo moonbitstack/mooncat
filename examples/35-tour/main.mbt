@@ -226,10 +226,10 @@ async fn forwarded(g : @async.TaskGroup[Unit]) -> Unit {
   )
   let task = g.spawn(() => @mooncat.serve_config(app(), trusting))
   @async.sleep(250)
-  let headers = {
-    "x-forwarded-proto": "https",
-    "x-forwarded-for": "203.0.113.7",
-  }
+  let headers : Map[@http.CaseInsensitiveString, String] = Map::from_array([
+    (CaseInsensitiveString("x-forwarded-proto"), "https"),
+    (CaseInsensitiveString("x-forwarded-for"), "203.0.113.7"),
+  ])
   let (_r, said) = @http.get("http://127.0.0.1:12033/who", headers~)
   println("  believed             \{said.text()}")
   task.cancel()

@@ -1,12 +1,10 @@
-// The WebSocket bridge over mooncat's own raw HTTP/1.1 transport (`&@io.Reader`/`&@io.Writer`), the
-// self-built counterpart of `handle_websocket` (which rides the async transport's
-// `Conn::from_http_server`). Because we own the 101 response here, the negotiated subprotocol is
-// echoed in `Sec-WebSocket-Protocol` — the header the `from_http_server` path cannot set — and the
-// frames go through mooncat's own `websocket_frame` codec.
+// The WebSocket bridge over any byte stream (`&@io.Reader`/`&@io.Writer`), so `ws://` and
+// `wss://` share it. mooncat writes the 101 itself, which is what lets the negotiated
+// subprotocol go back in `Sec-WebSocket-Protocol`.
 
 ///|
 /// Bridge a WebSocket connection to a moonasgi application over the raw HTTP/1.1 stream `reader` /
-/// `writer` (← uvicorn's `WSProtocol`), the raw-transport twin of `handle_websocket`:
+/// `writer` (← uvicorn's `WSProtocol`):
 ///
 /// * `receive()` yields `websocket.connect` first, then reads messages with `ws_read_message`
 ///   (which reassembles fragments, answers pings, and echoes a close) — a text message becomes
@@ -26,6 +24,7 @@ async fn serve_websocket_raw(
   reader : &@io.Reader,
   writer : &@io.Writer,
   config~ : Config,
+  server_addr? : @socket.Addr,
   client_addr? : @socket.Addr,
 ) -> Unit {
   let (path, query) = split_query(req.target)
@@ -53,7 +52,7 @@ async fn serve_websocket_raw(
     root_path: config.root_path,
     headers: fields_pairs(req.fields),
     client,
-    server: None,
+    server: server_pair(server_addr),
     subprotocols: parse_subprotocols(fields_map(req.fields)),
     asgi: @moonasgi.AsgiVersion::websocket(),
     extensions: @moonasgi.Extensions::none(),

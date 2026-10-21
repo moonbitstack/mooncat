@@ -23,22 +23,23 @@ SECTIONS = [
      "the reason rather than with 'unexpected argument'."),
     ("websocket", ('websocket.native.mbt', 'websocket_io.native.mbt', 'websocket_serve.native.mbt'), "WebSocket",
      "The frame-to-Event bridge that drives a websocket Scope through the SEAM: "
-     "connect / accept / receive / send / disconnect / close. The RFC 6455 frames "
-     "and the opening handshake are moonhttp's ws and upgrade packages."),
+     "connect / accept / receive / send / disconnect / close, over any byte stream, "
+     "so ws:// and wss:// share it. The RFC 6455 frames and the opening handshake "
+     "are moonhttp's ws and upgrade packages."),
     ("http2", ("http2.native.mbt",), "HTTP/2 (h2c)",
      "Serving HTTP/2 over cleartext: the frame pump, stream multiplexing and the "
-     "send windows, bound to the same dispatch path HTTP/1.1 uses. The frames are "
+     "send windows, each stream driving the app as one request. The frames are "
      "moonhttp/http2 and the header compression moonhttp/hpack."),
     ("tls", ('tls.native.mbt',), "TLS",
-     "What is left of TLS in a server once the protocol is moontls: holding the "
-     "certificate and key, choosing the suite, and driving the handshake over an "
-     "accepted socket. Every algorithm is mooncrypt's."),
-    ("quic", ('quic/serve.native.mbt', 'quic/udp.native.mbt', 'quic/handshake.mbt', 'quic/crypto.mbt'), "HTTP/3 over QUIC",
+     "HTTPS: the certificate and key, as PEM on OpenSSL platforms and PKCS#12 on "
+     "Windows. The handshake is moonbitlang/async's TLS; after it a connection runs "
+     "the same keep-alive loop as a plain one, WebSocket upgrades included."),
+    ("quic", ('quic/serve.native.mbt', 'quic/udp.native.mbt', 'quic/handshake.mbt', 'quic/crypto.mbt'), "QUIC",
      "The UDP half, in a package of its own because of what it carries: QUIC "
      "performs its own TLS 1.3 handshake rather than riding a record layer, so "
      "this is the only part of mooncat that needs moonquic, moontls and mooncred. "
      "The socket, the datagram loop that routes by connection ID, the timers, and "
-     "the handshake crypto. QUIC itself is moonquic, HTTP/3 with QPACK moonhttp's."),
+     "the handshake crypto. QUIC itself is moonquic's."),
 ]
 
 KIND = {"struct": "struct", "enum": "enum", "fn": "fn", "type": "type", "let": "let"}

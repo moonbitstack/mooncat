@@ -171,6 +171,7 @@ async fn dispatch_http1(
   writer : &@io.Writer,
   scheme~ : String,
   config~ : Config = Config::new(),
+  server_addr? : @socket.Addr,
   client_addr? : @socket.Addr,
 ) -> Bool {
   let server_headers = config.server_headers
@@ -179,10 +180,18 @@ async fn dispatch_http1(
   // A conforming client sends nothing after an upgrade request until it has the 101
   // (RFC 6455 §4.1), so nothing is held here to hand over with the stream.
   if is_websocket_upgrade(fields_map(req.fields)) {
-    serve_websocket_raw(app, req, inbox.reader, writer, config~, client_addr?)
+    serve_websocket_raw(
+      app,
+      req,
+      inbox.reader,
+      writer,
+      config~,
+      server_addr?,
+      client_addr?,
+    )
     return false
   }
-  let (path, query) = split_query(req.target)
+  let (raw_path, query) = split_query(req.target)
   let peer = match client_addr {
     Some(a) => Some(addr_pair(a))
     None => None
@@ -205,13 +214,15 @@ async fn dispatch_http1(
     },
     http_method: req.verb,
     scheme: req_scheme,
-    path,
-    raw_path: @utf8.encode(path),
+    // ASGI's `path` is percent-decoded and `raw_path` is not; handing over the encoded
+    // form for both leaves a router unable to tell `%2F` from `/`.
+    path: @utf8.decode_lossy(percent_decode(raw_path)),
+    raw_path: @utf8.encode(raw_path),
     query_string: @utf8.encode(query),
     root_path: config.root_path,
     headers: fields_pairs(req.fields),
     client,
-    server: None,
+    server: server_pair(server_addr),
     asgi: @moonasgi.AsgiVersion::http(),
     extensions: @moonasgi.Extensions::none(),
     state: Map([]),
@@ -260,8 +271,7 @@ async fn dispatch_http1(
       }
     }
     // Configured server headers (e.g. `Server`) as defaults, unless the app already
-    // set the same key — matching what the async HTTP server injects on the plaintext
-    // path, so HTTPS responses carry them too.
+    // set the same key.
     for name, value in server_headers {
       let kl = name.to_lower()
       if !sent.contains(kl) &&
@@ -334,14 +344,42 @@ async fn dispatch_http1(
       _ => ()
     }
   }
-  app(scope, receive, send)
+  let failed = Ref(false)
+  app(scope, receive, send) catch {
+    err => {
+      config.logger.log(
+        Error,
+        "exception in ASGI application: " + err.to_string(),
+      )
+      failed.val = true
+    }
+  }
   if !started.val {
+    if failed.val {
+      resp_status.val = 500
+      resp_headers.val = []
+    }
     writer.write(head("content-length: 0\r\n\r\n"))
-  } else if chunked.val && !ended.val {
+  } else if chunked.val && !ended.val && !failed.val {
     writer.write(@http1.last_chunk())
   }
-  // A close-delimited response has no length signal, so the connection must close.
-  req.keep_alive && !close_delimited.val
+  config.logger.access_line(
+    match client_addr {
+      Some(a) => a.to_string()
+      None => "-"
+    },
+    req.verb,
+    req.target,
+    if is_http10 {
+      "1.0"
+    } else {
+      "1.1"
+    },
+    resp_status.val,
+  )
+  // A body cut short by a failure has no honest ending to send, and a close-delimited
+  // one has no length signal; either way the connection closes.
+  req.keep_alive && !close_delimited.val && !(failed.val && started.val)
 }
 
 ///|

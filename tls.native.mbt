@@ -48,42 +48,6 @@ async fn tls_accept(conn : @socket.Tcp, cert : TlsCert) -> @tls.Tls {
 }
 
 ///|
-/// Handle one accepted TCP connection as an HTTPS connection: perform the TLS
-/// handshake, then loop the self-built HTTP/1.1 codec (`parse_http1_request` +
-/// `dispatch_http1`) over the encrypted stream, honouring keep-alive, until the
-/// peer closes or asks to close. The TLS session is always torn down on the way
-/// out. A handshake or I/O failure raises and is contained by the accept loop's
-/// `allow_failure`, exactly as a bad plaintext connection would be.
-async fn handle_https_conn(
-  app : @moonasgi.AsgiApp,
-  conn : @socket.Tcp,
-  peer : @socket.Addr,
-  cert : TlsCert,
-  config : Config,
-) -> Unit {
-  let tls = tls_accept(conn, cert)
-  defer tls.close()
-  // One inbox for the whole connection, so what one request over-read is there for
-  // the next.
-  let inbox = Inbox::new(tls)
-  for ;; {
-    guard next_head(inbox, config) is Some(req) else { break }
-    let keep = dispatch_http1(
-      app,
-      req,
-      inbox,
-      tls,
-      scheme="https",
-      config~,
-      client_addr=peer,
-    )
-    if !keep {
-      break
-    }
-  }
-}
-
-///|
 /// Serve a moonasgi ASGI application over native HTTP/1.1 **over TLS** (HTTPS,
 /// ← uvicorn's `--ssl-certfile`/`--ssl-keyfile`). Convenience wrapper over
 /// `serve_tls_config` that builds the `Config` from `host`/`port`/`backlog` and
@@ -118,31 +82,14 @@ pub async fn serve_tls(
 /// `TlsCert`. Mirrors `serve_config`: lifespan startup is driven before the
 /// listener binds and shutdown on the way out (guarded by `protect_from_cancel`
 /// so it still runs when the serving task is cancelled), and each accepted
-/// connection is handled by `handle_https_conn`.
+/// connection completes a TLS handshake and then runs the same keep-alive loop as
+/// a plain one.
 pub async fn serve_tls_config(
   app : @moonasgi.AsgiApp,
   config : Config,
   cert : TlsCert,
 ) -> Unit {
-  @async.with_task_group(g => {
-    let lifespan = Lifespan::new(app)
-    let task = lifespan.spawn(g)
-    lifespan.startup(task)
-    let server = @socket.TcpServer(
-      @socket.Addr::parse(config.bind()),
-      dual_stack=config.dual_stack,
-      reuse_addr=config.reuse_addr,
-    )
-    defer {
-      @async.protect_from_cancel(() => lifespan.shutdown(task) catch { _ => () })
-      server.close()
-    }
-    server.run_forever(
-      (conn, addr) => handle_https_conn(app, conn, addr, cert, config),
-      allow_failure=config.allow_failure,
-      max_connections?=config.max_connections,
-    )
-  })
+  run(app, config, ShutdownHandle::new(), Some(cert))
 }
 
 ///|

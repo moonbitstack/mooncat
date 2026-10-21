@@ -74,9 +74,6 @@ pub(all) struct Config {
   // The cap on a request's head, request line and header block together, in bytes
   // (← uvicorn's `--h11-max-incomplete-event-size`). A peer that never sends the
   // terminating blank line must not be able to grow the buffer without limit.
-  // Applies to the connections mooncat parses itself (HTTPS, and anything else on
-  // the self-built HTTP/1.1 codec); the async library's own `ServerConnection`,
-  // which the plaintext paths use, bounds its head by rules it does not expose.
   max_head_size : Int32
   // Whether to stamp a `Date` header on every response (← uvicorn's `--date-header`).
   date_header : Bool

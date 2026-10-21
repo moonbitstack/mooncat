@@ -1,5 +1,5 @@
 // mooncat: a native ASGI 3.0 server (← uvicorn). Rides the moonasgi SEAM over
-// moonbitlang/async. Native-only — the async HTTP server has no JS backend.
+// moonbitlang/async sockets, which have no JS or Wasm backend.
 //
 // HTTP/1.1, HTTP/2 over cleartext, WebSocket and TLS are here. QUIC and
 // HTTP/3 are in `quic`, which is where the eleven packages they need stay;

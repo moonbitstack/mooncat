@@ -1,6 +1,6 @@
 name = "moonbitstack/mooncat"
 
-version = "0.15.0"
+version = "0.16.0"
 
 readme = "README.md"
 
@@ -24,7 +24,7 @@ preferred_target = "native"
 
 import {
   "moonbitstack/moonasgi@0.10.0",
-  "moonbitlang/async@0.20.3",
+  "moonbitlang/async@0.22.5",
   "moonbitstack/moonbase@0.4.0",
   "moonbitstack/mooncrypt@0.3.1",
   "moonbitstack/mooncred@0.6.1",

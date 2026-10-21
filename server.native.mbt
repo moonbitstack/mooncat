@@ -1,20 +1,4 @@
 ///|
-/// Map async's request-method enum to the ASGI method string.
-fn method_str(m : @http.RequestMethod) -> String {
-  match m {
-    Get => "GET"
-    Head => "HEAD"
-    Post => "POST"
-    Put => "PUT"
-    Delete => "DELETE"
-    Connect => "CONNECT"
-    Options => "OPTIONS"
-    Trace => "TRACE"
-    Patch => "PATCH"
-  }
-}
-
-///|
 /// Percent-decode a request target's path into the characters ASGI's `path` carries,
 /// leaving the bytes as they arrived for `raw_path`. A stray `%` or a truncated
 /// escape passes through as written: the target is attacker-controlled, and refusing
@@ -39,6 +23,19 @@ fn addr_pair(addr : @socket.Addr) -> (String, Int32) {
 }
 
 ///|
+/// The listening address as ASGI's `server`, whose port is optional because a unix
+/// socket has none. Unknown is `None`, which ASGI allows.
+fn server_pair(addr : @socket.Addr?) -> (String, Int32?)? {
+  match addr {
+    Some(a) => {
+      let (host, port) = addr_pair(a)
+      Some((host, Some(port)))
+    }
+    None => None
+  }
+}
+
+///|
 /// Split a raw request target into (path, query_string) at the first '?'.
 fn split_query(raw : String) -> (String, String) {
   let n = raw.length()
@@ -51,41 +48,6 @@ fn split_query(raw : String) -> (String, String) {
 }
 
 ///|
-fn headers_to_pairs(h : Map[String, String]) -> Array[(String, String)] {
-  let out : Array[(String, String)] = []
-  for k, v in h {
-    out.push((k, v))
-  }
-  out
-}
-
-///|
-/// Drop the framing headers the async layer manages itself — it forbids setting
-/// Content-Length / Transfer-Encoding by hand.
-fn response_headers(pairs : Array[(String, String)]) -> Map[String, String] {
-  let m : Map[String, String] = Map([])
-  for pair in pairs {
-    let k = pair.0
-    if k != "content-length" && k != "transfer-encoding" {
-      m[k] = pair.1
-    }
-  }
-  m
-}
-
-///|
-/// Whether the app already supplied `name`, compared case-insensitively: ASGI header names are
-/// conventionally lowercase but nothing enforces it, and a second `Date` is worse than none.
-fn has_field(pairs : Array[(String, String)], name : String) -> Bool {
-  for pair in pairs {
-    if pair.0.to_lower() == name {
-      return true
-    }
-  }
-  false
-}
-
-///|
 /// Whether the served-request count has reached the configured ceiling (← uvicorn's
 /// `--limit-max-requests`). `None` never trips, which is uvicorn's default: serve until stopped.
 fn over_request_limit(served : Int32, limit : Int32?) -> Bool {
@@ -93,144 +55,6 @@ fn over_request_limit(served : Int32, limit : Int32?) -> Bool {
     Some(n) => served >= n
     None => false
   }
-}
-
-///|
-/// Bridge one HTTP connection to a moonasgi application: build the `Scope`, a
-/// `Receive` that streams the request body, and a `Send` that writes the
-/// response, then drive the app. A WebSocket upgrade request is diverted to
-/// `handle_websocket` (the full frame↔`Event` bridge) before any HTTP scope is
-/// built.
-async fn dispatch(
-  app : @moonasgi.AsgiApp,
-  request : @http.Request,
-  body_reader : &@io.Reader,
-  conn : @http.ServerConnection,
-  config~ : Config,
-  server_addr? : @socket.Addr,
-  client_addr? : @socket.Addr,
-) -> Unit {
-  let logger = config.logger
-  if is_websocket_upgrade(request.headers) {
-    handle_websocket(app, request, conn, config~, client_addr?)
-    return
-  }
-  let (raw_path, query) = split_query(request.path)
-  // ASGI's `path` is percent-decoded and `raw_path` is not; a server that hands
-  // over the encoded form for both leaves a router unable to tell `%2F` from `/`.
-  let path = @utf8.decode_lossy(percent_decode(raw_path))
-  // Only when the peer address is genuinely known. `@http.ServerConnection`'s
-  // `client_addr` reports the *listening* address for an accepted connection —
-  // the async layer copies the listener's address onto the accepted socket — so
-  // filling the scope from it would tell the app the server called itself. ASGI
-  // says a server that cannot supply this sends null, and that is the truth here.
-  let peer = match client_addr {
-    Some(a) => Some(addr_pair(a))
-    None => None
-  }
-  let (client, scheme) = if config.proxy_headers {
-    proxy_rewrite(
-      request.headers,
-      peer,
-      "http",
-      trusted=config.forwarded_allow_ips,
-    )
-  } else {
-    (peer, "http")
-  }
-  let scope = @moonasgi.Scope::Http({
-    http_version: "1.1",
-    http_method: method_str(request.meth),
-    scheme,
-    path,
-    raw_path: @utf8.encode(raw_path),
-    query_string: @utf8.encode(query),
-    root_path: config.root_path,
-    headers: headers_to_pairs(request.headers),
-    client,
-    // ASGI lets `server` carry no port (a unix socket has none), so the pair's
-    // second half is optional there while `client`'s is not.
-    server: match server_addr {
-      Some(a) => {
-        let (host, port) = addr_pair(a)
-        Some((host, Some(port)))
-      }
-      None => None
-    },
-    asgi: @moonasgi.AsgiVersion::http(),
-    extensions: @moonasgi.Extensions::none(),
-    state: Map([]),
-  })
-  let body_done = Ref(false)
-  let receive : @moonasgi.Receive = () => {
-    if body_done.val {
-      @moonasgi.Event::HttpDisconnect
-    } else {
-      match body_reader.read_some() {
-        Some(chunk) => @moonasgi.Event::HttpRequest(body=chunk, more_body=true)
-        None => {
-          body_done.val = true
-          @moonasgi.Event::HttpRequest(body=b"", more_body=false)
-        }
-      }
-    }
-  }
-  let started = Ref(false)
-  let ended = Ref(false)
-  let sent_status = Ref(0)
-  let send : @moonasgi.Send = event => {
-    match event {
-      HttpResponseStart(status~, headers~, ..) => {
-        started.val = true
-        sent_status.val = status
-        let extra = response_headers(headers)
-        if config.date_header && !has_field(headers, "date") {
-          extra["date"] = http_date_now()
-        }
-        conn.send_response(status, reason(status), extra_headers=extra)
-      }
-      HttpResponseBody(body~, more_body~) => {
-        conn.write(body)
-        if !more_body {
-          conn.end_response()
-          ended.val = true
-        }
-      }
-      _ => ()
-    }
-  }
-  // An app that raises leaves the client with nothing, so say so and answer 500
-  // rather than dropping the connection silently.
-  app(scope, receive, send) catch {
-    err => {
-      logger.log(Error, "exception in ASGI application: " + err.to_string())
-      if !started.val {
-        let extra : Map[String, String] = Map([])
-        if config.date_header {
-          extra["date"] = http_date_now()
-        }
-        conn.send_response(500, reason(500), extra_headers=extra)
-        sent_status.val = 500
-      }
-    }
-  }
-  // Finalise the response here rather than leaning on the transport's own accept
-  // loop: `serve_graceful` drives its own accept loop over a raw ServerConnection
-  // and has no equivalent hook, so a response that never sent an explicit final
-  // body event still gets terminated the same way on both serve paths.
-  if started.val && !ended.val {
-    conn.end_response()
-  }
-  logger.access_line(
-    match client_addr {
-      Some(a) => a.to_string()
-      None => "-"
-    },
-    method_str(request.meth),
-    request.path,
-    "1.1",
-    sent_status.val,
-  )
 }
 
 ///|
@@ -256,59 +80,7 @@ pub async fn serve(
 /// serving task is cancelled, via `protect_from_cancel`. Each accepted request
 /// is bridged by `dispatch`, which diverts WebSocket upgrades to the echo path.
 pub async fn serve_config(app : @moonasgi.AsgiApp, config : Config) -> Unit {
-  @async.with_task_group(g => {
-    let lifespan = Lifespan::new(app)
-    let task = lifespan.spawn(g)
-    lifespan.startup(task)
-    let bound = @socket.Addr::parse(config.bind())
-    config.logger.log(Info, "Started server process on http://" + config.bind())
-    let server = @http.Server(
-      bound,
-      dual_stack=config.dual_stack,
-      reuse_addr=config.reuse_addr,
-      headers=config.server_headers,
-    )
-    defer {
-      @async.protect_from_cancel(() => lifespan.shutdown(task) catch { _ => () })
-      server.close()
-    }
-    // uvicorn's `--limit-max-requests` recycles the worker once it has served that many; the count
-    // is shared across every connection this acceptor is running. The acceptor has to be a task of
-    // its own so the limit can stop it — a handler that merely raised would be swallowed by
-    // `allow_failure` and the server would keep serving.
-    let served = Ref(0)
-    let inflight = Ref(0)
-    let stop : @aqueue.Queue[Unit] = @aqueue.Queue::Queue(kind=Unbounded)
-    let acceptor = g.spawn(() => {
-      server.run_forever(
-        (request, body_reader, conn) => {
-          inflight.val = inflight.val + 1
-          defer {
-            inflight.val = inflight.val - 1
-          }
-          dispatch(app, request, body_reader, conn, config~, server_addr=bound)
-          served.val = served.val + 1
-          if over_request_limit(served.val, config.limit_max_requests) {
-            config.logger.log(
-              Info,
-              "Maximum request limit reached, stopping the server",
-            )
-            stop.put(())
-          }
-        },
-        allow_failure=config.allow_failure,
-        max_connections?=config.max_connections,
-      )
-    })
-    stop.get() catch {
-      _ => ()
-    }
-    // Let the requests still running finish before the acceptor — and with it every connection
-    // it owns — is torn down, the same drain `serve_graceful` does. `run_forever` offers no hook
-    // to stop accepting without also dropping what it is already serving.
-    drain(inflight, config.graceful_timeout)
-    acceptor.cancel()
-  })
+  run(app, config, ShutdownHandle::new(), None)
 }
 
 ///|
@@ -348,9 +120,7 @@ async test "serve_config stops itself after limit_max_requests" {
 }
 
 ///|
-test "helpers: method, query split, reason" {
-  assert_eq(method_str(Post), "POST")
-  assert_eq(method_str(Get), "GET")
+test "helpers: query split, reason" {
   let (p, q) = split_query("/x/y?a=1&b=2")
   assert_eq(p, "/x/y")
   assert_eq(q, "a=1&b=2")
@@ -547,8 +317,7 @@ async test "the request scope carries the peer, the bind address, and a decoded 
     assert_eq(seen[0], "/files/a/b/café")
     assert_eq(seen[1], "/files/a%2Fb/caf%C3%A9")
     assert_eq(seen[2], "/api")
-    // run_forever gives no peer address, so ASGI's null is the honest answer.
-    assert_eq(seen[3], "no-client")
+    assert_eq(seen[3], "127.0.0.1")
     assert_eq(seen[4], "127.0.0.1:18099")
     task.cancel()
   })

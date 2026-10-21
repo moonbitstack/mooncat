@@ -40,21 +40,15 @@ pub async fn ShutdownHandle::request_stop(self : ShutdownHandle) -> Unit {
 }
 
 ///|
-/// Serve one accepted connection through the same `dispatch` path `serve` uses,
-/// looping under keep-alive until the peer closes. The graceful acceptor needs
-/// its own accept loop over `@socket.TcpServer` — the async library's
-/// `@http.Server::run_forever` gives no hook to stop accepting and drain — so
-/// mooncat wraps each accepted socket in an `@http.ServerConnection` by hand and
-/// reads requests off it directly. Building the `ServerConnection` (rather than
-/// the self-built HTTP/1.1 codec the TLS path uses) is what lets the graceful
-/// server handle WebSocket upgrades: `dispatch` diverts them to
-/// `handle_websocket`, which needs exactly that `ServerConnection` to complete
-/// the 101 handshake. `read_request` raises on a clean end-of-stream, which ends
-/// the keep-alive loop; a WebSocket upgrade hijacks the connection, so the loop
-/// stops after dispatching it. The connection is always closed on the way out.
+/// Serve one accepted connection: read request heads under keep-alive and hand each to
+/// `dispatch_http1`, until the peer closes, goes quiet past `timeout_keep_alive`, upgrades to
+/// a WebSocket, or a limit is reached. The same code runs over a plain socket and over TLS,
+/// so both get the same limits, the same pipelining and the same WebSocket bridge.
 async fn serve_conn(
   app : @moonasgi.AsgiApp,
-  sock : @socket.Tcp,
+  reader : &@io.Reader,
+  writer : &@io.Writer,
+  scheme : String,
   config : Config,
   bound : @socket.Addr,
   peer : @socket.Addr,
@@ -62,18 +56,9 @@ async fn serve_conn(
   served : Ref[Int32],
   handle : ShutdownHandle,
 ) -> Unit {
-  // The server headers the config asks for are the connection's, not the response's,
-  // so they have to be given here rather than added per reply.
-  let conn = @http.ServerConnection::new(sock, headers=config.server_headers)
-  defer conn.close()
+  let inbox = Inbox::new(reader)
   for ;; {
-    // uvicorn holds an idle keep-alive connection for `timeout_keep_alive` and then drops it.
-    let got = @async.with_timeout_opt(config.timeout_keep_alive, () => {
-      Some(conn.read_request()) catch {
-        _ => None
-      }
-    })
-    guard got is Some(Some(request)) else { break }
+    guard next_head(inbox, config) is Some(req) else { break }
     // uvicorn answers `503` rather than queueing once it is already at its concurrency
     // ceiling — a request refused promptly is better for a caller than one that waits.
     if over_concurrency(inflight.val, config.limit_concurrency) {
@@ -81,16 +66,17 @@ async fn serve_conn(
         Warning,
         "Exceeded concurrency limit, refusing with 503",
       )
-      conn..send_response(503, "Service Unavailable").end_response() catch {
-        _ => ()
-      }
+      writer.write(
+        "HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+      )
       break
     }
-    dispatch(
+    let keep = dispatch_http1(
       app,
-      request,
-      conn,
-      conn,
+      req,
+      inbox,
+      writer,
+      scheme~,
       config~,
       server_addr=bound,
       client_addr=peer,
@@ -104,9 +90,7 @@ async fn serve_conn(
       handle.request_stop()
       break
     }
-    if is_websocket_upgrade(request.headers) {
-      break
-    }
+    guard keep else { break }
   }
 }
 
@@ -122,9 +106,9 @@ fn over_concurrency(inflight : Int32, limit : Int32?) -> Bool {
 }
 
 ///|
-/// The acceptor task: pull connections off the listener and spawn a handler for
-/// each, tracking the in-flight count so the shutdown path can drain them. Runs
-/// until cancelled by the shutdown coordinator.
+/// The acceptor task: pull connections off the listener and spawn a handler for each, with a
+/// TLS handshake first when `cert` is given, tracking the in-flight count so the shutdown path
+/// can drain them. Runs until cancelled by the shutdown coordinator.
 async fn accept_loop(
   g : @async.TaskGroup[Unit],
   server : @socket.TcpServer,
@@ -134,10 +118,10 @@ async fn accept_loop(
   handle : ShutdownHandle,
   config : Config,
   bound : @socket.Addr,
+  cert : TlsCert?,
 ) -> Unit {
-  // The parallel-client ceiling `run_forever` applies on the other serve paths, applied here by
-  // hand: acquire before accepting, so a full server leaves the connection in the listen queue
-  // rather than accepting it and then sitting on it.
+  // The parallel-client ceiling, applied before accepting, so a full server leaves the
+  // connection in the listen queue rather than accepting it and then sitting on it.
   let slots = match config.max_connections {
     Some(n) => Some(@async.Semaphore(n))
     None => None
@@ -151,13 +135,26 @@ async fn accept_loop(
       () => {
         inflight.val = inflight.val + 1
         defer {
+          conn.close()
           inflight.val = inflight.val - 1
           if slots is Some(sem) {
             sem.release()
           }
         }
         contain(config.allow_failure, () => {
-          serve_conn(app, conn, config, bound, peer, inflight, served, handle)
+          match cert {
+            Some(c) => {
+              let tls = tls_accept(conn, c)
+              defer tls.close()
+              serve_conn(
+                app, tls, tls, "https", config, bound, peer, inflight, served, handle,
+              )
+            }
+            None =>
+              serve_conn(
+                app, conn, conn, "http", config, bound, peer, inflight, served, handle,
+              )
+          }
         })
       },
       allow_failure=config.allow_failure,
@@ -167,8 +164,7 @@ async fn accept_loop(
 
 ///|
 /// Run `body`, swallowing its failure when `allow_failure` says one bad connection must not bring
-/// the whole server down — the same decision `run_forever` makes for the other serve paths, which
-/// the graceful acceptor has to make for itself.
+/// the whole server down.
 async fn contain(allow_failure : Bool, body : async () -> Unit) -> Unit {
   if allow_failure {
     body() catch {
@@ -220,12 +216,11 @@ async fn drain(inflight : Ref[Int32], timeout : Int32?) -> Unit {
 /// shutdown path over a single acceptor that spawns a concurrent handler per
 /// connection.
 ///
-/// The lifespan protocol runs as in `serve_config` — startup before the listener
-/// binds, shutdown on the way out. A single acceptor task then drives accepted
-/// connections through the same `dispatch` path `serve` uses (over a hand-built
-/// `@http.ServerConnection`), spawning one handler task per connection so
-/// requests are served concurrently — and, because it is the real
-/// `ServerConnection`, WebSocket upgrades bridge here too.
+/// The lifespan protocol runs startup before the listener binds and shutdown on
+/// the way out. A single acceptor task spawns one handler task per connection, so
+/// requests are served concurrently, each through mooncat's HTTP/1.1 codec and,
+/// on an upgrade, its WebSocket bridge. `serve`, `serve_config` and
+/// `serve_tls_config` run this same loop; this entry point adds the handle.
 ///
 /// Shutdown is triggered by `handle.shutdown()` / `handle.request_stop()`, by
 /// reaching `Config::limit_max_requests`, or by a signal the runtime turns into
@@ -235,9 +230,9 @@ async fn drain(inflight : Ref[Int32], timeout : Int32?) -> Unit {
 /// `Config::graceful_timeout`), run the ASGI lifespan shutdown, then close the
 /// listener.
 ///
-/// The acceptor honours the same ceilings the other serve paths get from
-/// `run_forever`: `max_connections` gates accepting, so a full server leaves the
-/// next client in the listen queue rather than accepting it and sitting on it,
+/// The acceptor honours the connection ceilings: `max_connections` gates
+/// accepting, so a full server leaves the next client in the listen queue rather
+/// than accepting it and sitting on it,
 /// and `allow_failure` decides whether one bad connection is contained or brings
 /// the server down. `limit_concurrency` is the other kind of ceiling — a request
 /// arriving past it is answered `503` rather than queued.
@@ -270,6 +265,19 @@ pub async fn serve_graceful(
   config : Config,
   handle~ : ShutdownHandle = ShutdownHandle::new(),
 ) -> Unit {
+  run(app, config, handle, None)
+}
+
+///|
+/// The one serving loop every entry point shares: lifespan startup, bind, accept (with a TLS
+/// handshake when `cert` is given), then on a stop request stop accepting, drain in-flight
+/// requests within `graceful_timeout`, run lifespan shutdown and close the listener.
+async fn run(
+  app : @moonasgi.AsgiApp,
+  config : Config,
+  handle : ShutdownHandle,
+  cert : TlsCert?,
+) -> Unit {
   @async.with_task_group(g => {
     let lifespan = Lifespan::new(app)
     let ltask = lifespan.spawn(g)
@@ -280,10 +288,19 @@ pub async fn serve_graceful(
       dual_stack=config.dual_stack,
       reuse_addr=config.reuse_addr,
     )
+    let scheme = if cert is Some(_) { "https" } else { "http" }
+    config.logger.log(
+      Info,
+      "Started server process on \{scheme}://" + config.bind(),
+    )
     let inflight = Ref(0)
     let served = Ref(0)
     let acceptor = g.spawn(
-      () => accept_loop(g, server, app, inflight, served, handle, config, bound),
+      () => {
+        accept_loop(
+          g, server, app, inflight, served, handle, config, bound, cert,
+        )
+      },
       allow_failure=true,
     )
     handle.request.get() catch {
@@ -539,9 +556,8 @@ async test "limit_concurrency refuses the overflow request with 503" {
 }
 
 ///|
-/// `max_connections` is the parallel-client ceiling the other serve paths get from
-/// `run_forever`; the graceful acceptor has its own accept loop and used to ignore the setting
-/// entirely. With a ceiling of one, four overlapping clients are still served one at a time.
+/// `max_connections` caps parallel clients: with a ceiling of one, four overlapping clients are
+/// served one at a time.
 async test "graceful serve honours max_connections" {
   @async.with_task_group(g => {
     let handle = ShutdownHandle::new()
@@ -777,13 +793,8 @@ async test "a served response carries a Date header" {
 }
 
 ///|
-/// A WebSocket round-trip under the graceful acceptor: the same `ws_echo_app` the
-/// plain `serve` path uses, now hosted by `serve_graceful`. Before this batch the
-/// graceful acceptor drove the self-built HTTP/1.1 codec, which can't build the
-/// `@http.ServerConnection` the upgrade needs, so a `ws://` request under
-/// `serve_graceful` had nowhere to go. It now runs the shared `dispatch`, so text
-/// and binary frames round-trip and the client close is observed as a disconnect,
-/// exactly as under `serve`.
+/// A WebSocket round-trip under `serve_graceful`: text and binary frames come back and
+/// the client's close reaches the app as a disconnect.
 async test "graceful serve bridges a websocket round-trip" {
   @async.with_task_group(g => {
     let handle = ShutdownHandle::new()
