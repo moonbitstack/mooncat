@@ -1,5 +1,3 @@
-supported_targets = "native"
-
 import {
   "moonbitstack/mooncat",
   "moonbitstack/moonasgi",

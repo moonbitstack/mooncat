@@ -1,7 +1,5 @@
 // Forwarded-header handling (uvicorn's ProxyHeadersMiddleware): the client and
 // scheme a trusted proxy reports.
-supported_targets = "native"
-
 import {
   "moonbitstack/mooncat/config",
   "moonbitstack/mooncat/lifespan",

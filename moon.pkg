@@ -1,8 +1,6 @@
 // mooncat: a native ASGI 3.0 server (← uvicorn). The work is done in the
 // subpackages; the root re-exports their surface. QUIC and HTTP/3 are in
 // `quic`, the command line in `cli`.
-supported_targets = "native"
-
 import {
   "moonbitstack/mooncat/config",
   "moonbitstack/mooncat/lifespan",
@@ -10,4 +8,4 @@ import {
   "moonbitstack/mooncat/serve",
 }
 
-warnings = "-alert_internal"
+warnings = "-alert_internal-29"

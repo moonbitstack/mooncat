@@ -13,22 +13,3 @@ pub using @config {
 
 ///|
 pub using @lifespan {type Lifespan, type LifespanError}
-
-///|
-pub using @proxy {proxy_rewrite}
-
-///|
-pub using @serve {
-  type ShutdownHandle,
-  type TlsCert,
-  read_frame,
-  read_message,
-  reload_watch,
-  serve,
-  serve_config,
-  serve_graceful,
-  serve_h2c,
-  serve_h2c_config,
-  serve_tls,
-  serve_tls_config,
-}

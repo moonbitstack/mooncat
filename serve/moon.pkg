@@ -1,8 +1,6 @@
 // Serving an ASGI application: the accept loop, workers and reload, and
 // HTTP/1.1, HTTP/2 over cleartext, WebSocket and TLS on moonbitlang/async
 // sockets, which have no JS or Wasm backend.
-supported_targets = "native"
-
 import {
   "moonbitstack/mooncat/config",
   "moonbitstack/mooncat/lifespan",

@@ -8,8 +8,6 @@
 // A subpackage because reading argv is the program's business, not the
 // library's: mooncat embedded in something larger must not touch the command
 // line, and only this half needs `env` and `argparse`.
-supported_targets = "native"
-
 import {
   "moonbitstack/mooncat",
   "moonbitstack/moonasgi",
