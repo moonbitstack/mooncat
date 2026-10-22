@@ -49,7 +49,7 @@ async fn serve_conn(
   reader : &@io.Reader,
   writer : &@io.Writer,
   scheme : String,
-  config : Config,
+  config : @config.Config,
   bound : @socket.Addr,
   peer : @socket.Addr,
   inflight : Ref[Int32],
@@ -122,7 +122,7 @@ async fn accept_loop(
   inflight : Ref[Int32],
   served : Ref[Int32],
   handle : ShutdownHandle,
-  config : Config,
+  config : @config.Config,
   bound : @socket.Addr,
   cert : TlsCert?,
 ) -> Unit {
@@ -268,7 +268,7 @@ async fn drain(inflight : Ref[Int32], timeout : Int32?) -> Unit {
 /// own escalation: a first signal drains, a second forces exit.
 pub async fn serve_graceful(
   app : @moonasgi.AsgiApp,
-  config : Config,
+  config : @config.Config,
   handle~ : ShutdownHandle = ShutdownHandle::new(),
 ) -> Unit {
   run(app, config, handle, None)
@@ -280,12 +280,12 @@ pub async fn serve_graceful(
 /// requests within `graceful_timeout`, run lifespan shutdown and close the listener.
 async fn run(
   app : @moonasgi.AsgiApp,
-  config : Config,
+  config : @config.Config,
   handle : ShutdownHandle,
   cert : TlsCert?,
 ) -> Unit {
   @async.with_task_group(g => {
-    let lifespan = Lifespan::new(app)
+    let lifespan = @lifespan.Lifespan::new(app)
     let ltask = lifespan.spawn(g)
     lifespan.startup(ltask)
     let bound = @socket.Addr::parse(config.bind())
@@ -366,7 +366,7 @@ async test "graceful shutdown drains in-flight, runs lifespan shutdown, then clo
       }
     }
     let srv = g.spawn(() => {
-      serve_graceful(app, Config::new(port=18090), handle~)
+      serve_graceful(app, @config.Config::new(port=18090), handle~)
     })
     @async.sleep(250)
     let client = g.spawn(() => {
@@ -409,7 +409,7 @@ async test "concurrent request burst is served by per-connection handlers" {
       send(@moonasgi.Event::HttpResponseBody(body=b"ok", more_body=false))
     }
     let srv = g.spawn(() => {
-      serve_graceful(app, Config::new(port=18091), handle~)
+      serve_graceful(app, @config.Config::new(port=18091), handle~)
     })
     @async.sleep(250)
     let codes : Array[Int32] = []
@@ -462,7 +462,11 @@ async test "an idle keep-alive connection is dropped after timeout_keep_alive" {
     let srv = g.spawn(() => {
       serve_graceful(
         ok_app,
-        Config::new(port=18093, timeout_keep_alive=300, logger=Logger::silent()),
+        @config.Config::new(
+          port=18093,
+          timeout_keep_alive=300,
+          logger=@config.Logger::silent(),
+        ),
         handle~,
       )
     })
@@ -491,7 +495,11 @@ async test "the request-count limit stops the server on its own" {
     let srv = g.spawn(() => {
       serve_graceful(
         ok_app,
-        Config::new(port=18094, limit_max_requests=2, logger=Logger::silent()),
+        @config.Config::new(
+          port=18094,
+          limit_max_requests=2,
+          logger=@config.Logger::silent(),
+        ),
         handle~,
       )
     })
@@ -540,7 +548,11 @@ async test "limit_concurrency refuses the overflow request with 503" {
     let srv = g.spawn(() => {
       serve_graceful(
         slow,
-        Config::new(port=18096, limit_concurrency=1, logger=Logger::silent()),
+        @config.Config::new(
+          port=18096,
+          limit_concurrency=1,
+          logger=@config.Logger::silent(),
+        ),
         handle~,
       )
     })
@@ -589,13 +601,13 @@ async test "graceful serve honours max_connections" {
     let srv = g.spawn(() => {
       serve_graceful(
         counted,
-        Config::new(
+        @config.Config::new(
           port=18097,
           max_connections=1,
           // A handler holds its slot until the connection ends, so the idle timeout bounds how
           // long a finished client can keep the next one waiting.
           timeout_keep_alive=200,
-          logger=Logger::silent(),
+          logger=@config.Logger::silent(),
         ),
         handle~,
       )
@@ -651,7 +663,7 @@ async test "a trusted proxy's forwarded headers reach the scope" {
     let srv = g.spawn(() => {
       serve_graceful(
         app,
-        Config::new(port=18098, logger=Logger::silent()),
+        @config.Config::new(port=18098, logger=@config.Logger::silent()),
         handle~,
       )
     })
@@ -699,10 +711,10 @@ async test "an untrusted peer's forwarded headers are ignored" {
       serve_graceful(
         app,
         // The loopback client this test runs from is not in the trusted set.
-        Config::new(
+        @config.Config::new(
           port=18102,
           forwarded_allow_ips=["10.0.0.1"],
-          logger=Logger::silent(),
+          logger=@config.Logger::silent(),
         ),
         handle~,
       )
@@ -751,7 +763,7 @@ async test "a trusted proxy's forwarded headers reach a websocket scope" {
     let srv = g.spawn(() => {
       serve_graceful(
         app,
-        Config::new(port=18110, logger=Logger::silent()),
+        @config.Config::new(port=18110, logger=@config.Logger::silent()),
         handle~,
       )
     })
@@ -780,7 +792,7 @@ async test "a served response carries a Date header" {
     let srv = g.spawn(() => {
       serve_graceful(
         ok_app,
-        Config::new(port=18111, logger=Logger::silent()),
+        @config.Config::new(port=18111, logger=@config.Logger::silent()),
         handle~,
       )
     })
@@ -805,7 +817,7 @@ async test "graceful serve bridges a websocket round-trip" {
   @async.with_task_group(g => {
     let handle = ShutdownHandle::new()
     let srv = g.spawn(() => {
-      serve_graceful(ws_echo_app, Config::new(port=18092), handle~)
+      serve_graceful(ws_echo_app, @config.Config::new(port=18092), handle~)
     })
     @async.sleep(250)
     let ws = @websocket.connect("ws://127.0.0.1:18092/chat")

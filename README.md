@@ -122,7 +122,7 @@ tested and how a program can look at the plan before serving.
 )
 ```
 
-Each accepted connection completes a real TLS handshake (`@tls.Tls`), then [`moonhttp/http1`](https://github.com/moonbitstack/moonhttp)'s RFC 9112 codec — which frames single-shot replies with `Content-Length` and streamed replies with `Transfer-Encoding: chunked`, and refuses the request-smuggling framings rather than resolving them — drives the moonasgi app over the encrypted stream. A pipelining client's second request, or a body that arrived with its head, is held for what comes next rather than dropped, with keep-alive and the lifespan protocol intact. Proven end-to-end by a real `@http` TLS client doing `GET` over `https://` and asserting `200` + body in CI. Regenerate the throwaway localhost test cert with `scripts/gen_test_cert.sh`.
+Each accepted connection completes a real TLS handshake (`@tls.Tls`), then [`moonhttp/http1`](https://github.com/moonbitstack/moonhttp)'s RFC 9112 codec — which frames single-shot replies with `Content-Length` and streamed replies with `Transfer-Encoding: chunked`, and refuses the request-smuggling framings rather than resolving them — drives the moonasgi app over the encrypted stream. A pipelining client's second request, or a body that arrived with its head, is held for what comes next rather than dropped, with keep-alive and the lifespan protocol intact. Proven end-to-end by a real `@http` TLS client doing `GET` over `https://` and asserting `200` + body in CI. Regenerate the throwaway localhost test cert with `scripts/gen-cert.sh`.
 
 **Design boundaries** (honest, not stubs):
 
@@ -167,7 +167,11 @@ Proven end to end in CI by a **real HTTP/2 (h2c) client** built on `@socket.Tcp`
 
 | Package | What | What it costs to link |
 |:--:|:--|:--|
-| `mooncat` | The accept loop, HTTP/1.1, h2c, WebSocket, TLS, the process model, `Config` | moonasgi, moonhttp's http1 / http2 / hpack / ws / upgrade, moonbitlang/async |
+| `mooncat` | Re-exports the four below, so `@mooncat.serve` works as before | all four |
+| `mooncat/config` | `Config`, access and error logging, the HTTP date | moonlog, moondate |
+| `mooncat/lifespan` | the ASGI lifespan protocol | moonasgi |
+| `mooncat/proxy` | forwarded headers from a trusted proxy | — |
+| `mooncat/serve` | The accept loop, workers and reload, HTTP/1.1, h2c, WebSocket, TLS | moonasgi, moonhttp's http1 / http2 / hpack / ws / upgrade, moonbitlang/async |
 | `mooncat/cli` | uvicorn's flags, and `run(app)` | the above, plus core's argparse |
 | `mooncat/quic` | QUIC and HTTP/3: the UDP socket, the datagram loop, the handshake QUIC does inline | moonquic, moontls, mooncred's certificate reader, moonhttp/http3 |
 

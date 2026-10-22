@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitstack/mooncat/lifespan"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/aqueue",
+  "moonbitstack/moonasgi/spec",
+}
+
+// Values
+
+// Errors
+pub suberror LifespanError {
+  LifespanError(String)
+}
+
+// Types and methods
+pub struct Lifespan {
+  app : async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit
+  inbox : @aqueue.Queue[@spec.Event]
+  outbox : @aqueue.Queue[@spec.Event]
+  state : Map[String, Json]
+}
+pub fn Lifespan::new(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit) -> Self
+pub async fn Lifespan::shutdown(Self, @async.Task[Unit]) -> Unit
+pub fn Lifespan::spawn(Self, @async.TaskGroup[Unit]) -> @async.Task[Unit]
+pub async fn Lifespan::startup(Self, @async.Task[Unit]) -> Unit
+
+// Type aliases
+
+// Traits

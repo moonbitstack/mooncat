@@ -2,12 +2,12 @@
 package "moonbitstack/mooncat"
 
 import {
-  "moonbitlang/async",
-  "moonbitlang/async/aqueue",
   "moonbitlang/async/io",
   "moonbitstack/moonasgi/spec",
+  "moonbitstack/mooncat/config",
+  "moonbitstack/mooncat/lifespan",
+  "moonbitstack/mooncat/serve",
   "moonbitstack/moonhttp/ws",
-  "moonbitstack/moonlog",
 }
 
 // Values
@@ -27,88 +27,35 @@ pub async fn reload_watch(String, async () -> Unit) -> Unit
 
 pub async fn serve(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32, backlog? : Int32) -> Unit
 
-pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, Config) -> Unit
+pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config) -> Unit
 
-pub async fn serve_graceful(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, Config, handle? : ShutdownHandle) -> Unit
+pub async fn serve_graceful(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, handle? : @serve.ShutdownHandle) -> Unit
 
 pub async fn serve_h2c(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32) -> Unit
 
-pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, Config) -> Unit
+pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config) -> Unit
 
 pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, pfx_file~ : String, host? : String, port? : Int32, backlog? : Int32) -> Unit
 
-pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, Config, TlsCert) -> Unit
+pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @serve.TlsCert) -> Unit
 
 // Errors
-pub suberror LifespanError {
-  LifespanError(String)
-}
 
 // Types and methods
-pub(all) struct Config {
-  host : String
-  port : Int32
-  backlog : Int32
-  dual_stack : Bool
-  reuse_addr : Bool
-  server_headers : Map[String, String]
-  max_connections : Int32?
-  allow_failure : Bool
-  graceful_timeout : Int32?
-  root_path : String
-  logger : Logger
-  timeout_keep_alive : Int32
-  limit_max_requests : Int32?
-  limit_concurrency : Int32?
-  max_head_size : Int32
-  date_header : Bool
-  proxy_headers : Bool
-  forwarded_allow_ips : Array[String]
-  ws : WsConfig
-}
-pub fn Config::bind(Self) -> String
-pub fn Config::new(host? : String, port? : Int32, backlog? : Int32, dual_stack? : Bool, reuse_addr? : Bool, server_headers? : Map[String, String], max_connections? : Int32, allow_failure? : Bool, graceful_timeout? : Int32, root_path? : String, logger? : Logger, timeout_keep_alive? : Int32, limit_max_requests? : Int32, limit_concurrency? : Int32, max_head_size? : Int32, date_header? : Bool, proxy_headers? : Bool, forwarded_allow_ips? : Array[String], ws? : WsConfig) -> Self
-
-pub struct Lifespan {
-  app : async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit
-  inbox : @aqueue.Queue[@spec.Event]
-  outbox : @aqueue.Queue[@spec.Event]
-  state : Map[String, Json]
-}
-pub fn Lifespan::new(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit) -> Self
-pub async fn Lifespan::shutdown(Self, @async.Task[Unit]) -> Unit
-pub fn Lifespan::spawn(Self, @async.TaskGroup[Unit]) -> @async.Task[Unit]
-pub async fn Lifespan::startup(Self, @async.Task[Unit]) -> Unit
-
-pub struct Logger {
-  out : @moonlog.Logger
-  access : Bool
-}
-pub fn Logger::access_line(Self, String, String, String, String, Int32) -> Unit
-pub fn Logger::enabled(Self, @moonlog.Level) -> Bool
-pub fn Logger::log(Self, @moonlog.Level, String) -> Unit
-pub fn Logger::new(level? : @moonlog.Level, access? : Bool, write? : (String) -> Unit) -> Self
-pub fn Logger::silent() -> Self
-
-pub struct ShutdownHandle {
-  request : @aqueue.Queue[Unit]
-  done : @aqueue.Queue[Unit]
-}
-pub fn ShutdownHandle::new() -> Self
-pub async fn ShutdownHandle::request_stop(Self) -> Unit
-pub async fn ShutdownHandle::shutdown(Self) -> Unit
-
-pub(all) struct TlsCert {
-  certificate_file : String
-  private_key_file : String
-  pfx_file : String
-}
-
-pub(all) struct WsConfig {
-  max_size : Int32
-}
-pub fn WsConfig::new(max_size? : Int32) -> Self
 
 // Type aliases
+pub using @config {type Config}
+
+pub using @lifespan {type Lifespan}
+
+pub using @lifespan {type LifespanError}
+
+pub using @config {type Logger}
+
+pub using @serve {type ShutdownHandle}
+
+pub using @serve {type TlsCert}
+
+pub using @config {type WsConfig}
 
 // Traits

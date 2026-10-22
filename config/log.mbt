@@ -95,7 +95,7 @@ pub fn Logger::access_line(
 ///|
 /// The reason phrase an access line pairs with a status. Lives here rather than
 /// beside the native server because the access line is written on every backend.
-fn reason(code : Int32) -> String {
+pub fn reason(code : Int32) -> String {
   match code {
     200 => "OK"
     201 => "Created"

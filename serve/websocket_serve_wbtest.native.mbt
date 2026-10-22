@@ -72,7 +72,7 @@ async test "serve_websocket_raw completes the handshake with a subprotocol echo 
         ws_upgrade_request(),
         reader,
         writer,
-        config=Config::new(),
+        config=@config.Config::new(),
       )
     })
     // The 101 response carries the RFC 6455 §1.3 accept key and the negotiated subprotocol.
@@ -124,7 +124,7 @@ async test "serve_websocket_raw fails a protocol violation with its close code" 
         ws_upgrade_request(),
         reader,
         writer,
-        config=Config::new(),
+        config=@config.Config::new(),
       )
     })
     ignore(pr.read_until("\r\n\r\n"))
@@ -166,7 +166,7 @@ async test "serve_websocket_raw fails an oversized frame with 1009" {
         ws_upgrade_request(),
         reader,
         writer,
-        config=Config::new(ws=WsConfig::new(max_size=16)),
+        config=@config.Config::new(ws=@config.WsConfig::new(max_size=16)),
       )
     })
     ignore(pr.read_until("\r\n\r\n"))
@@ -187,7 +187,7 @@ async test "wss: an upgrade over TLS completes and a text frame is echoed" {
     let task = g.spawn(() => {
       serve_tls_config(
         ws_raw_echo_app,
-        Config::new(port=18444, logger=Logger::silent()),
+        @config.Config::new(port=18444, logger=@config.Logger::silent()),
         test_cert(),
       )
     })

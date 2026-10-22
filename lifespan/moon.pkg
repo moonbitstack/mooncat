@@ -1,0 +1,7 @@
+// The ASGI lifespan protocol: startup before the first connection, shutdown
+// after the last.
+import {
+  "moonbitstack/moonasgi",
+  "moonbitlang/async",
+  "moonbitlang/async/aqueue",
+}

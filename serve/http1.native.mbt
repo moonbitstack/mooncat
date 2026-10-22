@@ -117,7 +117,7 @@ async fn Inbox::next_chunk(self : Inbox) -> Bytes? {
 /// `Config::timeout_keep_alive` (← uvicorn's `--timeout-keep-alive`). `None` means the peer went
 /// quiet or went away — either way the connection is finished, and holding it open costs a socket
 /// and a task for as long as the peer cares to say nothing.
-async fn next_head(inbox : Inbox, config : Config) -> @http1.Request? {
+async fn next_head(inbox : Inbox, config : @config.Config) -> @http1.Request? {
   match
     @async.with_timeout_opt(config.timeout_keep_alive, () => {
       inbox.head(@http1.Limits::new(head=config.max_head_size))
@@ -191,7 +191,7 @@ async fn dispatch_http1(
   inbox : Inbox,
   writer : &@io.Writer,
   scheme~ : String,
-  config~ : Config = Config::new(),
+  config~ : @config.Config = @config.Config::new(),
   server_addr? : @socket.Addr,
   client_addr? : @socket.Addr,
 ) -> Bool {
@@ -218,7 +218,7 @@ async fn dispatch_http1(
     None => None
   }
   let (client, req_scheme) = if config.proxy_headers {
-    proxy_rewrite(
+    @proxy.proxy_rewrite(
       fields_map(req.fields),
       peer,
       scheme,
@@ -343,7 +343,7 @@ async fn dispatch_http1(
     }
     // RFC 7231 §7.1.1.2 asks an origin server with a clock to date every response.
     if config.date_header && !sent.contains("date") {
-      sb.write_string("date: \{http_date_now()}\r\n")
+      sb.write_string("date: \{@config.http_date_now()}\r\n")
     }
     // Signal the connection's fate unless the app already set `Connection`: a server
     // that will close SHOULD say so (RFC 7230 §6.1), and HTTP/1.0 needs an explicit
@@ -489,7 +489,7 @@ fn bytes_has(hay : Bytes, needle : Bytes) -> Bool {
 /// return the raw response bytes (test helper).
 async fn run_h1(
   req : @http1.Request,
-  config~ : Config = Config::new(),
+  config~ : @config.Config = @config.Config::new(),
   headers~ : Array[(String, String)] = [],
 ) -> Bytes {
   let (req_r, req_w) = @pipe.pipe()
@@ -629,7 +629,7 @@ async test "http1: configured server headers ride the response, unless the app s
     Inbox::new(req_r),
     resp_w,
     scheme="http",
-    config=Config::new(server_headers=Map([("server", "mooncat")])),
+    config=@config.Config::new(server_headers=Map([("server", "mooncat")])),
   )
   resp_w.close()
   assert_eq(bytes_has(drain_pipe(resp_r), b"server: mooncat"), true)
@@ -654,7 +654,7 @@ async test "http1: configured server headers ride the response, unless the app s
     Inbox::new(req_r2),
     resp_w2,
     scheme="http",
-    config=Config::new(server_headers=Map([("server", "mooncat")])),
+    config=@config.Config::new(server_headers=Map([("server", "mooncat")])),
   )
   resp_w2.close()
   let resp2 = drain_pipe(resp_r2)
@@ -674,7 +674,7 @@ async test "http1: an idle keep-alive read gives up after timeout_keep_alive" {
     // Bounded from outside as well, so a read that ignores the configured deadline fails this
     // test instead of wedging the suite in the very wait it was supposed to end.
     let head = @async.with_timeout_opt(3000, () => {
-      next_head(Inbox::new(r), Config::new(timeout_keep_alive=250))
+      next_head(Inbox::new(r), @config.Config::new(timeout_keep_alive=250))
     })
     let waited = @async.now() - opened
     assert_eq(head is Some(None), true)
@@ -687,7 +687,7 @@ async test "http1: an idle keep-alive read gives up after timeout_keep_alive" {
       }
       w.close()
     })
-    guard next_head(Inbox::new(r), Config::new(timeout_keep_alive=3000))
+    guard next_head(Inbox::new(r), @config.Config::new(timeout_keep_alive=3000))
       is Some(req) else {
       fail("a request that arrives inside the timeout should be read")
     }
@@ -712,7 +712,7 @@ async test "http1: the keep-alive read applies the configured head cap" {
     assert_eq(
       next_head(
         Inbox::new(r),
-        Config::new(max_head_size=64, timeout_keep_alive=3000),
+        @config.Config::new(max_head_size=64, timeout_keep_alive=3000),
       )
       is None,
       true,
@@ -726,7 +726,10 @@ async test "http1: the keep-alive read applies the configured head cap" {
       }
       w2.close()
     })
-    guard next_head(Inbox::new(r2), Config::new(timeout_keep_alive=3000))
+    guard next_head(
+        Inbox::new(r2),
+        @config.Config::new(timeout_keep_alive=3000),
+      )
       is Some(req) else {
       fail("the default 16 KiB cap should accept a 130-byte head")
     }
@@ -742,7 +745,7 @@ async test "http1: every response carries a well-formed Date header" {
   let resp = run_h1(h1_req("HTTP/1.1"))
   assert_eq(bytes_has(resp, b"date: "), true)
   // IMF-fixdate is fixed-width and always GMT, so the rendered value is exactly re-derivable.
-  assert_eq(bytes_has(resp, @utf8.encode(http_date_now())), true)
+  assert_eq(bytes_has(resp, @utf8.encode(@config.http_date_now())), true)
   assert_eq(bytes_has(resp, b" GMT\r\n"), true)
 }
 
@@ -779,7 +782,7 @@ async test "http1: a trusted proxy's forwarded headers reach the self-built scop
     Inbox::new(req_r),
     resp_w,
     scheme="http",
-    config=Config::new(forwarded_allow_ips=["*"]),
+    config=@config.Config::new(forwarded_allow_ips=["*"]),
   )
   assert_eq(seen[0], "https")
   assert_eq(seen[1], "203.0.113.7:0")
@@ -795,7 +798,7 @@ async test "http1: a trusted proxy's forwarded headers reach the self-built scop
     Inbox::new(req_r2),
     resp_w2,
     scheme="http",
-    config=Config::new(forwarded_allow_ips=strict),
+    config=@config.Config::new(forwarded_allow_ips=strict),
   )
   assert_eq(seen[2], "http")
   assert_eq(seen[3], "no-client")
@@ -805,7 +808,10 @@ async test "http1: a trusted proxy's forwarded headers reach the self-built scop
 /// `date_header=false` is uvicorn's `--no-date-header`: something in front is already dating the
 /// response, and two `Date` headers is worse than one.
 async test "http1: date_header=false leaves the Date header off" {
-  let resp = run_h1(h1_req("HTTP/1.1"), config=Config::new(date_header=false))
+  let resp = run_h1(
+    h1_req("HTTP/1.1"),
+    config=@config.Config::new(date_header=false),
+  )
   assert_eq(bytes_has(resp, b"date: "), false)
   // The rest of the response is unchanged.
   assert_eq(bytes_has(resp, b"content-length: 2"), true)

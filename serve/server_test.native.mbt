@@ -39,7 +39,7 @@ fn greet_app() -> @moonasgi.AsgiApp {
 /// greet chain, over the wire rather than over a pipe.
 async test "greet: mooncat serves a routed app answering a real HTTP GET" {
   @async.with_task_group(g => {
-    let task = g.spawn(() => @mooncat.serve(greet_app(), port=18095))
+    let task = g.spawn(() => @serve.serve(greet_app(), port=18095))
     @async.sleep(250)
     let (resp, body) = @http.get("http://127.0.0.1:18095/greet/moon")
     assert_eq(resp.code, 200)

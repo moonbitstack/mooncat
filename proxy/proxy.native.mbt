@@ -1,6 +1,5 @@
 // Forwarded-header handling (← uvicorn's `ProxyHeadersMiddleware`, which uvicorn installs by
-// default). Native-only because it leans on the request-head helpers (`ascii_trim`, `index_of`)
-// that live with the HTTP/1.1 codec, and because nothing but the server paths ever calls it.
+// default). Native-only because nothing but the server paths ever calls it.
 
 ///|
 /// Whether a peer's forwarding headers are believed: its host appears in `trusted`, or `trusted`
@@ -27,7 +26,7 @@ fn first_forwarded(raw : String) -> String {
     Some(comma) => raw[0:comma].to_owned()
     None => raw
   }
-  ascii_trim(head)
+  head.trim(chars=" \t").to_owned()
 }
 
 ///|
@@ -63,7 +62,7 @@ pub fn proxy_rewrite(
   }
   let proto = match headers.get("x-forwarded-proto") {
     Some(raw) => {
-      let p = ascii_trim(raw)
+      let p = raw.trim(chars=" \t").to_owned()
       if websocket {
         if p == "https" || p == "wss" {
           "wss"

@@ -1,0 +1,61 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitstack/mooncat/config"
+
+import {
+  "moonbitstack/moonlog",
+}
+
+// Values
+pub fn http_date(Int64) -> String
+
+pub fn http_date_now() -> String
+
+pub let port : Int32
+
+pub fn reason(Int32) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct Config {
+  host : String
+  port : Int32
+  backlog : Int32
+  dual_stack : Bool
+  reuse_addr : Bool
+  server_headers : Map[String, String]
+  max_connections : Int32?
+  allow_failure : Bool
+  graceful_timeout : Int32?
+  root_path : String
+  logger : Logger
+  timeout_keep_alive : Int32
+  limit_max_requests : Int32?
+  limit_concurrency : Int32?
+  max_head_size : Int32
+  date_header : Bool
+  proxy_headers : Bool
+  forwarded_allow_ips : Array[String]
+  ws : WsConfig
+}
+pub fn Config::bind(Self) -> String
+pub fn Config::new(host? : String, port? : Int32, backlog? : Int32, dual_stack? : Bool, reuse_addr? : Bool, server_headers? : Map[String, String], max_connections? : Int32, allow_failure? : Bool, graceful_timeout? : Int32, root_path? : String, logger? : Logger, timeout_keep_alive? : Int32, limit_max_requests? : Int32, limit_concurrency? : Int32, max_head_size? : Int32, date_header? : Bool, proxy_headers? : Bool, forwarded_allow_ips? : Array[String], ws? : WsConfig) -> Self
+
+pub struct Logger {
+  out : @moonlog.Logger
+  access : Bool
+}
+pub fn Logger::access_line(Self, String, String, String, String, Int32) -> Unit
+pub fn Logger::enabled(Self, @moonlog.Level) -> Bool
+pub fn Logger::log(Self, @moonlog.Level, String) -> Unit
+pub fn Logger::new(level? : @moonlog.Level, access? : Bool, write? : (String) -> Unit) -> Self
+pub fn Logger::silent() -> Self
+
+pub(all) struct WsConfig {
+  max_size : Int32
+}
+pub fn WsConfig::new(max_size? : Int32) -> Self
+
+// Type aliases
+
+// Traits

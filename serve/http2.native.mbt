@@ -504,9 +504,9 @@ async fn drive_h2c(app : @moonasgi.AsgiApp, conn : @socket.Tcp) -> Unit {
 pub async fn serve_h2c(
   app : @moonasgi.AsgiApp,
   host~ : String = "127.0.0.1",
-  port~ : Int32 = port,
+  port~ : Int32 = @config.port,
 ) -> Unit {
-  serve_h2c_config(app, Config::new(host~, port~))
+  serve_h2c_config(app, @config.Config::new(host~, port~))
 }
 
 ///|
@@ -515,9 +515,12 @@ pub async fn serve_h2c(
 /// accept loop (startup before the listener binds, shutdown on the way out — even
 /// under cancellation, guarded by `protect_from_cancel`), and each accepted
 /// connection is driven by `drive_h2c` over the self-built HTTP/2 transport.
-pub async fn serve_h2c_config(app : @moonasgi.AsgiApp, config : Config) -> Unit {
+pub async fn serve_h2c_config(
+  app : @moonasgi.AsgiApp,
+  config : @config.Config,
+) -> Unit {
   @async.with_task_group(g => {
-    let lifespan = Lifespan::new(app)
+    let lifespan = @lifespan.Lifespan::new(app)
     let task = lifespan.spawn(g)
     lifespan.startup(task)
     let server = @socket.TcpServer(

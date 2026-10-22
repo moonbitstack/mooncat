@@ -1,42 +1,13 @@
-// mooncat: a native ASGI 3.0 server (← uvicorn). Rides the moonasgi SEAM over
-// moonbitlang/async sockets, which have no JS or Wasm backend.
-//
-// HTTP/1.1, HTTP/2 over cleartext, WebSocket and TLS are here. QUIC and
-// HTTP/3 are in `quic`, which is where the eleven packages they need stay;
-// the command line is in `cli`.
+// mooncat: a native ASGI 3.0 server (← uvicorn). The work is done in the
+// subpackages; the root re-exports their surface. QUIC and HTTP/3 are in
+// `quic`, the command line in `cli`.
+supported_targets = "native"
+
 import {
-  "moonbitstack/moonasgi",
-  "moonbitstack/moonhttp/http1",
-  "moonbitstack/moonhttp/http2",
-  "moonbitstack/moonhttp/hpack",
-  "moonbitstack/moonhttp/header",
-  "moonbitstack/moonhttp/ws",
-  "moonbitstack/moonhttp/upgrade",
-  "moonbitstack/moonhttp/url",
-  "moonbitstack/moonvar/fixed",
-  "moonbitstack/moonlog",
-  "moonbitstack/moondate",
-  "moonbitlang/async",
-  "moonbitlang/async/io",
-  "moonbitlang/async/pipe",
-  "moonbitlang/async/socket",
-  "moonbitlang/async/http",
-  "moonbitlang/async/websocket",
-  "moonbitlang/async/tls",
-  "moonbitlang/async/fs",
-  "moonbitlang/async/aqueue",
-  "moonbitlang/core/encoding/utf8",
-  "moonbitlang/core/buffer",
+  "moonbitstack/mooncat/config",
+  "moonbitstack/mooncat/lifespan",
+  "moonbitstack/mooncat/proxy",
+  "moonbitstack/mooncat/serve",
 }
 
-// The async TLS-server constructor is `#internal` ("for internal testing
-// only") — it is the only server-side TLS entry point the library exposes, and
-// its own suite drives HTTPS through it. Opt in to that alert so mooncat can
-// serve HTTPS; the single opt-in is documented in README §TLS.
-//
-// -29 (unused_package): `moonbitlang/async/fs` is used only by
-// `process_reload.native.mbt` (the native-only file watcher, whose
-// `@fs.Watcher` has no wasm or js backend), so on the other targets the import
-// reads as unused. It is genuinely needed on native.
-
-warnings = "-alert_internal-29"
+warnings = "-alert_internal"

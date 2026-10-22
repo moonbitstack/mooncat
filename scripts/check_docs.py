@@ -32,6 +32,11 @@ def sources():
                 continue
             if "_wbtest." in rel or "_test." in rel:
                 continue
+            # A façade only re-exports; its names are documented where they live.
+            code = [l for l in pathlib.Path(found).read_text(encoding="utf-8").splitlines()
+                    if l.strip() and not l.lstrip().startswith("//")]
+            if code and all(l.startswith(("pub using", "  ", "}")) for l in code):
+                continue
             out.add(rel)
     return out
 

@@ -18,7 +18,7 @@ async test "http1: two pipelined requests in one segment are both read" {
   let inbox = inbox_of(
     "GET /a HTTP/1.1\r\nhost: x\r\n\r\nGET /b HTTP/1.1\r\nhost: x\r\n\r\n",
   )
-  let config = Config::new(timeout_keep_alive=3000)
+  let config = @config.Config::new(timeout_keep_alive=3000)
   guard next_head(inbox, config) is Some(first) else {
     fail("the first request should be read")
   }
@@ -37,7 +37,7 @@ async test "http1: a sized body followed by the next request leaves that request
   let inbox = inbox_of(
     "POST /p HTTP/1.1\r\ncontent-length: 5\r\n\r\nhelloGET /q HTTP/1.1\r\n\r\n",
   )
-  let config = Config::new(timeout_keep_alive=3000)
+  let config = @config.Config::new(timeout_keep_alive=3000)
   guard next_head(inbox, config) is Some(post) else {
     fail("the POST should be read")
   }
@@ -57,7 +57,7 @@ async test "http1: a chunked body followed by the next request leaves that reque
     "5\r\nhello\r\n6\r\n world\r\n0\r\n\r\n" +
     "GET /after HTTP/1.1\r\n\r\n",
   )
-  let config = Config::new(timeout_keep_alive=3000)
+  let config = @config.Config::new(timeout_keep_alive=3000)
   guard next_head(inbox, config) is Some(post) else {
     fail("the POST should be read")
   }
@@ -79,7 +79,7 @@ async test "http1: a request that tries to smuggle a second one is not read" {
     "POST / HTTP/1.1\r\ncontent-length: 5\r\ntransfer-encoding: chunked\r\n\r\n",
   )
   assert_eq(
-    next_head(inbox, Config::new(timeout_keep_alive=3000)) is None,
+    next_head(inbox, @config.Config::new(timeout_keep_alive=3000)) is None,
     true,
   )
 }
@@ -134,7 +134,7 @@ async test "http1: a chunked body with a chunk extension and a trailer decodes c
 
 ///|
 /// Send `raw` to a fresh server and return everything it answers before closing.
-async fn exchange(raw : Bytes, config~ : Config) -> String {
+async fn exchange(raw : Bytes, config~ : @config.Config) -> String {
   let mut answer = ""
   @async.with_task_group(g => {
     let app : @moonasgi.AsgiApp = (scope, _receive, send) => {
@@ -165,7 +165,7 @@ async fn exchange(raw : Bytes, config~ : Config) -> String {
 async test "a malformed request is answered 400 before the connection closes" {
   let answer = exchange(
     b"NOT HTTP AT ALL\r\n\r\n",
-    config=Config::new(port=18460, logger=Logger::silent()),
+    config=@config.Config::new(port=18460, logger=@config.Logger::silent()),
   )
   assert_true(answer.has_prefix("HTTP/1.1 400 Bad Request\r\n"))
   assert_true(answer.has_suffix("Invalid HTTP request received."))
@@ -177,7 +177,11 @@ async test "a head past max_head_size is answered 431" {
   let big = "GET / HTTP/1.1\r\nx-filler: " + "a".repeat(200) + "\r\n\r\n"
   let answer = exchange(
     @utf8.encode(big),
-    config=Config::new(port=18461, max_head_size=64, logger=Logger::silent()),
+    config=@config.Config::new(
+      port=18461,
+      max_head_size=64,
+      logger=@config.Logger::silent(),
+    ),
   )
   assert_true(answer.has_prefix("HTTP/1.1 431 "))
 }

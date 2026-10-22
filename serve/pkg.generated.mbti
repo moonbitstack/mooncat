@@ -1,0 +1,52 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitstack/mooncat/serve"
+
+import {
+  "moonbitlang/async/aqueue",
+  "moonbitlang/async/io",
+  "moonbitstack/moonasgi/spec",
+  "moonbitstack/mooncat/config",
+  "moonbitstack/moonhttp/ws",
+}
+
+// Values
+pub async fn read_frame(&@io.Reader, client? : Bool, limit? : Int32) -> @ws.Frame
+
+pub async fn read_message(&@io.Reader, &@io.Writer, limit? : Int32) -> @ws.Message
+
+pub async fn reload_watch(String, async () -> Unit) -> Unit
+
+pub async fn serve(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32, backlog? : Int32) -> Unit
+
+pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config) -> Unit
+
+pub async fn serve_graceful(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, handle? : ShutdownHandle) -> Unit
+
+pub async fn serve_h2c(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32) -> Unit
+
+pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config) -> Unit
+
+pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, pfx_file~ : String, host? : String, port? : Int32, backlog? : Int32) -> Unit
+
+pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, TlsCert) -> Unit
+
+// Errors
+
+// Types and methods
+pub struct ShutdownHandle {
+  request : @aqueue.Queue[Unit]
+  done : @aqueue.Queue[Unit]
+}
+pub fn ShutdownHandle::new() -> Self
+pub async fn ShutdownHandle::request_stop(Self) -> Unit
+pub async fn ShutdownHandle::shutdown(Self) -> Unit
+
+pub(all) struct TlsCert {
+  certificate_file : String
+  private_key_file : String
+  pfx_file : String
+}
+
+// Type aliases
+
+// Traits

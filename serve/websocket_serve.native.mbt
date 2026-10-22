@@ -23,7 +23,7 @@ async fn serve_websocket_raw(
   req : @http1.Request,
   reader : &@io.Reader,
   writer : &@io.Writer,
-  config~ : Config,
+  config~ : @config.Config,
   server_addr? : @socket.Addr,
   client_addr? : @socket.Addr,
 ) -> Unit {
@@ -33,7 +33,7 @@ async fn serve_websocket_raw(
     None => None
   }
   let (client, scheme) = if config.proxy_headers {
-    proxy_rewrite(
+    @proxy.proxy_rewrite(
       fields_map(req.fields),
       peer,
       "ws",

@@ -65,10 +65,10 @@ fn over_request_limit(served : Int32, limit : Int32?) -> Bool {
 pub async fn serve(
   app : @moonasgi.AsgiApp,
   host~ : String = "127.0.0.1",
-  port~ : Int32 = port,
+  port~ : Int32 = @config.port,
   backlog~ : Int32 = 2048,
 ) -> Unit {
-  serve_config(app, Config::new(host~, port~, backlog~))
+  serve_config(app, @config.Config::new(host~, port~, backlog~))
 }
 
 ///|
@@ -79,7 +79,10 @@ pub async fn serve(
 /// listener is bound, and `shutdown()` is driven on the way out — even when the
 /// serving task is cancelled, via `protect_from_cancel`. Each accepted request
 /// is bridged by `dispatch`, which diverts WebSocket upgrades to the echo path.
-pub async fn serve_config(app : @moonasgi.AsgiApp, config : Config) -> Unit {
+pub async fn serve_config(
+  app : @moonasgi.AsgiApp,
+  config : @config.Config,
+) -> Unit {
   run(app, config, ShutdownHandle::new(), None)
 }
 
@@ -102,7 +105,11 @@ async test "serve_config stops itself after limit_max_requests" {
     let srv = g.spawn(() => {
       serve_config(
         app,
-        Config::new(port=18112, limit_max_requests=2, logger=Logger::silent()),
+        @config.Config::new(
+          port=18112,
+          limit_max_requests=2,
+          logger=@config.Logger::silent(),
+        ),
       )
     })
     @async.sleep(300)
@@ -127,8 +134,8 @@ test "helpers: query split, reason" {
   let (p2, q2) = split_query("/noquery")
   assert_eq(p2, "/noquery")
   assert_eq(q2, "")
-  assert_eq(reason(404), "Not Found")
-  assert_eq(reason(200), "OK")
+  assert_eq(@config.reason(404), "Not Found")
+  assert_eq(@config.reason(200), "OK")
 }
 
 ///|
@@ -178,7 +185,7 @@ async test "lifespan drives startup then shutdown in order" {
         }
       }
     }
-    let lifespan = Lifespan::new(app)
+    let lifespan = @lifespan.Lifespan::new(app)
     let task = lifespan.spawn(g)
     lifespan.startup(task)
     lifespan.shutdown(task)
@@ -308,7 +315,7 @@ async test "the request scope carries the peer, the bind address, and a decoded 
       }
     }
     let task = g.spawn(() => {
-      serve_config(app, Config::new(port=18099, root_path="/api"))
+      serve_config(app, @config.Config::new(port=18099, root_path="/api"))
     })
     @async.sleep(300)
     let (resp, _b) = @http.get("http://127.0.0.1:18099/files/a%2Fb/caf%C3%A9")
@@ -350,9 +357,9 @@ async test "the server logs each request and turns an app failure into a 500" {
     let task = g.spawn(() => {
       serve_config(
         app,
-        Config::new(
+        @config.Config::new(
           port=18113,
-          logger=Logger::new(write=line => lines.push(line)),
+          logger=@config.Logger::new(write=line => lines.push(line)),
         ),
       )
     })
