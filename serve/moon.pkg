@@ -12,7 +12,7 @@ import {
   "moonbitstack/moonhttp/header",
   "moonbitstack/moonhttp/ws",
   "moonbitstack/moonhttp/upgrade",
-  "moonbitstack/moonhttp/url",
+  "moonbitstack/moonurl",
   "moonbitstack/moonvar/fixed",
   "moonbitstack/moonlog",
   "moonbitstack/moondate",

@@ -1,6 +1,6 @@
 name = "moonbitstack/mooncat"
 
-version = "0.18.0"
+version = "0.18.1"
 
 readme = "README.md"
 
@@ -31,7 +31,8 @@ import {
   "moonbitstack/moonlog@0.1.0",
   "moonbitstack/moontls@0.9.0",
   "moonbitstack/moonquic@0.3.3",
-  "moonbitstack/moonhttp@0.12.1",
+  "moonbitstack/moonhttp@0.15.0",
+  "moonbitstack/moonurl@0.2.0",
   "moonbitstack/moondate@0.1.0",
   "moonbitstack/moonvar@0.2.0",
 }

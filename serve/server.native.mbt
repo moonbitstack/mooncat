@@ -4,7 +4,7 @@
 /// escape passes through as written: the target is attacker-controlled, and refusing
 /// to build a scope would leave the server unable to answer at all.
 fn percent_decode(target : String) -> Bytes {
-  @url.unescape(@utf8.encode(target)[:])
+  @moonurl.unescape(@utf8.encode(target)[:])
 }
 
 ///|
