@@ -49,13 +49,13 @@ jobs:
         run: python scripts/check_ports.py
 
       - name: moon check
-        run: moon check --target native --deny-warn
+        run: moon check --target all --deny-warn
 
       - name: moon build
-        run: moon build --target native
+        run: moon build --target all
 
-      - name: moon test (native)
-        run: moon test --target native
+      - name: moon test (all backends)
+        run: moon test --target all
 
       - name: lint (fmt is clean)
         run: |
