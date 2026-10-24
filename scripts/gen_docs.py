@@ -36,12 +36,11 @@ SECTIONS = [
      "The handshake is moontls on a moonnet connection, offering h2 and http/1.1 by "
      "ALPN; after it a connection is served like a plain one, WebSocket upgrades "
      "included."),
-    ("quic", ('quic/serve.native.mbt', 'quic/udp.native.mbt', 'quic/handshake.mbt', 'quic/crypto.mbt'), "QUIC",
-     "The UDP half, in a package of its own because of what it carries: QUIC "
-     "performs its own TLS 1.3 handshake rather than riding a record layer, so "
-     "this is the only part of mooncat that needs moonquic, moontls and mooncred. "
-     "The socket, the datagram loop that routes by connection ID, the timers, and "
-     "the handshake crypto. QUIC itself is moonquic's."),
+    ("quic", ('quic/serve.native.mbt', 'quic/udp.native.mbt'), "QUIC",
+     "The UDP half, in a package of its own because of what it carries: moonquic "
+     "and the TLS 1.3 its connections handshake with, which a server answering "
+     "HTTP/1.1 and HTTP/2 never needs. The socket, the datagram loop that routes "
+     "by connection ID, and the timers; QUIC itself is moonquic's."),
 ]
 
 KIND = {"struct": "struct", "enum": "enum", "fn": "fn", "type": "type", "let": "let"}

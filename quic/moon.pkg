@@ -1,21 +1,11 @@
-// Serving QUIC and HTTP/3 (RFC 9000, RFC 9001, RFC 9114).
+// Serving QUIC (RFC 9000): the UDP socket, the datagram loop that routes by connection ID, and
+// the timers around moonquic's endpoint, whose connections do their TLS 1.3 handshake on moontls
+// (RFC 9001).
 //
-// A subpackage because of what it costs to carry. QUIC does its own TLS 1.3
-// handshake rather than sitting on a record layer, so this is the only half of
-// mooncat that needs moontls, moonquic, mooncred's certificate reader and
-// moonhttp/http3 — packages a server answering HTTP/1.1 never touches.
-//
-// The protocol itself is moonquic's; what is here is the UDP socket, the
-// datagram loop that routes by connection ID, the timers, and the handshake
-// crypto QUIC performs inline.
+// A subpackage because of what it costs to carry: moonquic and its TLS are packages a server
+// answering HTTP/1.1 and HTTP/2 never touches.
 import {
   "moonbitstack/moonquic/conn",
-  "moonbitstack/moontls/ext",
-  "moonbitstack/moontls/keys",
-  "moonbitstack/moontls/msg",
-  "moonbitstack/mooncrypt/kex/x25519",
-  "moonbitstack/mooncrypt/sign/ecdsa",
-  "moonbitstack/moonbase/base16",
   "moonbitlang/async",
   "moonbitlang/async/socket",
 }
@@ -31,6 +21,12 @@ import {
   "moonbitstack/moonhttp/header",
   "moonbitstack/mooncrypt/hash/sha2",
   "moonbitstack/mooncred/x509",
+  "moonbitstack/moontls/ext",
+  "moonbitstack/moontls/keys",
+  "moonbitstack/moontls/msg",
+  "moonbitstack/mooncrypt/kex/x25519",
+  "moonbitstack/mooncrypt/sign/ecdsa",
+  "moonbitstack/moonbase/base16",
 } for "wbtest"
 
 // The socket and the serving loop are native; on other targets the imports
