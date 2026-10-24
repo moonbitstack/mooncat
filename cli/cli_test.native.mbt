@@ -94,12 +94,6 @@ test "a certificate takes both files" {
   guard got.tls is Some(cert) else { fail("no certificate") }
   assert_eq(cert.certificate_file, "cert.pem")
   assert_eq(cert.private_key_file, "key.pem")
-  assert_eq(cert.pfx_file, "")
-  // A PKCS#12 bundle alone is enough, because SChannel takes no PEM.
-  guard plan(["--pfx-file", "dev.pfx"]).tls is Some(bundle) else {
-    fail("no bundle")
-  }
-  assert_eq(bundle.pfx_file, "dev.pfx")
 }
 
 ///|

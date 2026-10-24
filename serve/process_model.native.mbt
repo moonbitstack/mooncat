@@ -113,7 +113,7 @@ fn over_concurrency(inflight : Int32, limit : Int32?) -> Bool {
 
 ///|
 /// The acceptor task: pull connections off the listener and spawn a handler for each, with a
-/// TLS handshake first when `cert` is given, tracking the in-flight count so the shutdown path
+/// TLS handshake first when `tls` is given, tracking the in-flight count so the shutdown path
 /// can drain them. Runs until cancelled by the shutdown coordinator.
 async fn accept_loop(
   g : @async.TaskGroup[Unit],
@@ -124,7 +124,7 @@ async fn accept_loop(
   handle : ShutdownHandle,
   config : @config.Config,
   bound : @socket.Addr,
-  cert : TlsCert?,
+  tls : @tls.Server?,
 ) -> Unit {
   // The parallel-client ceiling, applied before accepting, so a full server leaves the
   // connection in the listen queue rather than accepting it and then sitting on it.
@@ -148,18 +148,28 @@ async fn accept_loop(
           }
         }
         contain(config.allow_failure, () => {
-          match cert {
-            Some(c) => {
-              let tls = tls_accept(conn, c)
-              defer tls.close()
+          let (stream, scheme) = match tls {
+            Some(c) =>
+              match
+                @async.with_timeout_opt(config.timeout_handshake, () => {
+                  @tcp.Conn::server(conn, c)
+                }) {
+                Some(s) => (s, "https")
+                None => return
+              }
+            None => (@tcp.Conn::plain(conn), "http")
+          }
+          match speaks_h2(stream, config) {
+            Some(true) => drive_h2(app, stream)
+            Some(false) =>
               serve_conn(
-                app, tls, tls, "https", config, bound, peer, inflight, served, handle,
+                app, stream, stream, scheme, config, bound, peer, inflight, served,
+                handle,
               )
-            }
-            None =>
-              serve_conn(
-                app, conn, conn, "http", config, bound, peer, inflight, served, handle,
-              )
+            None => ()
+          }
+          stream.shutdown() catch {
+            _ => ()
           }
         })
       },
@@ -276,13 +286,13 @@ pub async fn serve_graceful(
 
 ///|
 /// The one serving loop every entry point shares: lifespan startup, bind, accept (with a TLS
-/// handshake when `cert` is given), then on a stop request stop accepting, drain in-flight
+/// handshake when `tls` is given), then on a stop request stop accepting, drain in-flight
 /// requests within `graceful_timeout`, run lifespan shutdown and close the listener.
 async fn run(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
   handle : ShutdownHandle,
-  cert : TlsCert?,
+  tls : @tls.Server?,
 ) -> Unit {
   @async.with_task_group(g => {
     let lifespan = @lifespan.Lifespan::new(app)
@@ -294,7 +304,7 @@ async fn run(
       dual_stack=config.dual_stack,
       reuse_addr=config.reuse_addr,
     )
-    let scheme = if cert is Some(_) { "https" } else { "http" }
+    let scheme = if tls is Some(_) { "https" } else { "http" }
     config.logger.log(
       Info,
       "Started server process on \{scheme}://" + config.bind(),
@@ -304,7 +314,7 @@ async fn run(
     let acceptor = g.spawn(
       () => {
         accept_loop(
-          g, server, app, inflight, served, handle, config, bound, cert,
+          g, server, app, inflight, served, handle, config, bound, tls,
         )
       },
       allow_failure=true,

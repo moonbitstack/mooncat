@@ -1,50 +1,30 @@
 ///|
-/// TLS certificate material for HTTPS serving (← uvicorn's `ssl_certfile` /
-/// `ssl_keyfile`). The backend the `moonbitlang/async` TLS layer uses is
-/// platform-specific, so both forms are carried:
-///
-/// * `certificate_file` + `private_key_file` — PEM files, used by the OpenSSL
-///   backend (Linux / macOS, the CI platforms);
-/// * `pfx_file` — a PKCS#12 bundle, used by the SChannel backend (Windows).
-///
-/// `serve_tls` picks the right pair at compile time. Supply whichever your
-/// deployment targets; a self-signed `certs/` pair for tests is generated with
-/// `scripts/gen-cert.sh`.
+/// The certificate chain and private key an HTTPS server presents (← uvicorn's `ssl_certfile` and
+/// `ssl_keyfile`), as PEM files. The chain file holds the leaf first, then any intermediates; the
+/// key file holds a `PRIVATE KEY`, `EC PRIVATE KEY` or `RSA PRIVATE KEY`. The same files serve on
+/// every platform: the TLS is moontls, not the system's.
 pub(all) struct TlsCert {
   certificate_file : String
   private_key_file : String
-  pfx_file : String
 }
 
 ///|
-/// Wrap an accepted TCP connection in a TLS server session on the OpenSSL
-/// backend, reading the certificate/key from PEM files.
-///
-/// The async library marks its TLS-server constructor `#internal` ("for
-/// internal testing only") — it is the only server-side TLS entry point it
-/// exposes, and its own test suite drives HTTPS through exactly this call. The
-/// package opts in via `warnings = "-alert_internal"` in `moon.pkg`; when the
-/// library graduates a public TLS-server API mooncat will move to it. This is
-/// the sole such opt-in and is the documented TLS boundary (README §TLS).
-#cfg(not(platform="windows"))
-async fn tls_accept(conn : @socket.Tcp, cert : TlsCert) -> @tls.Tls {
-  @tls.Tls::server_from_pair(
-    conn,
-    conn,
-    private_key_file=cert.private_key_file,
-    private_key_type=PEM,
-    certificate_file=cert.certificate_file,
-    certificate_type=PEM,
+/// The application protocols a TLS listener offers, in preference order: HTTP/2 first, as
+/// hypercorn and nginx do, falling back to HTTP/1.1.
+pub let alpn : Array[String] = ["h2", "http/1.1"]
+
+///|
+/// Read the files into a TLS server configuration. A key that is not the leaf's is refused here,
+/// at startup, rather than by every client's handshake.
+pub async fn TlsCert::load(
+  self : TlsCert,
+  alpn~ : Array[String] = alpn,
+) -> @tls.Server {
+  @tls.Server::new(
+    @x509.pems(@fs.read_file(self.certificate_file).text()),
+    @x509.PrivateKey::pem(@fs.read_file(self.private_key_file).text()),
+    alpn~,
   )
-}
-
-///|
-/// Wrap an accepted TCP connection in a TLS server session on the SChannel
-/// backend (Windows), reading the certificate + key from a PKCS#12 bundle.
-/// See `tls_accept` (OpenSSL) for the `#internal` opt-in rationale.
-#cfg(platform="windows")
-async fn tls_accept(conn : @socket.Tcp, cert : TlsCert) -> @tls.Tls {
-  @tls.Tls::server_from_pair(conn, conn, pfx_file=cert.pfx_file)
 }
 
 ///|
@@ -55,17 +35,15 @@ async fn tls_accept(conn : @socket.Tcp, cert : TlsCert) -> @tls.Tls {
 ///
 /// Runs the full ASGI lifespan protocol around the accept loop (startup before
 /// the listener binds, shutdown on exit — even under cancellation), then, for
-/// every accepted connection, completes a TLS handshake and drives the app
-/// through the encrypted HTTP/1.1 codec.
+/// every accepted connection, completes a TLS handshake and serves HTTP/2 when
+/// ALPN settles on `h2`, HTTP/1.1 otherwise.
 ///
-/// A WebSocket upgrade on one of these connections is served too (`wss://`): it
-/// goes through the same self-built HTTP/1.1 path, so the 101, the subprotocol
-/// echo and the frames all travel over the encrypted stream.
+/// A WebSocket upgrade on an HTTP/1.1 connection is served too (`wss://`): the
+/// 101, the subprotocol echo and the frames all travel over the encrypted stream.
 pub async fn serve_tls(
   app : @moonasgi.AsgiApp,
   certificate_file~ : String,
   private_key_file~ : String,
-  pfx_file~ : String,
   host~ : String = "127.0.0.1",
   port~ : Int32 = @config.port,
   backlog~ : Int32 = 2048,
@@ -73,7 +51,6 @@ pub async fn serve_tls(
   serve_tls_config(app, @config.Config::new(host~, port~, backlog~), {
     certificate_file,
     private_key_file,
-    pfx_file,
   })
 }
 
@@ -82,32 +59,28 @@ pub async fn serve_tls(
 /// `TlsCert`. Mirrors `serve_config`: lifespan startup is driven before the
 /// listener binds and shutdown on the way out (guarded by `protect_from_cancel`
 /// so it still runs when the serving task is cancelled), and each accepted
-/// connection completes a TLS handshake and then runs the same keep-alive loop as
-/// a plain one.
+/// connection completes a TLS handshake within `timeout_handshake` and then runs
+/// the same loop as a plain one.
 pub async fn serve_tls_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
   cert : TlsCert,
 ) -> Unit {
-  run(app, config, ShutdownHandle::new(), Some(cert))
+  run(app, config, ShutdownHandle::new(), Some(cert.load()))
 }
 
 ///|
 /// Self-signed localhost material for the integration tests below, generated by
-/// `scripts/gen-cert.sh`. PEM for OpenSSL platforms, PKCS#12 for Windows.
+/// `scripts/gen-cert.sh`.
 fn test_cert() -> TlsCert {
-  {
-    certificate_file: "certs/cert.pem",
-    private_key_file: "certs/key.pem",
-    pfx_file: "certs/dev.pfx",
-  }
+  { certificate_file: "certs/cert.pem", private_key_file: "certs/key.pem", }
 }
 
 ///|
 /// Real HTTPS round-trip: a genuine `@http` TLS client performs `GET /` over an
 /// encrypted connection to a `serve_tls`-served app and observes `200` + the
-/// exact body. Proves the TLS handshake, the self-built HTTP/1.1 codec over the
-/// `@tls.Tls` stream, and the moonasgi SEAM all cooperate end to end.
+/// exact body. The client is the system's TLS (OpenSSL or SChannel), so this is
+/// moontls against another implementation, through the HTTP/1.1 codec to the app.
 async test "https: real TLS client GET returns 200 with body" {
   @async.with_task_group(g => {
     let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {

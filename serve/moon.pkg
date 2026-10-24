@@ -1,6 +1,5 @@
 // Serving an ASGI application: the accept loop, workers and reload, and
-// HTTP/1.1, HTTP/2 over cleartext, WebSocket and TLS on moonbitlang/async
-// sockets, which have no JS or Wasm backend.
+// HTTP/1.1, HTTP/2, WebSocket and TLS on moonnet connections.
 import {
   "moonbitstack/mooncat/config",
   "moonbitstack/mooncat/lifespan",
@@ -16,17 +15,19 @@ import {
   "moonbitstack/moonvar/fixed",
   "moonbitstack/moonlog",
   "moonbitstack/moondate",
+  "moonbitstack/moonnet/tcp",
+  "moonbitstack/moontls/tls",
+  "moonbitstack/mooncred/x509",
   "moonbitlang/async",
   "moonbitlang/async/io",
   "moonbitlang/async/pipe",
   "moonbitlang/async/socket",
   "moonbitlang/async/http",
   "moonbitlang/async/websocket",
-  "moonbitlang/async/tls",
   "moonbitlang/async/fs",
   "moonbitlang/async/aqueue",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/buffer",
 }
 
-warnings = "-alert_internal-29"
+warnings = "-29"

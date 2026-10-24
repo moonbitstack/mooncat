@@ -7,9 +7,12 @@ import {
   "moonbitstack/moonasgi/spec",
   "moonbitstack/mooncat/config",
   "moonbitstack/moonhttp/ws",
+  "moonbitstack/moontls/tls",
 }
 
 // Values
+pub let alpn : Array[String]
+
 pub async fn read_frame(&@io.Reader, client? : Bool, limit? : Int32) -> @ws.Frame
 
 pub async fn read_message(&@io.Reader, &@io.Writer, limit? : Int32) -> @ws.Message
@@ -26,7 +29,7 @@ pub async fn serve_h2c(async (@spec.Scope, async () -> @spec.Event, async (@spec
 
 pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config) -> Unit
 
-pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, pfx_file~ : String, host? : String, port? : Int32, backlog? : Int32) -> Unit
+pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -> Unit
 
 pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, TlsCert) -> Unit
 
@@ -44,8 +47,8 @@ pub async fn ShutdownHandle::shutdown(Self) -> Unit
 pub(all) struct TlsCert {
   certificate_file : String
   private_key_file : String
-  pfx_file : String
 }
+pub async fn TlsCert::load(Self, alpn? : Array[String]) -> @tls.Server
 
 // Type aliases
 

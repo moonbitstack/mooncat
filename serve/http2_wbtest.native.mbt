@@ -4,12 +4,7 @@
 // primitives the server uses.
 
 ///|
-/// A minimal real HTTP/2 (h2c) client on `@socket.Tcp` and the moonrpc frame +
-/// HPACK codecs — the independent end of the round-trip. It opens one stream, sends
-/// the request HEADERS (and a single DATA frame for a body), then reads the
-/// response, acknowledging SETTINGS and replenishing both flow-control windows as
-/// DATA arrives so a flow-controlled server keeps sending. Returns `(:status,
-/// response headers, body)`.
+/// A minimal real HTTP/2 client in the clear, by prior knowledge.
 async fn h2c_request(
   host : String,
   port : Int32,
@@ -18,13 +13,40 @@ async fn h2c_request(
   body~ : Bytes = b"",
   extra_headers~ : Array[(Bytes, Bytes)] = [],
 ) -> (String, Array[(String, String)], Bytes) {
-  let conn = @socket.Tcp::connect(@socket.Addr::parse("\{host}:\{port}"))
+  let sock = @socket.Tcp::connect(@socket.Addr::parse("\{host}:\{port}"))
+  h2_request(
+    @tcp.Conn::plain(sock),
+    "http",
+    host,
+    verb,
+    path,
+    body~,
+    extra_headers~,
+  )
+}
+
+///|
+/// A minimal real HTTP/2 client on a moonnet connection and moonhttp's frame and
+/// HPACK codecs — the independent end of the round-trip. It opens one stream, sends
+/// the request HEADERS (and a single DATA frame for a body), then reads the
+/// response, acknowledging SETTINGS and replenishing both flow-control windows as
+/// DATA arrives so a flow-controlled server keeps sending. Returns `(:status,
+/// response headers, body)`.
+async fn h2_request(
+  conn : @tcp.Conn,
+  scheme : String,
+  host : String,
+  verb : String,
+  path : String,
+  body~ : Bytes = b"",
+  extra_headers~ : Array[(Bytes, Bytes)] = [],
+) -> (String, Array[(String, String)], Bytes) {
   conn.write(@http2.preface)
   conn.write(@http2.Frame::Settings(params=[], ack=false).encode())
   let enc = @hpack.Encoder::new()
   let hdrs : Array[@header.Header] = [
     { name: b":method", value: h2_str_to_bytes(verb), },
-    { name: b":scheme", value: b"http", },
+    { name: b":scheme", value: h2_str_to_bytes(scheme), },
     { name: b":path", value: h2_str_to_bytes(path), },
     { name: b":authority", value: h2_str_to_bytes(host), },
   ]

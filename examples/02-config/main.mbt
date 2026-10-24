@@ -35,10 +35,9 @@ fn main {
   let cert = @mooncat.TlsCert::{
     certificate_file: "certs/cert.pem",
     private_key_file: "certs/key.pem",
-    pfx_file: "certs/dev.pfx",
   }
   println(
-    "tls bundle       = cert=\{cert.certificate_file} key=\{cert.private_key_file} pfx=\{cert.pfx_file}",
+    "tls bundle       = cert=\{cert.certificate_file} key=\{cert.private_key_file}",
   )
 }
 

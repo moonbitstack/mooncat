@@ -163,7 +163,6 @@ pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
     text("ws-max-size", "bytes a WebSocket message may reach"),
     text("ssl-certfile", "PEM certificate; serves HTTPS"),
     text("ssl-keyfile", "PEM private key; serves HTTPS"),
-    text("pfx-file", "PKCS#12 bundle, which SChannel takes instead of PEM"),
   ]
   for one in refused {
     if one.1 {
@@ -298,28 +297,14 @@ fn fold(
 fn certificate(got : @argparse.Matches) -> @mooncat.TlsCert? raise Refused {
   let cert = reading(got, "ssl-certfile")
   let key = reading(got, "ssl-keyfile")
-  let pfx = reading(got, "pfx-file")
   match (cert, key) {
-    (None, None) =>
-      // A PKCS#12 bundle alone is enough on Windows, where SChannel takes no PEM.
-      match pfx {
-        Some(pfx) =>
-          Some({ certificate_file: "", private_key_file: "", pfx_file: pfx, })
-        None => None
-      }
+    (None, None) => None
     (Some(_), None) =>
       raise Partial(flag="--ssl-certfile", needs="--ssl-keyfile")
     (None, Some(_)) =>
       raise Partial(flag="--ssl-keyfile", needs="--ssl-certfile")
     (Some(cert), Some(key)) =>
-      Some({
-        certificate_file: cert,
-        private_key_file: key,
-        pfx_file: match pfx {
-          Some(pfx) => pfx
-          None => ""
-        },
-      })
+      Some({ certificate_file: cert, private_key_file: key, })
   }
 }
 

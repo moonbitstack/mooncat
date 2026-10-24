@@ -19,7 +19,6 @@ import {
   "moonbitlang/async/socket",
   "moonbitlang/async/http",
   "moonbitlang/async/websocket",
-  "moonbitlang/async/tls",
   "moonbitlang/async/fs",
   "moonbitlang/async/aqueue",
   "moonbitlang/core/encoding/utf8",

@@ -1,11 +1,9 @@
-// A self-built HTTP/2 cleartext (h2c) server path that drives a moonasgi
-// application, reusing the HTTP/2 frame layer (RFC 7540) and HPACK (RFC 7541)
-// engine published by `moonbitstack/moonrpc` — the same transport primitives that
-// carry real gRPC there. This file is the ASGI-over-h2 binding: it reads the
-// client connection preface + SETTINGS, decodes request HEADERS into an ASGI
-// `Scope`, streams request DATA as the `Receive` body, and encodes the ASGI
-// response (HEADERS + DATA) back, honouring connection- and stream-level flow
-// control. Native-only, like the rest of mooncat.
+// The ASGI-over-HTTP/2 binding, on moonhttp's frame layer (RFC 9113) and HPACK
+// (RFC 7541): it reads the client connection preface and SETTINGS, decodes request
+// HEADERS into an ASGI `Scope`, streams request DATA as the `Receive` body, and
+// encodes the ASGI response (HEADERS + DATA) back, honouring connection- and
+// stream-level flow control. The connection is moonnet's, so the same code serves
+// h2 under TLS and h2c in the clear.
 
 ///|
 /// The HTTP/2 default initial flow-control window (RFC 7540 §6.9.2) and default
@@ -46,7 +44,7 @@ priv struct H2Stream {
 /// initial stream window, and the live streams keyed by id. `goaway` latches once
 /// the peer asks the connection to wind down.
 priv struct H2Conn {
-  conn : @socket.Tcp
+  conn : @tcp.Conn
   dec : @hpack.Decoder
   enc : @hpack.Encoder
   mut conn_send_window : Int32
@@ -57,7 +55,7 @@ priv struct H2Conn {
 }
 
 ///|
-fn H2Conn::new(conn : @socket.Tcp) -> H2Conn {
+fn H2Conn::new(conn : @tcp.Conn) -> H2Conn {
   {
     conn,
     dec: @hpack.Decoder::new(),
@@ -456,13 +454,27 @@ async fn H2Conn::dispatch_ready(self : H2Conn, app : @moonasgi.AsgiApp) -> Unit 
 }
 
 ///|
-/// Drive one accepted h2c connection to completion: validate the client connection
+/// Whether a connection speaks HTTP/2: what ALPN settled under TLS, else whether it opens
+/// with the connection preface (RFC 9113 §3.4). The sniff waits no longer than a request
+/// head would; `None` is a peer that said nothing in that time.
+async fn speaks_h2(conn : @tcp.Conn, config : @config.Config) -> Bool? {
+  match conn.alpn() {
+    Some(protocol) => Some(protocol == "h2")
+    None =>
+      @async.with_timeout_opt(config.timeout_keep_alive, () => {
+        conn.starts_with(@http2.preface[:])
+      })
+  }
+}
+
+///|
+/// Drive one HTTP/2 connection to completion: validate the client connection
 /// preface, advertise a wide receive window (a big `SETTINGS_INITIAL_WINDOW_SIZE`
 /// plus a connection-level WINDOW_UPDATE to the §6.9.1 ceiling) so inbound bodies
 /// never stall, then loop — read a frame, apply it, dispatch any now-complete
-/// request — until the peer closes the socket or sends GOAWAY. A read error (a
+/// request — until the peer closes the connection or sends GOAWAY. A read error (a
 /// closed connection) ends the loop cleanly.
-async fn drive_h2c(app : @moonasgi.AsgiApp, conn : @socket.Tcp) -> Unit {
+async fn drive_h2(app : @moonasgi.AsgiApp, conn : @tcp.Conn) -> Unit {
   let preface = conn.read_exactly(@http2.preface.length())
   if !@http2.has_preface(preface) {
     return
@@ -491,16 +503,13 @@ async fn drive_h2c(app : @moonasgi.AsgiApp, conn : @socket.Tcp) -> Unit {
 }
 
 ///|
-/// Serve a moonasgi ASGI application over **HTTP/2 cleartext (h2c)** — the
-/// prior-knowledge, no-TLS HTTP/2 profile (RFC 7540 §3.4) — reusing moonrpc's
-/// self-built HTTP/2 + HPACK engine as the transport. Convenience wrapper over
+/// Serve a moonasgi ASGI application over **HTTP/2 cleartext (h2c)** only — the
+/// prior-knowledge, no-TLS HTTP/2 profile (RFC 9113 §3.3). Convenience wrapper over
 /// `serve_h2c_config` that builds a `Config` from `host` / `port`. Blocks in the
 /// accept loop until the running task is cancelled.
 ///
-/// h2c rather than `h2`-over-TLS because the `moonbitlang/async` TLS layer exposes
-/// no ALPN, so the protocol can't be negotiated on a TLS connection yet; h2c is
-/// the direct, ALPN-free path a client reaches with prior knowledge (as
-/// `curl --http2-prior-knowledge` or a gRPC client does).
+/// `serve` and `serve_tls` speak HTTP/2 as well, beside HTTP/1.1 on the same port;
+/// this entry point is for a listener that is to speak nothing else.
 pub async fn serve_h2c(
   app : @moonasgi.AsgiApp,
   host~ : String = "127.0.0.1",
@@ -514,7 +523,7 @@ pub async fn serve_h2c(
 /// `serve_config` / `serve_tls_config`: the ASGI lifespan protocol runs around the
 /// accept loop (startup before the listener binds, shutdown on the way out — even
 /// under cancellation, guarded by `protect_from_cancel`), and each accepted
-/// connection is driven by `drive_h2c` over the self-built HTTP/2 transport.
+/// connection is driven by `drive_h2`.
 pub async fn serve_h2c_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
@@ -533,7 +542,7 @@ pub async fn serve_h2c_config(
       server.close()
     }
     server.run_forever(
-      (conn, _addr) => drive_h2c(app, conn),
+      (conn, _addr) => drive_h2(app, @tcp.Conn::plain(conn)),
       allow_failure=config.allow_failure,
       max_connections?=config.max_connections,
     )

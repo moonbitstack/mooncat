@@ -63,6 +63,10 @@ pub(all) struct Config {
   // still costs a socket and a task, and a peer that opens many and sends nothing is
   // how a server runs out of both.
   timeout_keep_alive : Int32
+  // How long a TLS handshake may take, in milliseconds (← hypercorn's and asyncio's
+  // `ssl_handshake_timeout`, 60 seconds). A peer that connects and never finishes the
+  // handshake holds a connection slot the way an idle keep-alive one does.
+  timeout_handshake : Int32
   // Stop serving after this many requests (← uvicorn's `--limit-max-requests`), the
   // knob a supervisor uses to recycle a worker before it accumulates whatever it
   // accumulates. `None` serves forever.
@@ -91,10 +95,10 @@ pub(all) struct Config {
 ///|
 /// The default port for the TCP serving entry points.
 ///
-/// HTTP/1.1, including WebSocket upgrades, uses one listener. TLS and h2c are
-/// separate server modes with their own listeners, so they cannot all bind this
-/// port at once. `quic_serve` takes an explicit UDP address; it may use the same
-/// number because UDP and TCP have separate port spaces.
+/// HTTP/1.1, WebSocket upgrades and HTTP/2 share one listener, told apart by ALPN
+/// under TLS and by the HTTP/2 preface in the clear. `quic_serve` takes an explicit
+/// UDP address; it may use the same number because UDP and TCP have separate port
+/// spaces.
 pub let port : Int32 = 12000
 
 ///|
@@ -124,6 +128,7 @@ pub fn Config::new(
   root_path~ : String = "",
   logger~ : Logger = Logger::new(),
   timeout_keep_alive~ : Int32 = 5000,
+  timeout_handshake~ : Int32 = 60000,
   limit_max_requests? : Int32,
   limit_concurrency? : Int32,
   max_head_size~ : Int32 = 16 * 1024,
@@ -145,6 +150,7 @@ pub fn Config::new(
     root_path,
     logger,
     timeout_keep_alive,
+    timeout_handshake,
     limit_max_requests,
     limit_concurrency,
     max_head_size,

@@ -183,17 +183,17 @@ async test "serve_websocket_raw fails an oversized frame with 1009" {
 /// encrypted stream, and a masked text frame comes back echoed by the app. The upgrade rides the
 /// self-built HTTP/1.1 path that `serve_tls` uses, so nothing of the async WebSocket is involved.
 async test "wss: an upgrade over TLS completes and a text frame is echoed" {
+  let port = 18444
   @async.with_task_group(g => {
     let task = g.spawn(() => {
       serve_tls_config(
         ws_raw_echo_app,
-        @config.Config::new(port=18444, logger=@config.Logger::silent()),
+        @config.Config::new(port~, logger=@config.Logger::silent()),
         test_cert(),
       )
     })
     @async.sleep(400)
-    let tcp = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18444"))
-    let tls = @tls.Tls::client(tcp, trust=NoVerification, host="localhost")
+    let tls = @tcp.dial("127.0.0.1", port~, tls=pinned(["http/1.1"]))
     defer tls.close()
     tls.write(
       "GET /chat HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" +

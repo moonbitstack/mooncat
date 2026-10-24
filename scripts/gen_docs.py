@@ -26,14 +26,16 @@ SECTIONS = [
      "connect / accept / receive / send / disconnect / close, over any byte stream, "
      "so ws:// and wss:// share it. The RFC 6455 frames and the opening handshake "
      "are moonhttp's ws and upgrade packages."),
-    ("http2", ("serve/http2.native.mbt",), "HTTP/2 (h2c)",
-     "Serving HTTP/2 over cleartext: the frame pump, stream multiplexing and the "
-     "send windows, each stream driving the app as one request. The frames are "
-     "moonhttp/http2 and the header compression moonhttp/hpack."),
+    ("http2", ("serve/http2.native.mbt",), "HTTP/2",
+     "Serving HTTP/2, chosen by ALPN under TLS and by the connection preface in the "
+     "clear: the frame pump, stream multiplexing and the send windows, each stream "
+     "driving the app as one request. The frames are moonhttp/http2 and the header "
+     "compression moonhttp/hpack."),
     ("tls", ('serve/tls.native.mbt',), "TLS",
-     "HTTPS: the certificate and key, as PEM on OpenSSL platforms and PKCS#12 on "
-     "Windows. The handshake is moonbitlang/async's TLS; after it a connection runs "
-     "the same keep-alive loop as a plain one, WebSocket upgrades included."),
+     "HTTPS: the certificate chain and key as PEM files, the same on every platform. "
+     "The handshake is moontls on a moonnet connection, offering h2 and http/1.1 by "
+     "ALPN; after it a connection is served like a plain one, WebSocket upgrades "
+     "included."),
     ("quic", ('quic/serve.native.mbt', 'quic/udp.native.mbt', 'quic/handshake.mbt', 'quic/crypto.mbt'), "QUIC",
      "The UDP half, in a package of its own because of what it carries: QUIC "
      "performs its own TLS 1.3 handshake rather than riding a record layer, so "
@@ -199,13 +201,13 @@ document.addEventListener("DOMContentLoaded",()=>{
 
 CONTRACT = """pub async fn serve(app : AsgiApp, host? : String, port? : Int, backlog? : Int) -> Unit
 pub async fn serve_config(app : AsgiApp, config : Config) -> Unit
-pub async fn serve_tls(app : AsgiApp, certificate_file~, private_key_file~, pfx_file~, ...) -> Unit
+pub async fn serve_tls(app : AsgiApp, certificate_file~, private_key_file~, ...) -> Unit
 pub async fn serve_graceful(app : AsgiApp, config : Config, handle? : ShutdownHandle) -> Unit
 pub async fn serve_h2c(app : AsgiApp, host? : String, port? : Int) -> Unit
 
 // One socket -> Scope / Receive / Send -> your moonasgi app:
 //   HTTP/1.1 request  ->  Http scope     ->  HttpResponseStart + HttpResponseBody
-//   HTTP/2 (h2c)      ->  Http scope     ->  HEADERS + DATA, flow-controlled
+//   HTTP/2            ->  Http scope     ->  HEADERS + DATA, flow-controlled
 //   Upgrade: websocket ->  WebSocket scope -> connect/accept/receive/send/close
 //   process boundary  ->  Lifespan scope ->  startup ... shutdown
 //   handle.shutdown() ->  stop accepting -> drain -> lifespan shutdown -> close"""
