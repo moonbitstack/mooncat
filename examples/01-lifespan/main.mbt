@@ -26,11 +26,11 @@ async fn main {
         }
       }
     }
-    let lifespan = @mooncat.Lifespan::new(app)
-    let task = lifespan.spawn(g)
-    lifespan.startup(task)
+    let lifespan = @mooncat.Driver::new(app)
+    lifespan.spawn(g)
+    lifespan.startup()
     println("after startup : \{join(log)}")
-    lifespan.shutdown(task)
+    lifespan.shutdown()
     println("after shutdown: \{join(log)}")
   })
 }

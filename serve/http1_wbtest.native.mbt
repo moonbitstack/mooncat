@@ -210,7 +210,7 @@ async test "a chunked request body is delivered chunk by chunk" {
     )
   }
   let (_r, w) = @pipe.pipe()
-  let keep = dispatch_http1(app, req, inbox, w, scheme="http")
+  let keep = dispatch_http1(app, req, inbox, w)
   assert_eq(seen, [("hello", true), (" world", true), ("", false)])
   assert_true(keep)
 }
@@ -227,7 +227,7 @@ async test "a request body left unread closes the connection" {
     )
   }
   let (_r, w) = @pipe.pipe()
-  assert_false(dispatch_http1(app, req, inbox, w, scheme="http"))
+  assert_false(dispatch_http1(app, req, inbox, w))
 }
 
 ///|

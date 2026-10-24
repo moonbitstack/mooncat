@@ -46,9 +46,11 @@ pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async
 // Type aliases
 pub using @config {type Config}
 
+pub using @lifespan {type Driver}
+
 pub using @config {type H2Config}
 
-pub using @lifespan {type Lifespan}
+pub using @config {type Lifespan}
 
 pub using @lifespan {type LifespanError}
 

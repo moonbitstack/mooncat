@@ -161,6 +161,7 @@ pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
     ),
     text("log-level", "trace, debug, info, warning, error or critical"),
     text("ws-max-size", "bytes a WebSocket message may reach"),
+    text("lifespan", "auto, on or off"),
     text("ssl-certfile", "PEM certificate; serves HTTPS"),
     text("ssl-keyfile", "PEM private key; serves HTTPS"),
   ]
@@ -288,6 +289,14 @@ fn fold(
       None => base.forwarded_allow_ips
     },
     ws: { max_size: count(got, "ws-max-size", base.ws.max_size), },
+    lifespan: match reading(got, "lifespan") {
+      Some("auto") => Auto
+      Some("on") => On
+      Some("off") => Off
+      Some(other) =>
+        raise Value(flag="--lifespan", got=other, want="auto, on or off")
+      None => base.lifespan
+    },
     logger: logger(got, base.logger),
   }
 }

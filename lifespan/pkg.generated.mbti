@@ -3,8 +3,8 @@ package "moonbitstack/mooncat/lifespan"
 
 import {
   "moonbitlang/async",
-  "moonbitlang/async/aqueue",
   "moonbitstack/moonasgi/spec",
+  "moonbitstack/mooncat/config",
 }
 
 // Values
@@ -15,16 +15,14 @@ pub suberror LifespanError {
 }
 
 // Types and methods
-pub struct Lifespan {
-  app : async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit
-  inbox : @aqueue.Queue[@spec.Event]
-  outbox : @aqueue.Queue[@spec.Event]
+pub struct Driver {
   state : Map[String, Json]
+  // private fields
 }
-pub fn Lifespan::new(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit) -> Self
-pub async fn Lifespan::shutdown(Self, @async.Task[Unit]) -> Unit
-pub fn Lifespan::spawn(Self, @async.TaskGroup[Unit]) -> @async.Task[Unit]
-pub async fn Lifespan::startup(Self, @async.Task[Unit]) -> Unit
+pub fn Driver::new(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, mode? : @config.Lifespan, logger? : @config.Logger, state? : Map[String, Json]) -> Self
+pub async fn Driver::shutdown(Self) -> Unit
+pub fn Driver::spawn(Self, @async.TaskGroup[Unit]) -> Unit
+pub async fn Driver::startup(Self) -> Unit
 
 // Type aliases
 

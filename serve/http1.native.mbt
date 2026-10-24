@@ -215,29 +215,16 @@ async fn dispatch_http1(
   req : @http1.Request,
   inbox : Inbox,
   writer : &@io.Writer,
-  scheme~ : String,
+  link~ : Link = Link::plain(),
   config~ : @config.Config = @config.Config::new(),
-  server_addr? : @socket.Addr,
-  client_addr? : @socket.Addr,
-  tls? : @moonasgi.TlsExtension,
 ) -> Bool {
   let server_headers = config.server_headers
-  let link = { scheme, bound: server_addr, peer: client_addr, tls, }
   // A WebSocket upgrade is bridged over the raw stream (with subprotocol echo) and ends the
   // connection — it never returns to the keep-alive HTTP loop.
   // A conforming client sends nothing after an upgrade request until it has the 101
   // (RFC 6455 §4.1), so nothing is held here to hand over with the stream.
   if is_websocket_upgrade(fields_map(req.fields)) {
-    serve_websocket_raw(
-      app,
-      req,
-      inbox.reader,
-      writer,
-      config~,
-      server_addr?,
-      client_addr?,
-      tls?,
-    )
+    serve_websocket_raw(app, req, inbox.reader, writer, link~, config~)
     return false
   }
   let version = if req.version == "HTTP/1.0" { "1.0" } else { "1.1" }
@@ -459,7 +446,7 @@ async fn dispatch_http1(
     writer.write(@http1.last_chunk())
   }
   config.logger.access_line(
-    match client_addr {
+    match link.peer {
       Some(a) => a.to_string()
       None => "-"
     },
@@ -536,14 +523,7 @@ async fn run_h1(
     )
     send(@moonasgi.Event::HttpResponseBody(body=b"hi", more_body=false))
   }
-  let _ = dispatch_http1(
-    app,
-    req,
-    Inbox::new(req_r),
-    resp_w,
-    scheme="http",
-    config~,
-  )
+  let _ = dispatch_http1(app, req, Inbox::new(req_r), resp_w, config~)
   resp_w.close()
   drain_pipe(resp_r)
 }
@@ -603,13 +583,7 @@ async test "http1: an HTTP/1.0 request is answered with an HTTP/1.0 status line"
     )
     send(@moonasgi.Event::HttpResponseBody(body=b"hi", more_body=false))
   }
-  let keep = dispatch_http1(
-    app,
-    h1_req("HTTP/1.0"),
-    Inbox::new(req_r),
-    resp_w,
-    scheme="http",
-  )
+  let keep = dispatch_http1(app, h1_req("HTTP/1.0"), Inbox::new(req_r), resp_w)
   resp_w.close()
   let resp = drain_pipe(resp_r)
   assert_eq(resp[0:8].to_owned() == b"HTTP/1.0", true)
@@ -629,13 +603,7 @@ async test "http1: a streamed HTTP/1.0 response is close-delimited, not chunked"
     send(@moonasgi.Event::HttpResponseBody(body=b"part1", more_body=true))
     send(@moonasgi.Event::HttpResponseBody(body=b"part2", more_body=false))
   }
-  let keep = dispatch_http1(
-    app,
-    h1_req("HTTP/1.0"),
-    Inbox::new(req_r),
-    resp_w,
-    scheme="http",
-  )
+  let keep = dispatch_http1(app, h1_req("HTTP/1.0"), Inbox::new(req_r), resp_w)
   resp_w.close()
   let resp = drain_pipe(resp_r)
   let n = resp.length()
@@ -663,7 +631,6 @@ async test "http1: configured server headers ride the response, unless the app s
     h1_req("HTTP/1.1"),
     Inbox::new(req_r),
     resp_w,
-    scheme="http",
     config=@config.Config::new(server_headers=Map([("server", "mooncat")])),
   )
   resp_w.close()
@@ -688,7 +655,6 @@ async test "http1: configured server headers ride the response, unless the app s
     h1_req("HTTP/1.1"),
     Inbox::new(req_r2),
     resp_w2,
-    scheme="http",
     config=@config.Config::new(server_headers=Map([("server", "mooncat")])),
   )
   resp_w2.close()
@@ -816,7 +782,6 @@ async test "http1: a trusted proxy's forwarded headers reach the self-built scop
     req,
     Inbox::new(req_r),
     resp_w,
-    scheme="http",
     config=@config.Config::new(forwarded_allow_ips=["*"]),
   )
   assert_eq(seen[0], "https")
@@ -832,7 +797,6 @@ async test "http1: a trusted proxy's forwarded headers reach the self-built scop
     req,
     Inbox::new(req_r2),
     resp_w2,
-    scheme="http",
     config=@config.Config::new(forwarded_allow_ips=strict),
   )
   assert_eq(seen[2], "http")

@@ -66,7 +66,19 @@ pub async fn serve_tls_config(
   config : @config.Config,
   cert : TlsCert,
 ) -> Unit {
-  run(app, config, ShutdownHandle::new(), Some(cert.load()), Both)
+  serve_tls_server(app, config, cert.load())
+}
+
+///|
+/// Serve over HTTPS with a TLS configuration built by the caller: the suites, the groups, the
+/// ALPN list and the certificates are all `server`'s. `serve_tls_config` is this with the
+/// configuration read from PEM files.
+pub async fn serve_tls_server(
+  app : @moonasgi.AsgiApp,
+  config : @config.Config,
+  server : @tls.Server,
+) -> Unit {
+  run(app, config, ShutdownHandle::new(), Some(server), Both)
 }
 
 ///|

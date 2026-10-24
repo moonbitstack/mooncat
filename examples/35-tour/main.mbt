@@ -155,12 +155,11 @@ async fn lifespan(g : @async.TaskGroup[Unit]) -> Unit {
       }
     }
   }
-  let span = @mooncat.Lifespan::new(watched)
-  let task = span.spawn(g)
-  span.startup(task)
+  let span = @mooncat.Driver::new(watched)
+  span.spawn(g)
+  span.startup()
   seen.push("serving")
-  span.shutdown(task)
-  task.cancel()
+  span.shutdown()
   println("  order                \{joined(seen)}")
 }
 

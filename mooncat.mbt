@@ -7,10 +7,11 @@ pub using @config {
   type Logger,
   type WsConfig,
   type H2Config,
+  type Lifespan,
   http_date,
   http_date_now,
   port,
 }
 
 ///|
-pub using @lifespan {type Lifespan, type LifespanError}
+pub using @lifespan {type Driver, type LifespanError}

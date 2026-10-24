@@ -24,6 +24,24 @@ pub fn WsConfig::new(max_size~ : Int32 = @ws.limit) -> WsConfig {
 }
 
 ///|
+/// How the server runs the lifespan protocol (← uvicorn's `--lifespan`).
+pub(all) enum Lifespan {
+  /// Run it, and carry on without it when the application fails on the lifespan scope, as one
+  /// that serves only HTTP does.
+  Auto
+  /// Run it, and refuse to start when the application fails on it.
+  On
+  /// Do not run it.
+  Off
+} derive(Eq, Debug)
+
+///|
+pub extend Lifespan with Eq::{equal, not_equal}
+
+///|
+pub extend Lifespan with Debug::{to_repr}
+
+///|
 /// The HTTP/2 knobs. The stream ceiling, header-list cap and frame cap are hypercorn's
 /// (`h2_max_concurrent_streams`, `h2_max_header_list_size`, `h2_max_inbound_frame_size`). The
 /// receive windows are Go's server's (`MaxUploadBufferPerStream`, `MaxUploadBufferPerConnection`):
@@ -119,6 +137,8 @@ pub(all) struct Config {
   ws : WsConfig
   // The HTTP/2 stream and flow-control limits.
   h2 : H2Config
+  // Whether and how the lifespan protocol runs (← uvicorn's `--lifespan`, `auto` by default).
+  lifespan : Lifespan
 }
 
 ///|
@@ -166,6 +186,7 @@ pub fn Config::new(
   forwarded_allow_ips~ : Array[String] = ["127.0.0.1"],
   ws~ : WsConfig = WsConfig::new(),
   h2~ : H2Config = H2Config::new(),
+  lifespan~ : Lifespan = Auto,
 ) -> Config {
   {
     host,
@@ -189,6 +210,7 @@ pub fn Config::new(
     forwarded_allow_ips,
     ws,
     h2,
+    lifespan,
   }
 }
 

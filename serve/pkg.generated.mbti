@@ -33,6 +33,8 @@ pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec
 
 pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, TlsCert) -> Unit
 
+pub async fn serve_tls_server(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server) -> Unit
+
 // Errors
 
 // Types and methods

@@ -6,6 +6,14 @@ priv struct Link {
   bound : @socket.Addr?
   peer : @socket.Addr?
   tls : @moonasgi.TlsExtension?
+  // The lifespan state, of which every scope gets a shallow copy (ASGI lifespan sub-spec).
+  state : Map[String, Json]
+}
+
+///|
+/// A connection in the clear with nothing known about either end.
+fn Link::plain() -> Link {
+  { scheme: "http", bound: None, peer: None, tls: None, state: {}, }
 }
 
 ///|
@@ -113,6 +121,6 @@ fn http_scope(
     server: server_pair(link.bound),
     asgi: @moonasgi.AsgiVersion::http(),
     extensions: http_extensions(link),
-    state: Map([]),
+    state: link.state.copy(),
   })
 }

@@ -23,21 +23,10 @@ async fn serve_websocket_raw(
   req : @http1.Request,
   reader : &@io.Reader,
   writer : &@io.Writer,
+  link~ : Link = Link::plain(),
   config~ : @config.Config,
-  server_addr? : @socket.Addr,
-  client_addr? : @socket.Addr,
-  tls? : @moonasgi.TlsExtension,
 ) -> Unit {
-  let link = {
-    scheme: if tls is Some(_) {
-      "wss"
-    } else {
-      "ws"
-    },
-    bound: server_addr,
-    peer: client_addr,
-    tls,
-  }
+  let link = { ..link, scheme: if link.tls is Some(_) { "wss" } else { "ws" }, }
   let (raw_path, query) = split_query(req.target)
   let headers = fields_pairs(req.fields)
   let (client, scheme) = seen_from(
@@ -56,11 +45,11 @@ async fn serve_websocket_raw(
     root_path: config.root_path,
     headers,
     client,
-    server: server_pair(server_addr),
+    server: server_pair(link.bound),
     subprotocols: parse_subprotocols(fields_map(req.fields)),
     asgi: @moonasgi.AsgiVersion::websocket(),
     extensions: ws_extensions(link),
-    state: Map([]),
+    state: link.state.copy(),
   })
   let connected = Ref(false)
   let accepted = Ref(false)

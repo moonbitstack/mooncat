@@ -226,3 +226,14 @@ fn refusal(argv : Array[String]) -> @cli.Refused? {
     _ => None
   }
 }
+
+///|
+test "the lifespan mode is one of three words" {
+  assert_eq(plan([]).config.lifespan, Auto)
+  assert_eq(plan(["--lifespan", "on"]).config.lifespan, On)
+  assert_eq(plan(["--lifespan", "off"]).config.lifespan, Off)
+  let refused : Result[@cli.Plan, Error] = Ok(plan(["--lifespan", "maybe"])) catch {
+    e => Err(e)
+  }
+  assert_true(refused is Err(@cli.Value(flag="--lifespan", ..)))
+}

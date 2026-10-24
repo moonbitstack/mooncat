@@ -185,10 +185,10 @@ async test "lifespan drives startup then shutdown in order" {
         }
       }
     }
-    let lifespan = @lifespan.Lifespan::new(app)
-    let task = lifespan.spawn(g)
-    lifespan.startup(task)
-    lifespan.shutdown(task)
+    let lifespan = @lifespan.Driver::new(app)
+    lifespan.spawn(g)
+    lifespan.startup()
+    lifespan.shutdown()
     assert_eq(log, ["startup", "shutdown"])
   })
 }
@@ -374,6 +374,80 @@ async test "the server logs each request and turns an app failure into a 500" {
     assert_eq(joined.contains("\"GET /hello HTTP/1.1\" 201"), true)
     assert_eq(joined.contains("exception in ASGI application"), true)
     assert_eq(joined.contains("\"GET /boom HTTP/1.1\" 500"), true)
+    task.cancel()
+  })
+}
+
+///|
+/// The lifespan sub-specification: each request scope carries a shallow copy of the state startup
+/// filled, so a request sees what startup stored and a key one request adds is not in the next.
+async test "lifespan state reaches every request scope, a copy each" {
+  @async.with_task_group(g => {
+    let seen : Array[String] = []
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      match scope {
+        Lifespan(s) =>
+          for ;; {
+            match receive() {
+              LifespanStartup => {
+                s.state["db"] = "ready"
+                send(LifespanStartupComplete)
+              }
+              _ => {
+                send(LifespanShutdownComplete)
+                break
+              }
+            }
+          }
+        Http(h) => {
+          seen.push(
+            h.state.get("db").map(j => j.stringify()).unwrap_or("none") +
+            " " +
+            h.state.contains("mine").to_string(),
+          )
+          h.state["mine"] = true
+          ignore(receive())
+          send(HttpResponseStart(status=200, headers=[], trailers=false))
+          send(HttpResponseBody(body=b"ok", more_body=false))
+        }
+        _ => ()
+      }
+    }
+    let task = g.spawn(() => {
+      serve_config(
+        app,
+        @config.Config::new(port=18330, logger=@config.Logger::silent()),
+      )
+    })
+    @async.sleep(300)
+    let (first, _) = @http.get("http://127.0.0.1:18330/a")
+    let (second, _) = @http.get("http://127.0.0.1:18330/b")
+    assert_eq(first.code, 200)
+    assert_eq(second.code, 200)
+    assert_eq(seen, ["\"ready\" false", "\"ready\" false"])
+    task.cancel()
+  })
+}
+
+///|
+/// uvicorn's `--lifespan auto`: an application that fails on the lifespan scope is served anyway.
+async test "an application that only knows HTTP is served under the default lifespan mode" {
+  @async.with_task_group(g => {
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(_) else { fail("not a lifespan app") }
+      ignore(receive())
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
+      send(HttpResponseBody(body=b"ok", more_body=false))
+    }
+    let task = g.spawn(() => {
+      serve_config(
+        app,
+        @config.Config::new(port=18331, logger=@config.Logger::silent()),
+      )
+    })
+    @async.sleep(300)
+    let (resp, _) = @http.get("http://127.0.0.1:18331/")
+    assert_eq(resp.code, 200)
     task.cancel()
   })
 }

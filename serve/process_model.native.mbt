@@ -48,11 +48,13 @@ priv struct Load {
   mut requests : Int32
   mut served : Int32
   handle : ShutdownHandle
+  // Set when the server stops accepting: the acceptor closes what it accepts next and leaves.
+  mut stopping : Bool
 }
 
 ///|
 fn Load::new(handle : ShutdownHandle) -> Load {
-  { connections: 0, requests: 0, served: 0, handle, }
+  { connections: 0, requests: 0, served: 0, handle, stopping: false, }
 }
 
 ///|
@@ -118,17 +120,7 @@ async fn serve_conn(
       defer {
         load.requests -= 1
       }
-      dispatch_http1(
-        app,
-        req,
-        inbox,
-        writer,
-        scheme=link.scheme,
-        config~,
-        server_addr?=link.bound,
-        client_addr?=link.peer,
-        tls?=link.tls,
-      )
+      dispatch_http1(app, req, inbox, writer, link~, config~)
     }
     if load.count(config) {
       break
@@ -150,6 +142,7 @@ async fn accept_loop(
   bound : @socket.Addr,
   tls : @tls.Server?,
   speak : Speak,
+  state : Map[String, Json],
 ) -> Unit {
   // The parallel-client ceiling, applied before accepting, so a full server leaves the
   // connection in the listen queue rather than accepting it and then sitting on it.
@@ -162,6 +155,10 @@ async fn accept_loop(
       sem.acquire()
     }
     let (conn, peer) = server.accept()
+    if load.stopping {
+      conn.close()
+      break
+    }
     g.spawn_bg(
       () => {
         load.connections += 1
@@ -193,6 +190,7 @@ async fn accept_loop(
             bound: Some(bound),
             peer: Some(peer),
             tls: tls_facts(stream, chain),
+            state,
           }
           let h2 = match speak {
             H2 => Some(true)
@@ -211,6 +209,26 @@ async fn accept_loop(
       allow_failure=config.allow_failure,
     )
   }
+}
+
+///|
+/// Make the acceptor leave. Cancelling a task that waits in `accept` does not reliably wake it on
+/// the native backend, so the server connects to itself: the acceptor wakes with that connection,
+/// sees `stopping`, closes it and returns.
+async fn stop_accepting(server : @socket.TcpServer, load : Load) -> Unit {
+  load.stopping = true
+  let bound = server.addr
+  let host = match bound.to_string() {
+    text if text.has_prefix("0.0.0.0:") => "127.0.0.1"
+    text if text.has_prefix("[::]:") => "[::1]"
+    text => text[:text.rev_find(":").unwrap_or(text.length())].to_owned()
+  }
+  let knock = @socket.Tcp::connect(
+    @socket.Addr::parse("\{host}:\{bound.port()}"),
+  ) catch {
+    _ => return
+  }
+  knock.close()
 }
 
 ///|
@@ -339,9 +357,13 @@ async fn run(
   speak : Speak,
 ) -> Unit {
   @async.with_task_group(g => {
-    let lifespan = @lifespan.Lifespan::new(app)
-    let ltask = lifespan.spawn(g)
-    lifespan.startup(ltask)
+    let lifespan = @lifespan.Driver::new(
+      app,
+      mode=config.lifespan,
+      logger=config.logger,
+    )
+    lifespan.spawn(g)
+    lifespan.startup()
     let bound = @socket.Addr::parse(config.bind())
     let server = @socket.TcpServer(
       bound,
@@ -355,16 +377,29 @@ async fn run(
     )
     let load = Load::new(handle)
     let acceptor = g.spawn(
-      () => accept_loop(g, server, app, load, config, bound, tls, speak),
+      () => {
+        accept_loop(
+          g,
+          server,
+          app,
+          load,
+          config,
+          bound,
+          tls,
+          speak,
+          lifespan.state,
+        )
+      },
       allow_failure=true,
     )
     handle.request.get() catch {
       _ => ()
     }
     @async.protect_from_cancel(() => {
+      stop_accepting(server, load)
       acceptor.cancel()
       drain(load, config.graceful_timeout)
-      lifespan.shutdown(ltask) catch {
+      lifespan.shutdown() catch {
         _ => ()
       }
       server.close()
