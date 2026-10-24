@@ -160,7 +160,7 @@ async fn accept_loop(
             None => (@tcp.Conn::plain(conn), "http")
           }
           match speaks_h2(stream, config) {
-            Some(true) => drive_h2(app, stream)
+            Some(true) => drive_h2(app, stream, config)
             Some(false) =>
               serve_conn(
                 app, stream, stream, scheme, config, bound, peer, inflight, served,

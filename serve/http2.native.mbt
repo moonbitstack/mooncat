@@ -45,6 +45,7 @@ priv struct H2Stream {
 /// the peer asks the connection to wind down.
 priv struct H2Conn {
   conn : @tcp.Conn
+  config : @config.Config
   dec : @hpack.Decoder
   enc : @hpack.Encoder
   mut conn_send_window : Int32
@@ -55,9 +56,10 @@ priv struct H2Conn {
 }
 
 ///|
-fn H2Conn::new(conn : @tcp.Conn) -> H2Conn {
+fn H2Conn::new(conn : @tcp.Conn, config : @config.Config) -> H2Conn {
   {
     conn,
+    config,
     dec: @hpack.Decoder::new(),
     enc: @hpack.Encoder::new(),
     conn_send_window: H2_DEFAULT_WINDOW,
@@ -293,22 +295,35 @@ fn h2_is_dropped_response_header(name : String) -> Bool {
 
 ///|
 /// Build the response header list for HPACK encoding: the `:status` pseudo-header
-/// first (RFC 7540 §8.1.2.4), then every app header that is legal to carry over
-/// HTTP/2, lower-cased as the protocol requires (§8.1.2).
+/// first (RFC 9113 §8.3.2), then every app header that is legal to carry over
+/// HTTP/2, lower-cased as the protocol requires (§8.2.1), then the configured server
+/// headers and the `date` the app did not set itself, as the HTTP/1.1 path adds them.
 fn h2_response_headers(
   status : Int32,
   headers : Array[(String, String)],
+  config : @config.Config,
 ) -> Array[@header.Header] {
   let out : Array[@header.Header] = [
     { name: b":status", value: h2_str_to_bytes(status.to_string()), },
   ]
-  for pair in headers {
-    if !h2_is_dropped_response_header(pair.0) {
-      out.push({
-        name: h2_str_to_bytes(pair.0.to_lower()),
-        value: h2_str_to_bytes(pair.1),
-      })
+  let sent : Map[String, Bool] = Map([])
+  let add = (name : String, value : String) => {
+    let lower = name.to_lower()
+    if !h2_is_dropped_response_header(lower) {
+      sent[lower] = true
+      out.push({ name: h2_str_to_bytes(lower), value: h2_str_to_bytes(value), })
     }
+  }
+  for pair in headers {
+    add(pair.0, pair.1)
+  }
+  for name, value in config.server_headers {
+    if !sent.contains(name.to_lower()) {
+      add(name, value)
+    }
+  }
+  if config.date_header && !sent.contains("date") {
+    add("date", @config.http_date_now())
   }
   out
 }
@@ -399,7 +414,9 @@ async fn H2Conn::dispatch_stream(
     match event {
       HttpResponseStart(status~, headers~, ..) => {
         started.val = true
-        let block = self.enc.encode(h2_response_headers(status, headers))
+        let block = self.enc.encode(
+          h2_response_headers(status, headers, self.config),
+        )
         self.conn.write(
           @http2.Frame::Headers(
             stream_id=s.id,
@@ -474,12 +491,16 @@ async fn speaks_h2(conn : @tcp.Conn, config : @config.Config) -> Bool? {
 /// never stall, then loop — read a frame, apply it, dispatch any now-complete
 /// request — until the peer closes the connection or sends GOAWAY. A read error (a
 /// closed connection) ends the loop cleanly.
-async fn drive_h2(app : @moonasgi.AsgiApp, conn : @tcp.Conn) -> Unit {
+async fn drive_h2(
+  app : @moonasgi.AsgiApp,
+  conn : @tcp.Conn,
+  config : @config.Config,
+) -> Unit {
   let preface = conn.read_exactly(@http2.preface.length())
   if !@http2.has_preface(preface) {
     return
   }
-  let h2 = H2Conn::new(conn)
+  let h2 = H2Conn::new(conn, config)
   conn.write(
     @http2.Frame::Settings(
       params=[(@http2.settings_initial_window_size, H2_MAX_WINDOW)],
@@ -542,7 +563,7 @@ pub async fn serve_h2c_config(
       server.close()
     }
     server.run_forever(
-      (conn, _addr) => drive_h2(app, @tcp.Conn::plain(conn)),
+      (conn, _addr) => drive_h2(app, @tcp.Conn::plain(conn), config),
       allow_failure=config.allow_failure,
       max_connections?=config.max_connections,
     )

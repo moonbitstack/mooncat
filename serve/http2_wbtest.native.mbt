@@ -160,6 +160,11 @@ async test "h2c: a real HTTP/2 client GETs a route and reads 200 + body + header
     assert_eq(status, "200")
     assert_eq(body == b"hello over h2c", true)
     assert_eq(has_header(headers, "content-type", "text/plain"), true)
+    // The server header and the date go on HTTP/2 responses as on HTTP/1.1 ones.
+    assert_eq(has_header(headers, "server", "mooncat"), true)
+    assert_true(
+      headers.iter().any(h => h.0 == "date" && h.1.has_suffix(" GMT")),
+    )
     task.cancel()
   })
 }
