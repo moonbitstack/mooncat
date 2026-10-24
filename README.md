@@ -147,7 +147,7 @@ handle.shutdown()   // stop accepting → drain in-flight → lifespan shutdown 
 
 `handle.shutdown()` blocks until the port is free again. The sequence is fixed and verified end-to-end in CI: a slow request that is still in flight when shutdown fires is allowed to finish (the client still sees `200`) **before** lifespan shutdown runs, and the listener is closed only afterwards — a real socket integration test pins the ordering, and a mutation test (running lifespan shutdown before the drain) turns it red. A shutdown can also come from a signal: wire `@signal.set_global_cancellation_signals` and mooncat runs lifespan shutdown + close under `protect_from_cancel` on the way down.
 
-Every entry point (`serve`, `serve_config`, `serve_tls_config`, `serve_graceful`) runs this one loop, so they share the same limits, keep-alive, pipelining and WebSocket bridge; `serve_graceful` only adds the handle. A request body reaches the app as it arrives, one `http.request` event per piece with `more_body` until the last, so an upload is never held whole in memory; a body the app leaves unread closes the connection rather than being read as the next request. A head that cannot be parsed is answered `400` (`431` when it passes `max_head_size`) with uvicorn's `Invalid HTTP request received.` before the connection closes. A real `@websocket` client doing a text + binary round-trip against a `serve_graceful` server verifies the bridge in CI.
+Every entry point (`serve`, `serve_config`, `serve_tls_config`, `serve_graceful`) runs this one loop, so they share the same limits, keep-alive, pipelining and WebSocket bridge; `serve_graceful` only adds the handle. A request body reaches the app as it arrives, one `http.request` event per piece with `more_body` until the last, so an upload is never held whole in memory; a body the app leaves unread closes the connection rather than being read as the next request. Once the body is delivered, a further `receive` waits until the response is complete or the client has gone before it says `http.disconnect`, as uvicorn does, so a streamed response that listens for the client leaving is not ended at once. A head that cannot be parsed is answered `400` (`431` when it passes `max_head_size`) with uvicorn's `Invalid HTTP request received.` before the connection closes. A real `@websocket` client doing a text + binary round-trip against a `serve_graceful` server verifies the bridge in CI.
 
 `reload_watch(dir, on_reload)` watches a source tree with `@fs.Watcher` and fires `on_reload` on each change — hook it to a `ShutdownHandle` to turn a file save into a graceful restart.
 
@@ -161,7 +161,18 @@ Every entry point (`serve`, `serve_config`, `serve_tls_config`, `serve_graceful`
 @mooncat.serve_h2c(app, host="127.0.0.1", port=12000)
 ```
 
-The frames are [`moonhttp/http2`](https://github.com/moonbitstack/moonhttp) and the header compression `moonhttp/hpack`. CI drives it with a real HTTP/2 client over TLS and in the clear: a GET reads `200` and the body, a POST body is echoed, two streams share one connection, and with a small advertised window every DATA frame stays inside the granted window. mooncat does not yet expose an ASGI-over-HTTP/3 server.
+The connection is [`moonhttp/http2`](https://github.com/moonbitstack/moonhttp)'s state machine, which validates the frames, the field blocks and flow control. One task reads the connection, and every stream runs the application in a task of its own, so a slow handler holds up only its own stream. A request body reaches the application as it arrives, and a stream's window comes back as the application takes it, so a client cannot get further ahead of an application than one window.
+
+| `Config.h2` | Default | From |
+|:--|:--|:--|
+| `max_streams` | 100 concurrent streams; more are refused with `REFUSED_STREAM` | hypercorn |
+| `max_header_list` | 64 KiB of fields per head | hypercorn |
+| `max_frame` | 16 KiB frames | hypercorn |
+| `window`, `connection_window` | 1 MiB per stream and per connection | Go's server |
+
+The limits that apply to HTTP/1.1 apply per stream: past `limit_concurrency` a stream is answered `503`, every stream counts toward `limit_max_requests`, which then ends the connection with a GOAWAY, and a connection with no stream open for `timeout_keep_alive` is sent a GOAWAY and closed. A client's RST_STREAM reaches the application as `http.disconnect`. A failure before the response starts is a `500`; after it, the stream is reset with `INTERNAL_ERROR`. Each stream writes one access-log line. `serve_h2c_config` runs the same loop as `serve_config`, with its lifespan, limits and graceful shutdown.
+
+CI drives it with a client on the same state machine over TLS and in the clear: a slow stream is overtaken by a fast one on the same connection, a request body arrives piece by piece, an upload far past the window flows as the application reads it, and every DATA frame stays inside a small granted window. mooncat does not yet expose an ASGI-over-HTTP/3 server.
 
 ## Packages
 

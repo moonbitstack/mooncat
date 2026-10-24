@@ -35,6 +35,31 @@ async fn Inbox::fill(self : Inbox) -> Bool {
 }
 
 ///|
+/// Wait until the response is complete or the client has gone, whichever comes first. Reading
+/// ahead to see the client go keeps what it reads for the next request, and stops at `limit`
+/// held octets, so a client that pipelines cannot make the server buffer without end.
+async fn Inbox::settle(
+  self : Inbox,
+  ended : Ref[Bool],
+  settled : @cond_var.Cond,
+  limit : Int32,
+) -> Unit {
+  @async.with_task_group(g => {
+    g.spawn_bg(no_wait=true, () => {
+      while self.held.length() < limit {
+        if !self.fill() {
+          g.return_immediately(())
+          return
+        }
+      }
+    })
+    while !ended.val {
+      settled.wait()
+    }
+  })
+}
+
+///|
 /// Drop the first `n` held octets, which a parse has consumed.
 fn Inbox::consume(self : Inbox, n : Int32) -> Unit {
   self.held = self.held[n:].to_owned()
@@ -240,6 +265,10 @@ async fn dispatch_http1(
       _ => true
     },
   )
+  let started = Ref(false)
+  let chunked = Ref(false)
+  let ended = Ref(false)
+  let settled = @cond_var.Cond()
   let asked = Ref(false)
   let disconnected = Ref(false)
   let cut = Ref(false)
@@ -248,6 +277,10 @@ async fn dispatch_http1(
       return @moonasgi.Event::HttpDisconnect
     }
     if body_done.val && asked.val {
+      // uvicorn's rule: once the body is delivered, the next `receive` waits for the response
+      // to finish or the client to leave. Saying it at once would end a streamed response that
+      // listens for the client going.
+      inbox.settle(ended, settled, config.max_head_size)
       disconnected.val = true
       return @moonasgi.Event::HttpDisconnect
     }
@@ -283,9 +316,6 @@ async fn dispatch_http1(
   }
   let resp_status = Ref(200)
   let resp_headers : Ref[Array[(String, String)]] = Ref([])
-  let started = Ref(false)
-  let chunked = Ref(false)
-  let ended = Ref(false)
   // Answer with the request's HTTP version; HTTP/1.0 has no chunked transfer-encoding,
   // so a streamed 1.0 response is framed by connection close instead.
   let is_http10 = req.version == "HTTP/1.0"
@@ -404,6 +434,9 @@ async fn dispatch_http1(
           }
         }
       _ => ()
+    }
+    if ended.val {
+      settled.broadcast()
     }
   }
   let failed = Ref(false)

@@ -1,37 +1,586 @@
-// Integration tests for the h2c server path. Whitebox so they can reach the
-// package-internal frame/HPACK helpers (`h2_read_frame`, the latin-1 codecs) and
-// drive a minimal, independent real HTTP/2 client built on the same moonrpc
-// primitives the server uses.
-
 ///|
-/// A minimal real HTTP/2 client in the clear, by prior knowledge.
-async fn h2c_request(
-  host : String,
-  port : Int32,
-  verb : String,
-  path : String,
-  body~ : Bytes = b"",
-  extra_headers~ : Array[(Bytes, Bytes)] = [],
-) -> (String, Array[(String, String)], Bytes) {
-  let sock = @socket.Tcp::connect(@socket.Addr::parse("\{host}:\{port}"))
-  h2_request(
-    @tcp.Conn::plain(sock),
-    "http",
-    host,
-    verb,
-    path,
-    body~,
-    extra_headers~,
-  )
+/// An HTTP/2 client on moonhttp's state machine that keeps any number of streams open, which is
+/// what it takes to see one stream overtake another or a reset reach the application.
+priv struct Peer {
+  sock : @socket.Tcp
+  wire : @http2.Conn
+  replies : Map[Int32, Reply]
+  finished : Array[Int32]
+  mut goaway : Bool
+  mut closed : Bool
 }
 
 ///|
-/// A minimal real HTTP/2 client on a moonnet connection and moonhttp's frame and
-/// HPACK codecs — the independent end of the round-trip. It opens one stream, sends
-/// the request HEADERS (and a single DATA frame for a body), then reads the
-/// response, acknowledging SETTINGS and replenishing both flow-control windows as
-/// DATA arrives so a flow-controlled server keeps sending. Returns `(:status,
-/// response headers, body)`.
+priv struct Reply {
+  mut status : String
+  headers : Array[(String, String)]
+  body : @buffer.Buffer
+  trailers : Array[(String, String)]
+  hints : Array[(String, String)]
+  mut reset : Int32?
+  mut done : Bool
+}
+
+///|
+async fn Peer::connect(port : Int32, settings? : @http2.Settings) -> Peer {
+  let sock = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:\{port}"))
+  let wire = @http2.Conn::new(
+    Client,
+    settings=settings.unwrap_or(@http2.settings),
+  )
+  let peer = {
+    sock,
+    wire,
+    replies: Map([]),
+    finished: [],
+    goaway: false,
+    closed: false,
+  }
+  peer.flush()
+  peer
+}
+
+///|
+async fn Peer::flush(self : Peer) -> Unit {
+  let out = self.wire.take()
+  if out.length() > 0 {
+    self.sock.write(out)
+  }
+}
+
+///|
+/// Open a stream with a request head.
+async fn Peer::request(
+  self : Peer,
+  verb : String,
+  path : String,
+  end~ : Bool = true,
+) -> Int32 {
+  let id = self.wire.next_stream()
+  self.wire.headers(
+    id,
+    [
+      @header.Header::of(":method", verb),
+      @header.Header::of(":scheme", "http"),
+      @header.Header::of(":path", path),
+      @header.Header::of(":authority", "127.0.0.1"),
+    ],
+    end~,
+  )
+  self.replies[id] = {
+    status: "",
+    headers: [],
+    body: @buffer.Buffer(),
+    trailers: [],
+    hints: [],
+    reset: None,
+    done: false,
+  }
+  self.flush()
+  id
+}
+
+///|
+async fn Peer::data(self : Peer, id : Int32, data : Bytes, end~ : Bool) -> Unit {
+  self.wire.data(id, data[:], end~)
+  self.flush()
+}
+
+///|
+/// Read until one event has been applied to the replies.
+async fn Peer::step(self : Peer) -> Unit {
+  let event = self.wire.next()
+  match event {
+    NeedData => {
+      self.flush()
+      self.wire.receive(self.sock.read_some().unwrap_or(b"")[:])
+    }
+    Informational(stream~, fields~) =>
+      for f in fields {
+        self.replies[stream].hints.push(f.ascii())
+      }
+    Response(stream~, fields~) =>
+      for f in fields {
+        let (name, value) = f.ascii()
+        if name == ":status" {
+          self.replies[stream].status = value
+        } else {
+          self.replies[stream].headers.push((name, value))
+        }
+      }
+    Trailers(stream~, fields~) =>
+      for f in fields {
+        self.replies[stream].trailers.push(f.ascii())
+      }
+    Data(stream~, data~) => {
+      self.replies[stream].body.write_bytes(data)
+      self.wire.acknowledge(stream, data.length())
+    }
+    End(stream~) => {
+      self.replies[stream].done = true
+      self.finished.push(stream)
+    }
+    Reset(stream~, code~, ..) => {
+      self.replies[stream].reset = Some(code)
+      self.replies[stream].done = true
+      self.finished.push(stream)
+    }
+    GoAway(..) => self.goaway = true
+    Closed => self.closed = true
+    _ => ()
+  }
+}
+
+///|
+/// Read until every stream in `ids` has ended or been reset, failing past two seconds rather than
+/// hanging the suite.
+async fn Peer::wait(self : Peer, ids : Array[Int32]) -> Unit {
+  let ok = @async.with_timeout_opt(2000, () => {
+    while ids.iter().any(id => !self.replies[id].done) && !self.closed {
+      self.step()
+    }
+  })
+  guard ok is Some(_) else { fail("streams did not finish") }
+}
+
+///|
+fn Reply::header(self : Reply, name : String) -> String? {
+  self.headers.iter().find_first(h => h.0 == name).map(h => h.1)
+}
+
+///|
+fn Reply::text(self : Reply) -> String {
+  @utf8.decode_lossy(self.body.to_bytes())
+}
+
+///|
+fn answer(text : String) -> @moonasgi.AsgiApp {
+  (scope, receive, send) => {
+    guard scope is Http(_) else { return }
+    ignore(receive())
+    send(
+      HttpResponseStart(
+        status=200,
+        headers=[("content-type", "text/plain")],
+        trailers=false,
+      ),
+    )
+    send(HttpResponseBody(body=@utf8.encode(text), more_body=false))
+  }
+}
+
+///|
+fn quiet(port : Int32) -> @config.Config {
+  @config.Config::new(port~, logger=@config.Logger::silent())
+}
+
+///|
+async test "h2c: a GET is answered with status, body, and the server's own headers" {
+  @async.with_task_group(g => {
+    let task = g.spawn(() => serve_h2c(answer("hello over h2c"), port=18300))
+    @async.sleep(250)
+    let peer = Peer::connect(18300)
+    let id = peer.request("GET", "/")
+    peer.wait([id])
+    let r = peer.replies[id]
+    assert_eq(r.status, "200")
+    assert_eq(r.text(), "hello over h2c")
+    assert_eq(r.header("content-type"), Some("text/plain"))
+    assert_eq(r.header("server"), Some("mooncat"))
+    assert_true(
+      r.header("date").map(d => d.has_suffix(" GMT")).unwrap_or(false),
+    )
+    task.cancel()
+  })
+}
+
+///|
+async test "h2c: a request body reaches the application piece by piece as it arrives" {
+  @async.with_task_group(g => {
+    let seen : Array[(String, Bool)] = []
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(_) else { return }
+      for ;; {
+        guard receive() is HttpRequest(body~, more_body~) else { break }
+        seen.push((@utf8.decode_lossy(body), more_body))
+        if !more_body {
+          break
+        }
+      }
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
+      send(HttpResponseBody(body=b"ok", more_body=false))
+    }
+    let task = g.spawn(() => serve_h2c_config(app, quiet(18301)))
+    @async.sleep(250)
+    let peer = Peer::connect(18301)
+    let id = peer.request("POST", "/up", end=false)
+    peer.data(id, b"ab", end=false)
+    @async.sleep(150)
+    peer.data(id, b"cd", end=true)
+    peer.wait([id])
+    assert_eq(peer.replies[id].text(), "ok")
+    assert_eq(seen, [("ab", true), ("cd", false)])
+    task.cancel()
+  })
+}
+
+///|
+/// RFC 9113 §6.9: a client that grants 100 octets gets the response 100 octets at a time.
+async test "h2c: a large response keeps to the peer's stream window" {
+  @async.with_task_group(g => {
+    let payload = Bytes::make(1000, b'z')
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(_) else { return }
+      ignore(receive())
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
+      send(HttpResponseBody(body=payload, more_body=false))
+    }
+    let task = g.spawn(() => serve_h2c_config(app, quiet(18302)))
+    @async.sleep(250)
+    let peer = Peer::connect(
+      18302,
+      settings=@http2.Settings::new(initial_window_size=100),
+    )
+    let id = peer.request("GET", "/big")
+    let sizes = []
+    let ok = @async.with_timeout_opt(2000, () => {
+      while !peer.replies[id].done {
+        let before = peer.replies[id].body.length()
+        peer.step()
+        let after = peer.replies[id].body.length()
+        if after > before {
+          sizes.push(after - before)
+        }
+      }
+    })
+    assert_true(ok is Some(_))
+    assert_eq(sizes[0], 100)
+    assert_true(sizes.iter().all(n => n <= 100))
+    assert_eq(peer.replies[id].body.length(), 1000)
+    task.cancel()
+  })
+}
+
+///|
+async test "h2c: streams on one connection run at once, so a slow one is overtaken" {
+  @async.with_task_group(g => {
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(h) else { return }
+      ignore(receive())
+      if h.path == "/slow" {
+        @async.sleep(400)
+      }
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
+      send(HttpResponseBody(body=@utf8.encode(h.path), more_body=false))
+    }
+    let task = g.spawn(() => serve_h2c_config(app, quiet(18303)))
+    @async.sleep(250)
+    let peer = Peer::connect(18303)
+    let slow = peer.request("GET", "/slow")
+    let fast = peer.request("GET", "/fast")
+    peer.wait([slow, fast])
+    assert_eq(peer.finished, [fast, slow])
+    assert_eq(peer.replies[slow].text(), "/slow")
+    assert_eq(peer.replies[fast].text(), "/fast")
+    task.cancel()
+  })
+}
+
+///|
+/// uvicorn's rule: once the body is delivered, `receive` waits for the response to finish or the
+/// client to leave. An application listening for the disconnect while it streams must not hear
+/// one before its last chunk.
+async test "h2c: http.disconnect comes after the response, not straight after the body" {
+  @async.with_task_group(g => {
+    let order : Array[String] = []
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(_) else { return }
+      ignore(receive())
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
+      @async.with_task_group(inner => {
+        inner.spawn_bg(() => {
+          if receive() is HttpDisconnect {
+            order.push("disconnect")
+          }
+        })
+        @async.sleep(200)
+        send(HttpResponseBody(body=b"tick", more_body=true))
+        order.push("last chunk")
+        send(HttpResponseBody(body=b"", more_body=false))
+      })
+    }
+    let task = g.spawn(() => serve_h2c_config(app, quiet(18304)))
+    @async.sleep(250)
+    let peer = Peer::connect(18304)
+    let id = peer.request("GET", "/stream")
+    peer.wait([id])
+    @async.sleep(50)
+    assert_eq(peer.replies[id].text(), "tick")
+    assert_eq(order, ["last chunk", "disconnect"])
+    task.cancel()
+  })
+}
+
+///|
+async test "h2c: a client reset reaches the application as http.disconnect" {
+  @async.with_task_group(g => {
+    let heard = []
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(_) else { return }
+      ignore(receive())
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
+      send(HttpResponseBody(body=b"first", more_body=true))
+      heard.push(receive())
+    }
+    let task = g.spawn(() => serve_h2c_config(app, quiet(18305)))
+    @async.sleep(250)
+    let peer = Peer::connect(18305)
+    let id = peer.request("GET", "/")
+    let ok = @async.with_timeout_opt(2000, () => {
+      while peer.replies[id].body.length() == 0 {
+        peer.step()
+      }
+    })
+    assert_true(ok is Some(_))
+    peer.wire.reset(id, code=@http2.error_cancel)
+    peer.flush()
+    let reached = @async.with_timeout_opt(2000, () => {
+      while heard.is_empty() {
+        @async.sleep(10)
+      }
+    })
+    assert_true(reached is Some(_))
+    assert_true(heard is [HttpDisconnect])
+    task.cancel()
+  })
+}
+
+///|
+async test "h2c: a HEAD answer carries the head and no body" {
+  @async.with_task_group(g => {
+    let task = g.spawn(() => serve_h2c_config(answer("body"), quiet(18306)))
+    @async.sleep(250)
+    let peer = Peer::connect(18306)
+    let id = peer.request("HEAD", "/")
+    peer.wait([id])
+    assert_eq(peer.replies[id].status, "200")
+    assert_eq(peer.replies[id].body.length(), 0)
+    task.cancel()
+  })
+}
+
+///|
+async test "h2c: early hints and trailers go out as heads of their own" {
+  @async.with_task_group(g => {
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(_) else { return }
+      ignore(receive())
+      send(HttpResponseEarlyHint(links=["</app.css>; rel=preload"]))
+      send(HttpResponseStart(status=200, headers=[], trailers=true))
+      send(HttpResponseBody(body=b"data", more_body=false))
+      send(HttpResponseTrailers(headers=[("x-sum", "42")], more_trailers=false))
+    }
+    let task = g.spawn(() => serve_h2c_config(app, quiet(18307)))
+    @async.sleep(250)
+    let peer = Peer::connect(18307)
+    let id = peer.request("GET", "/")
+    peer.wait([id])
+    let r = peer.replies[id]
+    assert_eq(r.hints, [(":status", "103"), ("link", "</app.css>; rel=preload")])
+    assert_eq(r.text(), "data")
+    assert_eq(r.trailers, [("x-sum", "42")])
+    task.cancel()
+  })
+}
+
+///|
+async test "h2c: a failure before the answer is a 500, after it a reset" {
+  @async.with_task_group(g => {
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(h) else { return }
+      ignore(receive())
+      if h.path == "/late" {
+        send(HttpResponseStart(status=200, headers=[], trailers=false))
+        send(HttpResponseBody(body=b"half", more_body=true))
+      }
+      fail("handler blew up")
+    }
+    let task = g.spawn(() => serve_h2c_config(app, quiet(18308)))
+    @async.sleep(250)
+    let peer = Peer::connect(18308)
+    let early = peer.request("GET", "/early")
+    let late = peer.request("GET", "/late")
+    peer.wait([early, late])
+    assert_eq(peer.replies[early].status, "500")
+    assert_eq(peer.replies[late].reset, Some(@http2.error_internal_error))
+    task.cancel()
+  })
+}
+
+///|
+async test "h2c: past limit_concurrency a stream is answered 503" {
+  @async.with_task_group(g => {
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(h) else { return }
+      ignore(receive())
+      if h.path == "/slow" {
+        @async.sleep(400)
+      }
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
+      send(HttpResponseBody(body=b"ok", more_body=false))
+    }
+    let task = g.spawn(() => {
+      serve_h2c_config(
+        app,
+        @config.Config::new(
+          port=18309,
+          limit_concurrency=1,
+          logger=@config.Logger::silent(),
+        ),
+      )
+    })
+    @async.sleep(250)
+    let peer = Peer::connect(18309)
+    let slow = peer.request("GET", "/slow")
+    @async.sleep(100)
+    let extra = peer.request("GET", "/extra")
+    peer.wait([slow, extra])
+    assert_eq(peer.replies[slow].status, "200")
+    assert_eq(peer.replies[extra].status, "503")
+    task.cancel()
+  })
+}
+
+///|
+async test "h2c: limit_max_requests counts streams and stops the server with a GOAWAY" {
+  @async.with_task_group(g => {
+    let srv = g.spawn(() => {
+      serve_h2c_config(
+        answer("ok"),
+        @config.Config::new(
+          port=18310,
+          limit_max_requests=2,
+          logger=@config.Logger::silent(),
+        ),
+      )
+    })
+    @async.sleep(250)
+    let peer = Peer::connect(18310)
+    let a = peer.request("GET", "/a")
+    let b = peer.request("GET", "/b")
+    peer.wait([a, b])
+    let saw = @async.with_timeout_opt(2000, () => {
+      while !peer.goaway && !peer.closed {
+        peer.step()
+      }
+    })
+    assert_true(saw is Some(_))
+    assert_true(peer.goaway)
+    peer.sock.close()
+    let stopped = @async.with_timeout_opt(5000, () => srv.wait())
+    if stopped is None {
+      srv.cancel()
+    }
+    assert_true(stopped is Some(_))
+  })
+}
+
+///|
+async test "h2c: a connection idle past timeout_keep_alive is sent a GOAWAY and closed" {
+  @async.with_task_group(g => {
+    let task = g.spawn(() => {
+      serve_h2c_config(
+        answer("ok"),
+        @config.Config::new(
+          port=18311,
+          timeout_keep_alive=200,
+          logger=@config.Logger::silent(),
+        ),
+      )
+    })
+    @async.sleep(250)
+    let peer = Peer::connect(18311)
+    let id = peer.request("GET", "/")
+    peer.wait([id])
+    let ended = @async.with_timeout_opt(3000, () => {
+      while !peer.closed {
+        peer.step()
+      }
+    })
+    assert_true(ended is Some(_))
+    assert_true(peer.goaway)
+    task.cancel()
+  })
+}
+
+///|
+async test "h2c: streams past Config.h2.max_streams are refused" {
+  @async.with_task_group(g => {
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(_) else { return }
+      ignore(receive())
+      @async.sleep(300)
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
+      send(HttpResponseBody(body=b"ok", more_body=false))
+    }
+    let task = g.spawn(() => {
+      serve_h2c_config(
+        app,
+        @config.Config::new(
+          port=18312,
+          h2=@config.H2Config::new(max_streams=1),
+          logger=@config.Logger::silent(),
+        ),
+      )
+    })
+    @async.sleep(250)
+    let peer = Peer::connect(18312)
+    // The server's SETTINGS arrive before the limit is known on this side.
+    let first = peer.request("GET", "/one")
+    let ok = @async.with_timeout_opt(1000, () => {
+      while peer.wire.peer_settings().max_concurrent_streams is None {
+        peer.step()
+      }
+    })
+    assert_true(ok is Some(_))
+    let second = peer.request("GET", "/two") catch { _ => -1 }
+    peer.wait([first])
+    assert_eq(peer.replies[first].status, "200")
+    if second > 0 {
+      peer.wait([second])
+      assert_eq(peer.replies[second].reset, Some(@http2.error_refused_stream))
+    }
+    task.cancel()
+  })
+}
+
+///|
+async test "h2c: the access log has one line per stream" {
+  @async.with_task_group(g => {
+    let lines : Array[String] = []
+    let task = g.spawn(() => {
+      serve_h2c_config(
+        answer("ok"),
+        @config.Config::new(
+          port=18313,
+          logger=@config.Logger::new(write=line => lines.push(line)),
+        ),
+      )
+    })
+    @async.sleep(250)
+    let peer = Peer::connect(18313)
+    let id = peer.request("GET", "/logged")
+    peer.wait([id])
+    @async.sleep(50)
+    assert_true(lines.iter().any(l => l.contains("\"GET /logged HTTP/2\" 200")))
+    task.cancel()
+  })
+}
+
+///|
+/// One request on a moonnet connection, in the clear or under TLS, by moonhttp's state machine:
+/// `(:status, every field of every head, body)`. The heads include a 103's and the trailers, so a
+/// test can look for any of them in one list.
 async fn h2_request(
   conn : @tcp.Conn,
   scheme : String,
@@ -39,367 +588,136 @@ async fn h2_request(
   verb : String,
   path : String,
   body~ : Bytes = b"",
-  extra_headers~ : Array[(Bytes, Bytes)] = [],
 ) -> (String, Array[(String, String)], Bytes) {
-  conn.write(@http2.preface)
-  conn.write(@http2.Frame::Settings(params=[], ack=false).encode())
-  let enc = @hpack.Encoder::new()
-  let hdrs : Array[@header.Header] = [
-    { name: b":method", value: h2_str_to_bytes(verb), },
-    { name: b":scheme", value: h2_str_to_bytes(scheme), },
-    { name: b":path", value: h2_str_to_bytes(path), },
-    { name: b":authority", value: h2_str_to_bytes(host), },
-  ]
-  for e in extra_headers {
-    hdrs.push({ name: e.0, value: e.1, })
+  let wire = @http2.Conn::new(Client)
+  let flush = async fn() {
+    let out = wire.take()
+    if out.length() > 0 {
+      conn.write(out)
+    }
   }
-  let block = enc.encode(hdrs)
-  let has_body = body.length() > 0
-  conn.write(
-    @http2.Frame::Headers(
-      stream_id=1,
-      fragment=block,
-      end_stream=!has_body,
-      end_headers=true,
-      priority=None,
-      padding=0,
-    ).encode(),
+  let id = wire.next_stream()
+  wire.headers(
+    id,
+    [
+      @header.Header::of(":method", verb),
+      @header.Header::of(":scheme", scheme),
+      @header.Header::of(":path", path),
+      @header.Header::of(":authority", host),
+    ],
+    end=body.length() == 0,
   )
-  if has_body {
-    conn.write(
-      @http2.Frame::Data(stream_id=1, data=body, end_stream=true, padding=0).encode(),
-    )
+  if body.length() > 0 {
+    wire.data(id, body[:], end=true)
   }
-  let dec = @hpack.Decoder::new()
   let mut status = ""
-  let rheaders : Array[(String, String)] = []
+  let fields : Array[(String, String)] = []
   let acc = @buffer.Buffer()
   let mut done = false
   while !done {
-    let frame = h2_read_frame(conn)
-    match frame {
-      Settings(ack~, ..) =>
-        if !ack {
-          conn.write(@http2.Frame::Settings(params=[], ack=true).encode())
-        }
-      Headers(fragment~, end_stream~, ..) => {
-        for h in dec.decode(fragment) {
-          let n = h2_bytes_to_str(h.name)
-          let v = h2_bytes_to_str(h.value)
-          if n == ":status" {
-            status = v
+    match wire.next() {
+      NeedData => {
+        flush()
+        wire.receive(conn.read_some().unwrap_or(b"")[:])
+      }
+      Informational(fields=f, ..)
+      | Response(fields=f, ..)
+      | Trailers(fields=f, ..) =>
+        for h in f {
+          let (name, value) = h.ascii()
+          if name == ":status" {
+            if value != "103" {
+              status = value
+            }
           } else {
-            rheaders.push((n, v))
+            fields.push((name, value))
           }
         }
-        if end_stream {
-          done = true
-        }
-      }
-      Data(data~, stream_id~, end_stream~, ..) => {
+      Data(stream~, data~) => {
         acc.write_bytes(data)
-        if data.length() > 0 {
-          conn.write(
-            @http2.Frame::WindowUpdate(stream_id=0, increment=data.length()).encode(),
-          )
-          conn.write(
-            @http2.Frame::WindowUpdate(stream_id~, increment=data.length()).encode(),
-          )
-        }
-        if end_stream {
-          done = true
-        }
+        wire.acknowledge(stream, data.length())
       }
+      End(..) | Reset(..) | Closed => done = true
       _ => ()
     }
   }
   conn.close()
-  (status, rheaders, acc.to_bytes())
+  (status, fields, acc.to_bytes())
 }
 
 ///|
-/// Whether a `(name, value)` header pair is present in a response header list.
 fn has_header(
   headers : Array[(String, String)],
   name : String,
   value : String,
 ) -> Bool {
-  for pair in headers {
-    if pair.0 == name && pair.1 == value {
-      return true
-    }
-  }
-  false
+  headers.iter().any(h => h.0 == name && h.1 == value)
 }
 
 ///|
-/// The core "can actually run" milestone: a real HTTP/2 (h2c) client performs a GET
-/// against a `serve_h2c`-served route and reads back `200`, the exact body, and a
-/// response header — over the self-built HTTP/2 transport, preface to trailer.
-async test "h2c: a real HTTP/2 client GETs a route and reads 200 + body + header" {
-  @async.with_task_group(g => {
-    let app : @moonasgi.AsgiApp = (scope, _receive, send) => {
-      guard scope is Http(_) else { return }
-      send(
-        @moonasgi.Event::HttpResponseStart(
-          status=200,
-          headers=[("content-type", "text/plain")],
-          trailers=false,
-        ),
-      )
-      send(
-        @moonasgi.Event::HttpResponseBody(
-          body=b"hello over h2c",
-          more_body=false,
-        ),
-      )
-    }
-    let task = g.spawn(() => serve_h2c(app, port=18100))
-    @async.sleep(250)
-    let (status, headers, body) = h2c_request("127.0.0.1", 18100, "GET", "/")
-    assert_eq(status, "200")
-    assert_eq(body == b"hello over h2c", true)
-    assert_eq(has_header(headers, "content-type", "text/plain"), true)
-    // The server header and the date go on HTTP/2 responses as on HTTP/1.1 ones.
-    assert_eq(has_header(headers, "server", "mooncat"), true)
-    assert_true(
-      headers.iter().any(h => h.0 == "date" && h.1.has_suffix(" GMT")),
-    )
-    task.cancel()
-  })
+/// `h2_request` in the clear, by prior knowledge.
+async fn h2c_request(
+  host : String,
+  port : Int32,
+  verb : String,
+  path : String,
+  body~ : Bytes = b"",
+) -> (String, Array[(String, String)], Bytes) {
+  let sock = @socket.Tcp::connect(@socket.Addr::parse("\{host}:\{port}"))
+  h2_request(@tcp.Conn::plain(sock), "http", host, verb, path, body~)
 }
 
 ///|
-/// A request DATA body streams to the app as the ASGI `Receive` body: the app reads
-/// the request body off `receive()` and echoes it, and a real h2c POST round-trips
-/// it. Proves the HEADERS→scope and DATA→receive-body legs together.
-async test "h2c: a POST body reaches the app as the receive body and echoes back" {
+/// The window comes back as the application takes the body, so an upload far larger than the
+/// window still flows, and stalls if the application stops reading.
+async test "h2c: an upload larger than the receive window flows as the application reads it" {
   @async.with_task_group(g => {
     let app : @moonasgi.AsgiApp = (scope, receive, send) => {
       guard scope is Http(_) else { return }
-      let body = match receive() {
-        HttpRequest(body~, ..) => body
-        _ => b""
+      let mut total = 0
+      for ;; {
+        guard receive() is HttpRequest(body~, more_body~) else { break }
+        total += body.length()
+        if !more_body {
+          break
+        }
       }
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
       send(
-        @moonasgi.Event::HttpResponseStart(
-          status=200,
-          headers=[],
-          trailers=false,
+        HttpResponseBody(body=@utf8.encode(total.to_string()), more_body=false),
+      )
+    }
+    let task = g.spawn(() => {
+      serve_h2c_config(
+        app,
+        @config.Config::new(
+          port=18314,
+          h2=@config.H2Config::new(window=16384, connection_window=65535),
+          logger=@config.Logger::silent(),
         ),
       )
-      send(@moonasgi.Event::HttpResponseBody(body~, more_body=false))
-    }
-    let task = g.spawn(() => serve_h2c(app, port=18101))
+    })
     @async.sleep(250)
-    let (status, _headers, body) = h2c_request(
-      "127.0.0.1",
-      18101,
-      "POST",
-      "/echo",
-      body=b"ping-pong-over-h2",
-    )
-    assert_eq(status, "200")
-    assert_eq(body == b"ping-pong-over-h2", true)
+    let peer = Peer::connect(18314)
+    let id = peer.request("POST", "/upload", end=false)
+    let chunk = Bytes::make(4096, b'u')
+    let total = 200 * 1024
+    let mut sent = 0
+    let ok = @async.with_timeout_opt(5000, () => {
+      while sent < total {
+        let room = peer.wire.window(id)
+        if room <= 0 {
+          peer.step()
+          continue
+        }
+        let n = @cmp.minimum(@cmp.minimum(room, chunk.length()), total - sent)
+        peer.data(id, chunk[:n].to_owned(), end=sent + n == total)
+        sent += n
+      }
+    })
+    assert_true(ok is Some(_))
+    peer.wait([id])
+    assert_eq(peer.replies[id].text(), total.to_string())
     task.cancel()
   })
-}
-
-///|
-/// Outbound flow control (RFC 7540 §6.9): a client that advertises a small stream
-/// window must receive the response one window-sized frame at a time. The client
-/// grants exactly `100` octets, reads the first DATA frame, and asserts it is
-/// exactly `100` octets — the server clamped its send to the granted window rather
-/// than dumping the whole body — then drains the rest and checks the full body
-/// reassembles. This is the mutation-verified flow-control assertion: a server that
-/// ignored the window would send a larger first frame.
-async test "h2c: a large response is clamped to the peer's small stream window" {
-  @async.with_task_group(g => {
-    let payload = Bytes::make(1000, b'z')
-    let app : @moonasgi.AsgiApp = (scope, _receive, send) => {
-      guard scope is Http(_) else { return }
-      send(
-        @moonasgi.Event::HttpResponseStart(
-          status=200,
-          headers=[],
-          trailers=false,
-        ),
-      )
-      send(@moonasgi.Event::HttpResponseBody(body=payload, more_body=false))
-    }
-    let task = g.spawn(() => serve_h2c(app, port=18103))
-    @async.sleep(250)
-    let conn = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18103"))
-    conn.write(@http2.preface)
-    conn.write(
-      @http2.Frame::Settings(
-        params=[(@http2.settings_initial_window_size, 100)],
-        ack=false,
-      ).encode(),
-    )
-    let enc = @hpack.Encoder::new()
-    let block = enc.encode([
-      { name: b":method", value: b"GET", },
-      { name: b":scheme", value: b"http", },
-      { name: b":path", value: b"/big", },
-      { name: b":authority", value: b"127.0.0.1", },
-    ])
-    conn.write(
-      @http2.Frame::Headers(
-        stream_id=1,
-        fragment=block,
-        end_stream=true,
-        end_headers=true,
-        priority=None,
-        padding=0,
-      ).encode(),
-    )
-    let dec = @hpack.Decoder::new()
-    let acc = @buffer.Buffer()
-    let mut first_data_len = -1
-    let mut done = false
-    while !done {
-      let frame = h2_read_frame(conn)
-      match frame {
-        Settings(ack~, ..) =>
-          if !ack {
-            conn.write(@http2.Frame::Settings(params=[], ack=true).encode())
-          }
-        Headers(fragment~, ..) => dec.decode(fragment) |> ignore
-        Data(data~, stream_id~, end_stream~, ..) => {
-          if first_data_len < 0 {
-            first_data_len = data.length()
-          }
-          acc.write_bytes(data)
-          if data.length() > 0 {
-            conn.write(
-              @http2.Frame::WindowUpdate(stream_id=0, increment=data.length()).encode(),
-            )
-            conn.write(
-              @http2.Frame::WindowUpdate(stream_id~, increment=data.length()).encode(),
-            )
-          }
-          if end_stream {
-            done = true
-          }
-        }
-        _ => ()
-      }
-    }
-    conn.close()
-    assert_eq(first_data_len, 100)
-    assert_eq(acc.to_bytes().length(), 1000)
-    task.cancel()
-  })
-}
-
-///|
-/// Multiplexing (RFC 7540 §5): two requests on distinct stream ids share one
-/// connection and both get their own response, tagged by stream id. The client
-/// opens stream 1 and stream 3 before reading, then buckets response frames by
-/// stream id and checks each stream got its expected body — the frame layer
-/// demultiplexes and the server dispatches each stream independently.
-async test "h2c: two streams multiplex on one connection and each gets its reply" {
-  @async.with_task_group(g => {
-    let app : @moonasgi.AsgiApp = (scope, _receive, send) => {
-      guard scope is Http(http_scope) else { return }
-      send(
-        @moonasgi.Event::HttpResponseStart(
-          status=200,
-          headers=[],
-          trailers=false,
-        ),
-      )
-      send(
-        @moonasgi.Event::HttpResponseBody(
-          body=h2_str_to_bytes("path=\{http_scope.path}"),
-          more_body=false,
-        ),
-      )
-    }
-    let task = g.spawn(() => serve_h2c(app, port=18104))
-    @async.sleep(250)
-    let conn = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18104"))
-    conn.write(@http2.preface)
-    conn.write(@http2.Frame::Settings(params=[], ack=false).encode())
-    let enc = @hpack.Encoder::new()
-    let mk = (sid : Int32, path : Bytes) => {
-      let block = enc.encode([
-        { name: b":method", value: b"GET", },
-        { name: b":scheme", value: b"http", },
-        { name: b":path", value: path, },
-        { name: b":authority", value: b"127.0.0.1", },
-      ])
-      conn.write(
-        @http2.Frame::Headers(
-          stream_id=sid,
-          fragment=block,
-          end_stream=true,
-          end_headers=true,
-          priority=None,
-          padding=0,
-        ).encode(),
-      )
-    }
-    mk(1, b"/one")
-    mk(3, b"/three")
-    let dec = @hpack.Decoder::new()
-    let bodies : Map[Int32, @buffer.Buffer] = Map([])
-    let ended : Map[Int32, Bool] = Map([])
-    let mut open_streams = 2
-    while open_streams > 0 {
-      let frame = h2_read_frame(conn)
-      match frame {
-        Settings(ack~, ..) =>
-          if !ack {
-            conn.write(@http2.Frame::Settings(params=[], ack=true).encode())
-          }
-        Headers(fragment~, stream_id~, end_stream~, ..) => {
-          dec.decode(fragment) |> ignore
-          if end_stream && not_ended(ended, stream_id) {
-            ended[stream_id] = true
-            open_streams = open_streams - 1
-          }
-        }
-        Data(data~, stream_id~, end_stream~, ..) => {
-          let buf = match bodies.get(stream_id) {
-            Some(b) => b
-            None => {
-              let b = @buffer.Buffer()
-              bodies[stream_id] = b
-              b
-            }
-          }
-          buf.write_bytes(data)
-          if end_stream && not_ended(ended, stream_id) {
-            ended[stream_id] = true
-            open_streams = open_streams - 1
-          }
-        }
-        _ => ()
-      }
-    }
-    conn.close()
-    let b1 = match bodies.get(1) {
-      Some(b) => h2_bytes_to_str(b.to_bytes())
-      None => ""
-    }
-    let b3 = match bodies.get(3) {
-      Some(b) => h2_bytes_to_str(b.to_bytes())
-      None => ""
-    }
-    assert_eq(b1, "path=/one")
-    assert_eq(b3, "path=/three")
-    task.cancel()
-  })
-}
-
-///|
-/// Whether `stream_id` has not yet been marked ended, for the multiplex test's
-/// stream bookkeeping.
-fn not_ended(ended : Map[Int32, Bool], stream_id : Int32) -> Bool {
-  match ended.get(stream_id) {
-    Some(true) => false
-    _ => true
-  }
 }

@@ -83,7 +83,7 @@ pub async fn serve_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
 ) -> Unit {
-  run(app, config, ShutdownHandle::new(), None)
+  run(app, config, ShutdownHandle::new(), None, Both)
 }
 
 ///|

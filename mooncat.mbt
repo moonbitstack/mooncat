@@ -6,6 +6,7 @@ pub using @config {
   type Config,
   type Logger,
   type WsConfig,
+  type H2Config,
   http_date,
   http_date_now,
   port,

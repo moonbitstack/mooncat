@@ -1,73 +1,101 @@
 ///|
-fn roundtrip(label : String, frame : @http2.Frame) -> Unit {
-  let wire = frame.encode()
-  let ok = try {
-    let (back, consumed) = @http2.decode(wire)
-    back == frame && consumed == wire.length()
-  } catch {
-    _ => false
+/// Hand everything one end has queued to the other, both ways, until neither has more.
+fn shuttle(a : @http2.Conn, b : @http2.Conn) -> Unit raise {
+  for ;; {
+    let ab = a.take()
+    let ba = b.take()
+    if ab.length() == 0 && ba.length() == 0 {
+      break
+    }
+    b.receive(ab[:])
+    a.receive(ba[:])
   }
-  println(
-    "  \{label}: \{wire.length()} octets \{@base16.encode(wire)} (round-trip \{ok})",
-  )
 }
 
 ///|
-#coverage.skip
-fn main {
-  // 1. The client connection preface: the 24 octets an h2c server reads and checks
-  //    before anything else. `drive_h2c` rejects a connection that doesn't open with it.
-  let preface = @http2.preface
-  println("preface: \{preface.length()} octets \{@base16.encode(preface)}")
-  println("  has_connection_preface(preface) = \{@http2.has_preface(preface)}")
-  println(
-    "  has_connection_preface(b\"GET / HTTP/1.1\") = \{@http2.has_preface(b"GET / HTTP/1.1")}",
-  )
+/// The events waiting on one end, up to `NeedData`.
+fn drain(conn : @http2.Conn) -> Array[@http2.Event] raise {
+  let out = []
+  for ;; {
+    let event = conn.next()
+    if event is NeedData {
+      break
+    }
+    out.push(event)
+  }
+  out
+}
 
-  // 2. The frames the server sends right after the preface (mirrors drive_h2c): a
-  //    SETTINGS advertising a wide receive window, then a connection-level WINDOW_UPDATE.
-  println("server settings:")
-  roundtrip(
-    "SETTINGS",
-    @http2.Frame::Settings(
-      params=[(@http2.settings_initial_window_size, 0x100000)],
-      ack=false,
+///|
+fn fields(list : Array[@header.Header]) -> String {
+  list.map(f => f.ascii()).map(p => "\{p.0}: \{p.1}").join(", ")
+}
+
+///|
+/// One HTTP/2 exchange as mooncat serves it, run in-process: two of moonhttp's connection
+/// state machines pass octets to each other, the server end with mooncat's default settings.
+/// The server turns the request head into a moonasgi request, the application answers, and the
+/// answer goes back as a head and DATA. `serve_h2c_config` does the same over a socket, with
+/// each stream in a task of its own.
+///
+///     moon run examples/33-http2-h2c --target native
+#coverage.skip
+fn main raise {
+  let limits = @mooncat.H2Config::new()
+  let server = @http2.Conn::new(
+    Server,
+    settings=@http2.Settings::new(
+      max_concurrent_streams=Some(limits.max_streams),
+      initial_window_size=limits.window,
+      max_frame_size=limits.max_frame,
+      max_header_list_size=Some(limits.max_header_list),
     ),
   )
-  roundtrip(
-    "WINDOW_UPDATE",
-    @http2.Frame::WindowUpdate(stream_id=0, increment=0xF0000),
+  server.widen(0, limits.connection_window - @http2.initial.initial_window_size)
+  let client = @http2.Conn::new(Client)
+  let id = client.next_stream()
+  client.headers(id, [
+    @header.Header::of(":method", "GET"),
+    @header.Header::of(":scheme", "http"),
+    @header.Header::of(":path", "/hello"),
+    @header.Header::of(":authority", "127.0.0.1"),
+  ])
+  shuttle(client, server)
+  println(
+    "server settings: \{limits.max_streams} streams, \{limits.window}-octet stream window, \{limits.max_frame}-octet frames",
   )
-
-  // 3. The response body comes from the very same moonasgi app, run in-process over
-  //    the synchronous seam — no socket. h2c carries it back as a DATA frame on the
-  //    request's stream (HEADERS with the :status pseudo-header are HPACK-encoded,
-  //    which the moonrpc hpack example covers).
-  let app : @moonasgi.Handler = _req => {
-    @moonasgi.Response::text("hello over h2c from mooncat, heke1228\n")
+  let app : @moonasgi.Handler = req => {
+    @moonasgi.Response::text("hello over h2c, path \{req.path}")
   }
-  let scope = @moonasgi.Scope::Http(
-    @moonasgi.HttpScope::new(http_method="GET", path="/"),
-  )
-  let inbound = [@moonasgi.Event::HttpRequest(body=b"", more_body=false)]
-  let mut resp_body = b""
-  let mut status = 0
-  for ev in @moonasgi.run_http(app, scope, inbound) {
-    match ev {
-      @moonasgi.Event::HttpResponseStart(status=s, ..) => status = s
-      @moonasgi.Event::HttpResponseBody(body~, ..) => resp_body = body
+  for event in drain(server) {
+    guard event is Request(stream~, fields=head) else { continue }
+    println("request on stream \{stream}: \{fields(head)}")
+    let path = head
+      .iter()
+      .find_first(f => f.ascii().0 == ":path")
+      .map(f => f.ascii().1)
+      .unwrap_or("/")
+    let resp = app({
+      http_method: "GET",
+      path,
+      query_string: b"",
+      headers: [],
+      body: b"",
+    })
+    server.headers(stream, [
+      @header.Header::of(":status", resp.status.to_string()),
+      @header.Header::of("content-type", "text/plain"),
+    ])
+    server.data(stream, resp.body[:], end=true)
+  }
+  shuttle(client, server)
+  for event in drain(client) {
+    match event {
+      Response(stream~, fields=head) =>
+        println("response on stream \{stream}: \{fields(head)}")
+      Data(data~, ..) => println("body: " + @utf8.decode_lossy(data))
+      End(stream~) => println("stream \{stream} ended")
       _ => ()
     }
   }
-  println("app response: status=\{status}, \{resp_body.length()} body octets")
-  println("response DATA frame (stream 1, end_stream):")
-  roundtrip(
-    "DATA",
-    @http2.Frame::Data(stream_id=1, data=resp_body, end_stream=true, padding=0),
-  )
-
-  // `serve_h2c_config(app, Config::new(host=..., port=...))` carries exactly this
-  // exchange over a bound TCP socket; here it stays in-process and self-terminating.
-  let cfg = @mooncat.Config::new(host="127.0.0.1", port=12000)
-  println("serve_h2c_config would bind this on http://\{cfg.bind()}")
 }

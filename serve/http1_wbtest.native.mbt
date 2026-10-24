@@ -229,3 +229,91 @@ async test "a request body left unread closes the connection" {
   let (_r, w) = @pipe.pipe()
   assert_false(dispatch_http1(app, req, inbox, w, scheme="http"))
 }
+
+///|
+/// Read off `sock` until `marker` has arrived, failing past two seconds.
+async fn read_until_marker(sock : @socket.Tcp, marker : String) -> String {
+  let got = StringBuilder()
+  let ok = @async.with_timeout_opt(2000, () => {
+    while !got.to_string().contains(marker) {
+      guard sock.read_some() is Some(more) else { break }
+      got.write_string(@utf8.decode_lossy(more))
+    }
+  })
+  guard ok is Some(_) else { fail("no \{marker} within two seconds") }
+  got.to_string()
+}
+
+///|
+/// uvicorn's rule over HTTP/1.1 too: an application listening for the client going while it
+/// streams hears `http.disconnect` after its last chunk, not as soon as the body is read.
+async test "http1: http.disconnect comes after the response, not straight after the body" {
+  @async.with_task_group(g => {
+    let order : Array[String] = []
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(_) else { return }
+      ignore(receive())
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
+      @async.with_task_group(inner => {
+        inner.spawn_bg(() => {
+          if receive() is HttpDisconnect {
+            order.push("disconnect")
+          }
+        })
+        send(HttpResponseBody(body=b"tick", more_body=true))
+        @async.sleep(200)
+        order.push("last chunk")
+        send(HttpResponseBody(body=b"", more_body=false))
+      })
+    }
+    let task = g.spawn(() => {
+      serve_config(
+        app,
+        @config.Config::new(port=18320, logger=@config.Logger::silent()),
+      )
+    })
+    @async.sleep(250)
+    let sock = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18320"))
+    sock.write(b"GET /stream HTTP/1.1\r\nhost: x\r\n\r\n")
+    let text = read_until_marker(sock, "0\r\n\r\n")
+    assert_true(text.contains("tick"))
+    @async.sleep(50)
+    assert_eq(order, ["last chunk", "disconnect"])
+    sock.close()
+    task.cancel()
+  })
+}
+
+///|
+async test "http1: a client that leaves mid-response is heard as http.disconnect" {
+  @async.with_task_group(g => {
+    let heard : Array[String] = []
+    let app : @moonasgi.AsgiApp = (scope, receive, send) => {
+      guard scope is Http(_) else { return }
+      ignore(receive())
+      send(HttpResponseStart(status=200, headers=[], trailers=false))
+      send(HttpResponseBody(body=b"first", more_body=true))
+      if receive() is HttpDisconnect {
+        heard.push("disconnect")
+      }
+    }
+    let task = g.spawn(() => {
+      serve_config(
+        app,
+        @config.Config::new(port=18321, logger=@config.Logger::silent()),
+      )
+    })
+    @async.sleep(250)
+    let sock = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18321"))
+    sock.write(b"GET / HTTP/1.1\r\nhost: x\r\n\r\n")
+    ignore(read_until_marker(sock, "first"))
+    sock.close()
+    let reached = @async.with_timeout_opt(2000, () => {
+      while heard.is_empty() {
+        @async.sleep(10)
+      }
+    })
+    assert_true(reached is Some(_))
+    task.cancel()
+  })
+}

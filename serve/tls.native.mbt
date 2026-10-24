@@ -66,7 +66,7 @@ pub async fn serve_tls_config(
   config : @config.Config,
   cert : TlsCert,
 ) -> Unit {
-  run(app, config, ShutdownHandle::new(), Some(cert.load()))
+  run(app, config, ShutdownHandle::new(), Some(cert.load()), Both)
 }
 
 ///|

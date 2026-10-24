@@ -24,7 +24,7 @@ stays running until cancelled.
 
 | # | Example | What it shows | Key API |
 | --- | --- | --- | --- |
-| 33 | [`http2-h2c`](33-http2-h2c/) | In-process HTTP/2 frame round-trips and a moonasgi response carried as DATA; it does not bind a socket | `@http2.Frame`, `@http2.decode`, `@moonasgi.run_http` |
+| 33 | [`http2-h2c`](33-http2-h2c/) | One HTTP/2 exchange as mooncat serves it, in-process: two connection state machines, the server end with mooncat's default settings, the request answered by a moonasgi handler; it does not bind a socket | `H2Config`, `@http2.Conn`, `@moonasgi.Handler` |
 
 ## Notes
 

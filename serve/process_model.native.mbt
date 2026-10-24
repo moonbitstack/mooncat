@@ -40,6 +40,46 @@ pub async fn ShutdownHandle::request_stop(self : ShutdownHandle) -> Unit {
 }
 
 ///|
+/// What the serving loop counts across its connections: the open connections, the requests
+/// being answered (one per HTTP/1.1 connection at a time, any number of HTTP/2 streams), the
+/// requests answered, and the handle a request limit stops the server through.
+priv struct Load {
+  mut connections : Int32
+  mut requests : Int32
+  mut served : Int32
+  handle : ShutdownHandle
+}
+
+///|
+fn Load::new(handle : ShutdownHandle) -> Load {
+  { connections: 0, requests: 0, served: 0, handle, }
+}
+
+///|
+/// Whether a further request would pass the concurrency ceiling (← uvicorn's
+/// `--limit-concurrency`, which counts connections and requests both). `connections` counts the
+/// one asking, so a limit of `n` lets `n` run and refuses the `n+1`th. `None` never trips.
+fn Load::busy(self : Load, limit : Int32?) -> Bool {
+  match limit {
+    Some(n) => self.connections > n || self.requests >= n
+    None => false
+  }
+}
+
+///|
+/// Count one answered request, and stop the server once it has answered `limit_max_requests`
+/// (← uvicorn's `--limit-max-requests`). True when this was the last.
+async fn Load::count(self : Load, config : @config.Config) -> Bool {
+  self.served += 1
+  guard over_request_limit(self.served, config.limit_max_requests) else {
+    return false
+  }
+  config.logger.log(Info, "Maximum request limit reached, stopping the server")
+  self.handle.request_stop()
+  true
+}
+
+///|
 /// Serve one accepted connection: read request heads under keep-alive and hand each to
 /// `dispatch_http1`, until the peer closes, goes quiet past `timeout_keep_alive`, upgrades to
 /// a WebSocket, or a limit is reached. The same code runs over a plain socket and over TLS,
@@ -50,9 +90,7 @@ async fn serve_conn(
   writer : &@io.Writer,
   link : Link,
   config : @config.Config,
-  inflight : Ref[Int32],
-  served : Ref[Int32],
-  handle : ShutdownHandle,
+  load : Load,
 ) -> Unit {
   let inbox = Inbox::new(reader)
   for ;; {
@@ -65,7 +103,7 @@ async fn serve_conn(
     }
     // uvicorn answers `503` rather than queueing once it is already at its concurrency
     // ceiling — a request refused promptly is better for a caller than one that waits.
-    if over_concurrency(inflight.val, config.limit_concurrency) {
+    if load.busy(config.limit_concurrency) {
       config.logger.log(
         Warning,
         "Exceeded concurrency limit, refusing with 503",
@@ -75,38 +113,27 @@ async fn serve_conn(
       )
       break
     }
-    let keep = dispatch_http1(
-      app,
-      req,
-      inbox,
-      writer,
-      scheme=link.scheme,
-      config~,
-      server_addr?=link.bound,
-      client_addr?=link.peer,
-      tls?=link.tls,
-    )
-    served.val = served.val + 1
-    if over_request_limit(served.val, config.limit_max_requests) {
-      config.logger.log(
-        Info,
-        "Maximum request limit reached, stopping the server",
+    load.requests += 1
+    let keep = {
+      defer {
+        load.requests -= 1
+      }
+      dispatch_http1(
+        app,
+        req,
+        inbox,
+        writer,
+        scheme=link.scheme,
+        config~,
+        server_addr?=link.bound,
+        client_addr?=link.peer,
+        tls?=link.tls,
       )
-      handle.request_stop()
+    }
+    if load.count(config) {
       break
     }
     guard keep else { break }
-  }
-}
-
-///|
-/// Whether a further request would pass the concurrency ceiling (← uvicorn's
-/// `--limit-concurrency`). `inflight` counts this connection too, so a limit of `n` lets `n`
-/// requests run and refuses the `n+1`th. `None` never trips.
-fn over_concurrency(inflight : Int32, limit : Int32?) -> Bool {
-  match limit {
-    Some(n) => inflight > n
-    None => false
   }
 }
 
@@ -118,12 +145,11 @@ async fn accept_loop(
   g : @async.TaskGroup[Unit],
   server : @socket.TcpServer,
   app : @moonasgi.AsgiApp,
-  inflight : Ref[Int32],
-  served : Ref[Int32],
-  handle : ShutdownHandle,
+  load : Load,
   config : @config.Config,
   bound : @socket.Addr,
   tls : @tls.Server?,
+  speak : Speak,
 ) -> Unit {
   // The parallel-client ceiling, applied before accepting, so a full server leaves the
   // connection in the listen queue rather than accepting it and then sitting on it.
@@ -138,10 +164,10 @@ async fn accept_loop(
     let (conn, peer) = server.accept()
     g.spawn_bg(
       () => {
-        inflight.val = inflight.val + 1
+        load.connections += 1
         defer {
           conn.close()
-          inflight.val = inflight.val - 1
+          load.connections -= 1
           if slots is Some(sem) {
             sem.release()
           }
@@ -168,12 +194,13 @@ async fn accept_loop(
             peer: Some(peer),
             tls: tls_facts(stream, chain),
           }
-          match speaks_h2(stream, config) {
-            Some(true) => drive_h2(app, stream, config, link)
-            Some(false) =>
-              serve_conn(
-                app, stream, stream, link, config, inflight, served, handle,
-              )
+          let h2 = match speak {
+            H2 => Some(true)
+            Both => speaks_h2(stream, config)
+          }
+          match h2 {
+            Some(true) => drive_h2(app, stream, config, link, load)
+            Some(false) => serve_conn(app, stream, stream, link, config, load)
             None => ()
           }
           stream.shutdown() catch {
@@ -220,10 +247,10 @@ async test "allow_failure decides whether a handler failure escapes" {
 /// `timeout` milliseconds if one is set (`None` waits for the last request to
 /// finish, as uvicorn does by default). Polls on a short tick because the count
 /// is only mutated at handler task boundaries.
-async fn drain(inflight : Ref[Int32], timeout : Int32?) -> Unit {
+async fn drain(load : Load, timeout : Int32?) -> Unit {
   let mut waited = 0
   for ;; {
-    if inflight.val <= 0 {
+    if load.connections <= 0 {
       break
     }
     match timeout {
@@ -289,7 +316,15 @@ pub async fn serve_graceful(
   config : @config.Config,
   handle~ : ShutdownHandle = ShutdownHandle::new(),
 ) -> Unit {
-  run(app, config, handle, None)
+  run(app, config, handle, None, Both)
+}
+
+///|
+/// What a listener speaks: HTTP/1.1 and HTTP/2 told apart per connection, or HTTP/2 alone by
+/// prior knowledge.
+priv enum Speak {
+  Both
+  H2
 }
 
 ///|
@@ -301,6 +336,7 @@ async fn run(
   config : @config.Config,
   handle : ShutdownHandle,
   tls : @tls.Server?,
+  speak : Speak,
 ) -> Unit {
   @async.with_task_group(g => {
     let lifespan = @lifespan.Lifespan::new(app)
@@ -317,14 +353,9 @@ async fn run(
       Info,
       "Started server process on \{scheme}://" + config.bind(),
     )
-    let inflight = Ref(0)
-    let served = Ref(0)
+    let load = Load::new(handle)
     let acceptor = g.spawn(
-      () => {
-        accept_loop(
-          g, server, app, inflight, served, handle, config, bound, tls,
-        )
-      },
+      () => accept_loop(g, server, app, load, config, bound, tls, speak),
       allow_failure=true,
     )
     handle.request.get() catch {
@@ -332,7 +363,7 @@ async fn run(
     }
     @async.protect_from_cancel(() => {
       acceptor.cancel()
-      drain(inflight, config.graceful_timeout)
+      drain(load, config.graceful_timeout)
       lifespan.shutdown(ltask) catch {
         _ => ()
       }

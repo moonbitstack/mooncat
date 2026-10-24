@@ -24,6 +24,33 @@ pub fn WsConfig::new(max_size~ : Int32 = @ws.limit) -> WsConfig {
 }
 
 ///|
+/// The HTTP/2 knobs. The stream ceiling, header-list cap and frame cap are hypercorn's
+/// (`h2_max_concurrent_streams`, `h2_max_header_list_size`, `h2_max_inbound_frame_size`). The
+/// receive windows are Go's server's (`MaxUploadBufferPerStream`, `MaxUploadBufferPerConnection`):
+/// the protocol's own 64 KiB lets a client upload one window per round trip.
+///
+/// A stream's window comes back as the application takes its body, so a client cannot get further
+/// ahead of an application than `window` octets on a stream and `connection_window` in all.
+pub(all) struct H2Config {
+  max_streams : Int32
+  max_header_list : Int32
+  max_frame : Int32
+  window : Int32
+  connection_window : Int32
+}
+
+///|
+pub fn H2Config::new(
+  max_streams~ : Int32 = 100,
+  max_header_list~ : Int32 = 1 << 16,
+  max_frame~ : Int32 = 1 << 14,
+  window~ : Int32 = 1 << 20,
+  connection_window~ : Int32 = 1 << 20,
+) -> H2Config {
+  { max_streams, max_header_list, max_frame, window, connection_window, }
+}
+
+///|
 /// Server configuration (← uvicorn `Config`): the bind address, the listen
 /// backlog, and the HTTP/1.1 transport knobs the `moonbitlang/async` server
 /// exposes. Constructed once and handed to `serve_config`.
@@ -90,6 +117,8 @@ pub(all) struct Config {
   forwarded_allow_ips : Array[String]
   // The WebSocket receive limits.
   ws : WsConfig
+  // The HTTP/2 stream and flow-control limits.
+  h2 : H2Config
 }
 
 ///|
@@ -136,6 +165,7 @@ pub fn Config::new(
   proxy_headers~ : Bool = true,
   forwarded_allow_ips~ : Array[String] = ["127.0.0.1"],
   ws~ : WsConfig = WsConfig::new(),
+  h2~ : H2Config = H2Config::new(),
 ) -> Config {
   {
     host,
@@ -158,6 +188,7 @@ pub fn Config::new(
     proxy_headers,
     forwarded_allow_ips,
     ws,
+    h2,
   }
 }
 

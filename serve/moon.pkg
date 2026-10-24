@@ -27,8 +27,11 @@ import {
   "moonbitlang/async/websocket",
   "moonbitlang/async/fs",
   "moonbitlang/async/aqueue",
+  "moonbitlang/async/cond_var",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/buffer",
+  "moonbitlang/core/deque",
+  "moonbitlang/core/cmp",
 }
 
 warnings = "-29"

@@ -1,302 +1,440 @@
-// The ASGI-over-HTTP/2 binding, on moonhttp's frame layer (RFC 9113) and HPACK
-// (RFC 7541): it reads the client connection preface and SETTINGS, decodes request
-// HEADERS into an ASGI `Scope`, streams request DATA as the `Receive` body, and
-// encodes the ASGI response (HEADERS + DATA) back, honouring connection- and
-// stream-level flow control. The connection is moonnet's, so the same code serves
-// h2 under TLS and h2c in the clear.
+// The ASGI-over-HTTP/2 binding on moonhttp's connection state machine (RFC 9113): one task reads
+// the connection and feeds `@http2.Conn`, and every request stream runs the application in a
+// task of its own, so a slow handler holds up only its own stream. The connection is moonnet's,
+// so the same code serves h2 under TLS and h2c in the clear.
 
 ///|
-/// The HTTP/2 default initial flow-control window (RFC 7540 §6.9.2) and default
-/// maximum frame size (§6.5.2), used until the peer's SETTINGS say otherwise.
-const H2_DEFAULT_WINDOW : Int32 = 65535
-
-///|
-const H2_DEFAULT_MAX_FRAME : Int32 = 16384
-
-///|
-/// The largest flow-control window RFC 7540 §6.9.1 permits (2^31 - 1). mooncat
-/// advertises this as its own receive window (a big `SETTINGS_INITIAL_WINDOW_SIZE`
-/// plus a connection-level WINDOW_UPDATE up to this ceiling) so inbound request
-/// bodies never stall on flow control — the server side keeps no inbound window
-/// bookkeeping, exactly what a server that trusts its upstream wants.
-const H2_MAX_WINDOW : Int32 = 2147483647
-
-///|
-/// Per-stream inbound + outbound state for one HTTP/2 stream (RFC 7540 §5). The
-/// request side accumulates the (possibly CONTINUATION-fragmented) header block
-/// and the DATA body until END_STREAM; the response side tracks the remaining
-/// outbound send window the peer has granted this stream.
-priv struct H2Stream {
+/// One request stream: its body as it arrives, and what both ends have done with it.
+priv struct Exchange {
   id : Int32
-  mut header_block : Bytes
-  mut headers : Array[@header.Header]
-  mut headers_done : Bool
-  body : @buffer.Buffer
-  mut request_ended : Bool
-  mut dispatched : Bool
-  mut send_window : Int32
+  body : @deque.Deque[Bytes]
+  // END_STREAM from the client: the body is all here.
+  mut ended : Bool
+  // The stream is over from outside: reset by either end, or the connection is gone.
+  mut gone : Bool
+  // The response is complete.
+  mut done : Bool
+  changed : @cond_var.Cond
 }
 
 ///|
-/// Per-connection HTTP/2 state: the socket, the stateful HPACK encoder/decoder
-/// pair (their dynamic tables persist across the connection's header blocks), the
-/// outbound connection-level send window, the negotiated peer frame size and
-/// initial stream window, and the live streams keyed by id. `goaway` latches once
-/// the peer asks the connection to wind down.
-priv struct H2Conn {
+fn Exchange::new(id : Int32) -> Exchange {
+  {
+    id,
+    body: @deque.Deque([]),
+    ended: false,
+    gone: false,
+    done: false,
+    changed: @cond_var.Cond(),
+  }
+}
+
+///|
+fn Exchange::cut(self : Exchange) -> Unit {
+  self.gone = true
+  self.changed.broadcast()
+}
+
+///|
+/// One HTTP/2 connection: the socket, the state machine, and the streams being answered.
+///
+/// The state machine is touched only between awaits, which is what makes it safe to share
+/// between the reading task and the stream tasks; the lock keeps what each one takes from it
+/// in order on the wire.
+priv struct H2 {
   conn : @tcp.Conn
+  wire : @http2.Conn
+  lock : @async.Mutex
   config : @config.Config
   link : Link
-  dec : @hpack.Decoder
-  enc : @hpack.Encoder
-  mut conn_send_window : Int32
-  mut peer_max_frame : Int32
-  mut peer_initial_window : Int32
-  streams : Map[Int32, H2Stream]
-  mut goaway : Bool
+  load : Load
+  exchanges : Map[Int32, Exchange]
+  // Broadcast when the peer may have opened a send window: WINDOW_UPDATE, new SETTINGS, a
+  // stream reset or the end of the connection.
+  credit : @cond_var.Cond
+  // A GOAWAY has gone one way or the other: no new streams, and the connection ends once the
+  // open ones are answered.
+  mut draining : Bool
+  mut idle_since : Int64
 }
 
 ///|
-fn H2Conn::new(
-  conn : @tcp.Conn,
-  config : @config.Config,
-  link : Link,
-) -> H2Conn {
-  {
-    conn,
-    config,
-    link,
-    dec: @hpack.Decoder::new(),
-    enc: @hpack.Encoder::new(),
-    conn_send_window: H2_DEFAULT_WINDOW,
-    peer_max_frame: H2_DEFAULT_MAX_FRAME,
-    peer_initial_window: H2_DEFAULT_WINDOW,
-    streams: Map([]),
-    goaway: false,
+/// Write whatever the state machine has queued. A peer that has gone takes the connection with
+/// it, which the reading task sees as the end of the stream.
+async fn H2::flush(self : H2) -> Unit {
+  self.lock.acquire()
+  defer self.lock.release()
+  let out = self.wire.take()
+  if out.length() > 0 {
+    self.conn.write(out)
   }
 }
 
 ///|
-fn imin(a : Int32, b : Int32) -> Int32 {
-  if a < b {
-    a
-  } else {
-    b
-  }
-}
-
-///|
-/// Latin-1 `Bytes` → `String`, one code unit per octet (HTTP/2 header names and
-/// values are byte strings; the pseudo-headers mooncat reads are ASCII).
-fn h2_bytes_to_str(b : Bytes) -> String {
-  let sb = StringBuilder()
-  for i = 0; i < b.length(); i = i + 1 {
-    sb.write_char(b[i].to_int().unsafe_to_char())
-  }
-  sb.to_string()
-}
-
-///|
-/// Latin-1 `String` → `Bytes`, the inverse of `h2_bytes_to_str`, for HPACK-encoding
-/// response header names and values.
-fn h2_str_to_bytes(s : String) -> Bytes {
-  let buf = @buffer.Buffer()
-  for i = 0; i < s.length(); i = i + 1 {
-    buf.write_byte((s[i].to_int() & 0xFF).to_byte())
-  }
-  buf.to_bytes()
-}
-
-///|
-/// Concatenate two byte strings.
-fn h2_cat(a : Bytes, b : Bytes) -> Bytes {
-  let buf = @buffer.Buffer()
-  buf.write_bytes(a)
-  buf.write_bytes(b)
-  buf.to_bytes()
-}
-
-///|
-/// Read exactly one HTTP/2 frame off the socket — the 9-octet header, then its
-/// declared payload — and decode it with moonrpc's pure frame codec. Raises when
-/// the peer closes mid-frame (a short read) or the bytes are malformed; the accept
-/// loop treats that as the end of the connection.
-async fn h2_read_frame(reader : &@io.Reader) -> @http2.Frame {
-  let head = reader.read_exactly(9)
-  let hdr = @http2.FrameHeader::decode(head)
-  let payload = if hdr.length > 0 {
-    reader.read_exactly(hdr.length)
-  } else {
-    b""
-  }
-  let buf = @buffer.Buffer()
-  buf.write_bytes(head)
-  buf.write_bytes(payload)
-  let (frame, _consumed) = @http2.decode(buf.to_bytes())
-  frame
-}
-
-///|
-/// Look up an existing stream or create it, seeding a new stream's outbound send
-/// window with the peer's current `SETTINGS_INITIAL_WINDOW_SIZE`.
-fn H2Conn::stream(self : H2Conn, id : Int32) -> H2Stream {
-  match self.streams.get(id) {
-    Some(s) => s
-    None => {
-      let s : H2Stream = {
-        id,
-        header_block: b"",
-        headers: [],
-        headers_done: false,
-        body: @buffer.Buffer(),
-        request_ended: false,
-        dispatched: false,
-        send_window: self.peer_initial_window,
+/// Answer one stream: the application runs on a scope built from the request head, takes the
+/// body as it arrives, and its response goes out under both flow-control windows.
+///
+/// `receive` follows uvicorn: once the body is delivered it waits, and says `http.disconnect`
+/// when the response is complete or the client has reset the stream. An application failure
+/// before the response starts is a 500; after it, the stream is reset with INTERNAL_ERROR.
+async fn H2::serve(
+  self : H2,
+  app : @moonasgi.AsgiApp,
+  ex : Exchange,
+  fields : Array[@header.Header],
+) -> Unit {
+  let (verb, target) = request_line(fields)
+  let scope = h2_build_scope(fields, self.link, self.config)
+  let head = verb == "HEAD"
+  let delivered = Ref(false)
+  let receive : @moonasgi.Receive = () => {
+    for ;; {
+      if ex.gone {
+        return @moonasgi.Event::HttpDisconnect
       }
-      self.streams[id] = s
-      s
+      if ex.body.pop_front() is Some(part) {
+        // The window comes back as the application takes the body, not as it arrives.
+        self.wire.acknowledge(ex.id, part.length()) catch {
+          _ => ()
+        }
+        self.flush() catch {
+          _ => ()
+        }
+        let last = ex.ended && ex.body.is_empty()
+        delivered.val = last
+        return @moonasgi.Event::HttpRequest(body=part, more_body=!last)
+      }
+      if ex.ended && !delivered.val {
+        delivered.val = true
+        return @moonasgi.Event::HttpRequest(body=b"", more_body=false)
+      }
+      if delivered.val && ex.done {
+        return @moonasgi.Event::HttpDisconnect
+      }
+      ex.changed.wait()
     }
   }
-}
-
-///|
-/// Apply one decoded inbound frame to the connection/stream state **without**
-/// invoking the application: SETTINGS are acknowledged (and the peer's frame size
-/// / initial window recorded, with the RFC 7540 §6.9.2 delta applied to live
-/// streams), PING is answered with a PONG, WINDOW_UPDATE grows the matching send
-/// window, HEADERS/CONTINUATION accumulate and (at END_HEADERS) HPACK-decode the
-/// block **in arrival order** — HPACK is stateful, so decoding must happen as the
-/// block completes — and DATA appends to the request body. Dispatching a ready
-/// stream is deferred to `dispatch_ready`, which keeps this reentrancy-free so the
-/// outbound flow-control pump can call it while a response is in flight.
-async fn H2Conn::apply(self : H2Conn, frame : @http2.Frame) -> Unit {
-  match frame {
-    Settings(params~, ack~) =>
-      if !ack {
-        for pair in params {
-          if pair.0 == @http2.settings_max_frame_size {
-            self.peer_max_frame = pair.1
-          } else if pair.0 == @http2.settings_initial_window_size {
-            let delta = pair.1 - self.peer_initial_window
-            self.peer_initial_window = pair.1
-            for _id, s in self.streams {
-              s.send_window = s.send_window + delta
-            }
+  let status = Ref(0)
+  let trailing = Ref(false)
+  let trailers : Array[(String, String)] = []
+  let complete = () => {
+    ex.done = true
+    ex.changed.broadcast()
+  }
+  let send : @moonasgi.Send = event => {
+    guard !ex.gone && !ex.done else { return }
+    match event {
+      // A 103 (RFC 8297) is a head of its own before the answer (RFC 9113 §8.1).
+      HttpResponseEarlyHint(links~) =>
+        if status.val == 0 && links.length() > 0 {
+          let fields = [@header.Header::of(":status", "103")]
+          for link in links {
+            fields.push(@header.Header::of("link", link))
+          }
+          self.wire.headers(ex.id, fields)
+          self.flush()
+        }
+      HttpResponseStart(status=code, headers~, trailers=promised) =>
+        if status.val == 0 {
+          status.val = code
+          trailing.val = promised && !head
+          // A HEAD answer is the head alone (RFC 9110 §9.3.2).
+          self.wire.headers(
+            ex.id,
+            h2_response_headers(code, headers, self.config),
+            end=head,
+          )
+          self.flush()
+          if head {
+            complete()
           }
         }
-        self.conn.write(@http2.Frame::Settings(params=[], ack=true).encode())
-      }
-    Ping(payload~, ack~) =>
-      if !ack {
-        self.conn.write(@http2.Frame::Ping(payload~, ack=true).encode())
-      }
-    WindowUpdate(stream_id~, increment~) =>
-      if stream_id == 0 {
-        self.conn_send_window = self.conn_send_window + increment
-      } else {
-        self.stream(stream_id).send_window += increment
-      }
-    Headers(stream_id~, fragment~, end_stream~, end_headers~, ..) => {
-      let s = self.stream(stream_id)
-      s.header_block = h2_cat(s.header_block, fragment)
-      if end_stream {
-        s.request_ended = true
-      }
-      if end_headers {
-        s.headers = self.dec.decode(s.header_block)
-        s.headers_done = true
-      }
+      HttpResponseBody(body~, more_body~) =>
+        if status.val != 0 {
+          let last = !more_body && !trailing.val
+          self.write(ex, body, end=last)
+          if last {
+            complete()
+          }
+        }
+      // Trailers are a head after the body that ends the stream (RFC 9113 §8.1).
+      HttpResponseTrailers(headers~, more_trailers~) =>
+        if trailing.val {
+          trailers.push_iter(headers.iter())
+          if !more_trailers {
+            self.wire.headers(
+              ex.id,
+              trailers.map(h => @header.Header::of(h.0.to_lower(), h.1)),
+              end=true,
+            )
+            self.flush()
+            complete()
+          }
+        }
+      _ => ()
     }
-    Continuation(stream_id~, fragment~, end_headers~) => {
-      let s = self.stream(stream_id)
-      s.header_block = h2_cat(s.header_block, fragment)
-      if end_headers {
-        s.headers = self.dec.decode(s.header_block)
-        s.headers_done = true
-      }
-    }
-    Data(stream_id~, data~, end_stream~, ..) => {
-      let s = self.stream(stream_id)
-      s.body.write_bytes(data)
-      if end_stream {
-        s.request_ended = true
-      }
-    }
-    RstStream(stream_id~, ..) => self.streams.remove(stream_id)
-    GoAway(..) => self.goaway = true
-    _ => ()
   }
-}
-
-///|
-/// Read and apply exactly one further frame — the outbound flow-control pump. When
-/// a response is larger than the peer's send window, the send path calls this to
-/// take in the peer's WINDOW_UPDATE (and answer any interleaved PING/SETTINGS)
-/// until the window reopens. It never dispatches, so it cannot re-enter the app.
-async fn H2Conn::pump_one(self : H2Conn) -> Unit {
-  let frame = h2_read_frame(self.conn)
-  self.apply(frame)
-}
-
-///|
-/// Write one response body as DATA frames, honouring both the stream and the
-/// connection send windows and the peer's maximum frame size (RFC 7540 §6.9): the
-/// payload is split into window-bounded, frame-size-bounded chunks; when a window
-/// is exhausted the pump reads the peer's WINDOW_UPDATE before continuing. The
-/// final chunk carries END_STREAM when `end_stream` is set; an empty body with
-/// `end_stream` still emits a lone END_STREAM DATA frame to close the stream.
-async fn H2Conn::write_body(
-  self : H2Conn,
-  stream_id : Int32,
-  s : H2Stream,
-  data : Bytes,
-  end_stream~ : Bool,
-) -> Unit {
-  let n = data.length()
-  if n == 0 {
-    if end_stream {
-      self.conn.write(
-        @http2.Frame::Data(stream_id~, data=b"", end_stream=true, padding=0).encode(),
+  let failed = Ref(false)
+  app(scope, receive, send) catch {
+    err => {
+      self.config.logger.log(
+        Error,
+        "exception in ASGI application: " + err.to_string(),
       )
+      failed.val = true
+    }
+  }
+  if !ex.gone && !ex.done {
+    if status.val == 0 {
+      status.val = 500
+      self.wire.headers(
+        ex.id,
+        h2_response_headers(500, [], self.config),
+        end=true,
+      )
+    } else if failed.val {
+      self.wire.reset(ex.id, code=@http2.error_internal_error)
+    } else {
+      self.wire.end(ex.id)
+    }
+    self.flush()
+  }
+  complete()
+  self.config.logger.access_line(
+    match self.link.peer {
+      Some(a) => a.to_string()
+      None => "-"
+    },
+    verb,
+    target,
+    "2",
+    status.val,
+  )
+}
+
+///|
+/// Send `data` on the exchange's stream as both windows allow, waiting for the peer to open
+/// them when they are shut. A stream reset meanwhile drops the rest.
+async fn H2::write(self : H2, ex : Exchange, data : Bytes, end~ : Bool) -> Unit {
+  if data.length() == 0 {
+    if end {
+      self.wire.end(ex.id)
+      self.flush()
     }
     return
   }
-  let mut off = 0
-  while off < n {
-    while s.send_window <= 0 || self.conn_send_window <= 0 {
-      self.pump_one()
+  let mut at = 0
+  while at < data.length() && !ex.gone {
+    let room = self.wire.window(ex.id)
+    if room > 0 {
+      let n = @cmp.minimum(room, data.length() - at)
+      self.wire.data(ex.id, data[at:at + n], end=end && at + n == data.length())
+      at += n
+      self.flush()
+    } else {
+      self.credit.wait()
     }
-    let avail = imin(
-      imin(self.peer_max_frame, s.send_window),
-      self.conn_send_window,
-    )
-    let take = imin(avail, n - off)
-    let chunk = data[off:off + take].to_owned()
-    let last = off + take == n && end_stream
-    self.conn.write(
-      @http2.Frame::Data(stream_id~, data=chunk, end_stream=last, padding=0).encode(),
-    )
-    s.send_window = s.send_window - take
-    self.conn_send_window = self.conn_send_window - take
-    off = off + take
   }
+}
+
+///|
+/// A new request stream: refused with 503 past the concurrency ceiling, otherwise answered in a
+/// task of its own.
+async fn H2::open(
+  self : H2,
+  g : @async.TaskGroup[Unit],
+  app : @moonasgi.AsgiApp,
+  id : Int32,
+  fields : Array[@header.Header],
+) -> Unit {
+  if self.load.busy(self.config.limit_concurrency) {
+    self.config.logger.log(
+      Warning,
+      "Exceeded concurrency limit, refusing with 503",
+    )
+    self.wire.headers(id, h2_response_headers(503, [], self.config), end=true)
+    self.flush()
+    return
+  }
+  let ex = Exchange::new(id)
+  self.exchanges[id] = ex
+  self.load.requests += 1
+  g.spawn_bg(allow_failure=true, () => {
+    self.serve(app, ex, fields) catch {
+      _ => ()
+    }
+    self.load.requests -= 1
+    self.exchanges.remove(id)
+    self.idle_since = @async.now()
+    if self.load.count(self.config) {
+      self.leave()
+    }
+  })
+}
+
+///|
+/// Stop taking new streams: GOAWAY naming the last one taken, then the open ones run out.
+async fn H2::leave(self : H2) -> Unit {
+  if !self.draining {
+    self.draining = true
+    self.wire.goaway() catch {
+      _ => ()
+    }
+    self.flush() catch {
+      _ => ()
+    }
+  }
+}
+
+///|
+/// The reading side: take the peer's octets into the state machine and act on what comes out,
+/// until the peer closes, a connection error, a GOAWAY with nothing left open, or an idle spell
+/// past `timeout_keep_alive`.
+///
+/// Reads are bounded by the keep-alive time so the loop gets to look at the clock: a connection
+/// with no stream open for that long is sent a GOAWAY and closed, as hypercorn does.
+async fn H2::read(
+  self : H2,
+  g : @async.TaskGroup[Unit],
+  app : @moonasgi.AsgiApp,
+) -> Unit {
+  let tick = self.config.timeout_keep_alive
+  for ;; {
+    if self.draining && self.exchanges.is_empty() {
+      return
+    }
+    let event = self.wire.next() catch {
+      _ => {
+        // A connection error: the GOAWAY is queued.
+        self.flush() catch {
+          _ => ()
+        }
+        return
+      }
+    }
+    match event {
+      NeedData => {
+        self.flush()
+        match @async.with_timeout_opt(tick, () => self.conn.read_some()) {
+          Some(got) => self.wire.receive(got.unwrap_or(b"")[:])
+          None =>
+            if self.exchanges.is_empty() &&
+              @async.now() - self.idle_since >= tick.to_int64() {
+              self.leave()
+              return
+            }
+        }
+      }
+      Request(stream~, fields~) =>
+        if !self.draining {
+          self.open(g, app, stream, fields)
+        }
+      Data(stream~, data~) =>
+        match self.exchanges.get(stream) {
+          Some(ex) => {
+            ex.body.push_back(data)
+            ex.changed.broadcast()
+          }
+          // A stream answered already, the 503: give its window back.
+          None => self.wire.acknowledge(stream, data.length()) catch { _ => () }
+        }
+      End(stream~) =>
+        if self.exchanges.get(stream) is Some(ex) {
+          ex.ended = true
+          ex.changed.broadcast()
+        }
+      Reset(stream~, ..) => {
+        if self.exchanges.get(stream) is Some(ex) {
+          ex.cut()
+        }
+        self.credit.broadcast()
+      }
+      WindowUpdated(..) | Settings(_) => self.credit.broadcast()
+      GoAway(..) => self.draining = true
+      Closed => return
+      _ => ()
+    }
+  }
+}
+
+///|
+/// Drive one HTTP/2 connection to its end. The settings are `Config.h2`'s; the connection's own
+/// receive window is widened to match, since the protocol starts it at 64 KiB whatever the
+/// streams get.
+async fn drive_h2(
+  app : @moonasgi.AsgiApp,
+  conn : @tcp.Conn,
+  config : @config.Config,
+  link : Link,
+  load : Load,
+) -> Unit {
+  let limits = config.h2
+  let wire = @http2.Conn::new(
+    Server,
+    settings=@http2.Settings::new(
+      max_concurrent_streams=Some(limits.max_streams),
+      initial_window_size=limits.window,
+      max_frame_size=limits.max_frame,
+      max_header_list_size=Some(limits.max_header_list),
+    ),
+  )
+  let widen = limits.connection_window - @http2.initial.initial_window_size
+  if widen > 0 {
+    wire.widen(0, widen)
+  }
+  let h2 : H2 = {
+    conn,
+    wire,
+    lock: @async.Mutex(),
+    config,
+    link,
+    load,
+    exchanges: Map([]),
+    credit: @cond_var.Cond(),
+    draining: false,
+    idle_since: @async.now(),
+  }
+  @async.with_task_group(g => {
+    defer {
+      for _, ex in h2.exchanges {
+        ex.cut()
+      }
+      h2.credit.broadcast()
+    }
+    h2.flush()
+    h2.read(g, app)
+  })
+}
+
+///|
+/// The method and target of a request head, for the access log.
+fn request_line(fields : Array[@header.Header]) -> (String, String) {
+  let mut verb = "GET"
+  let mut target = "/"
+  for f in fields {
+    let (name, value) = f.ascii()
+    if name == ":method" {
+      verb = value
+    } else if name == ":path" {
+      target = value
+    }
+  }
+  (verb, target)
 }
 
 ///|
 /// Header names an ASGI app may set that are connection-specific under HTTP/1 and
 /// forbidden (or framing-owned) under HTTP/2, so they are dropped from the response
-/// header block (RFC 7540 §8.1.2.2). `content-length` is dropped too: the DATA +
+/// header block (RFC 9113 §8.2.2). `content-length` is dropped too: the DATA +
 /// END_STREAM framing delimits the body, and a streamed response has none to give.
 fn h2_is_dropped_response_header(name : String) -> Bool {
-  match name.to_lower() {
-    "connection"
-    | "keep-alive"
-    | "transfer-encoding"
-    | "upgrade"
-    | "proxy-connection"
-    | "content-length" => true
-    _ => false
-  }
+  name
+  is ("connection"
+  | "keep-alive"
+  | "transfer-encoding"
+  | "upgrade"
+  | "proxy-connection"
+  | "content-length")
 }
 
 ///|
@@ -309,15 +447,13 @@ fn h2_response_headers(
   headers : Array[(String, String)],
   config : @config.Config,
 ) -> Array[@header.Header] {
-  let out : Array[@header.Header] = [
-    { name: b":status", value: h2_str_to_bytes(status.to_string()), },
-  ]
-  let sent : Map[String, Bool] = Map([])
+  let out = [@header.Header::of(":status", status.to_string())]
+  let sent : Set[String] = Set([])
   let add = (name : String, value : String) => {
     let lower = name.to_lower()
     if !h2_is_dropped_response_header(lower) {
-      sent[lower] = true
-      out.push({ name: h2_str_to_bytes(lower), value: h2_str_to_bytes(value), })
+      sent.add(lower)
+      out.push(@header.Header::of(lower, value))
     }
   }
   for pair in headers {
@@ -335,30 +471,23 @@ fn h2_response_headers(
 }
 
 ///|
-/// Turn a completed request stream's decoded HEADERS into an ASGI HTTP `Scope`.
-/// `:method` and `:path` (RFC 9113 §8.3.1) give the method and target, every
-/// ordinary header is carried through, and a `host` is derived from `:authority`
-/// when the request has no explicit one. The scheme is the connection's, as on
-/// HTTP/1.1, rather than what the client wrote in `:scheme`; the rest is
+/// Turn a request stream's decoded head into an ASGI HTTP `Scope`. `:method` and `:path`
+/// (RFC 9113 §8.3.1) give the method and target, every ordinary header is carried through, and
+/// a `host` is derived from `:authority` when the request has no explicit one. The scheme is the
+/// connection's, as on HTTP/1.1, rather than what the client wrote in `:scheme`; the rest is
 /// `http_scope`'s, shared with HTTP/1.1. `http_version` is `"2"`.
 fn h2_build_scope(
   headers : Array[@header.Header],
   link : Link,
   config : @config.Config,
 ) -> @moonasgi.Scope {
-  let mut verb = "GET"
-  let mut target = "/"
+  let (verb, target) = request_line(headers)
   let mut authority = ""
   let mut has_host = false
   let pairs : Array[(String, String)] = []
   for h in headers {
-    let name = h2_bytes_to_str(h.name)
-    let value = h2_bytes_to_str(h.value)
-    if name == ":method" {
-      verb = value
-    } else if name == ":path" {
-      target = value
-    } else if name == ":authority" {
+    let (name, value) = h.ascii()
+    if name == ":authority" {
       authority = value
     } else if name.length() > 0 && name[0] != ':' {
       if name == "host" {
@@ -367,120 +496,10 @@ fn h2_build_scope(
       pairs.push((name, value))
     }
   }
-  if not_empty(authority) && !has_host {
+  if authority.length() > 0 && !has_host {
     pairs.push(("host", authority))
   }
   http_scope(link, config, "2", verb, target, pairs)
-}
-
-///|
-fn not_empty(s : String) -> Bool {
-  s.length() > 0
-}
-
-///|
-/// Drive one fully-received request stream through the moonasgi SEAM: build the
-/// `Scope`, a `Receive` that yields the buffered request body then a disconnect,
-/// and a `Send` that maps `HttpResponseStart` to a HEADERS frame and each
-/// `HttpResponseBody` to flow-controlled DATA. If the app finishes without an
-/// explicit final body the stream is still closed with an END_STREAM DATA frame;
-/// if it never started a response the stream is closed with a bare 500.
-async fn H2Conn::dispatch_stream(
-  self : H2Conn,
-  app : @moonasgi.AsgiApp,
-  s : H2Stream,
-) -> Unit {
-  let scope = h2_build_scope(s.headers, self.link, self.config)
-  let body_done = Ref(false)
-  let receive : @moonasgi.Receive = () => {
-    if body_done.val {
-      @moonasgi.Event::HttpDisconnect
-    } else {
-      body_done.val = true
-      @moonasgi.Event::HttpRequest(body=s.body.to_bytes(), more_body=false)
-    }
-  }
-  let started = Ref(false)
-  let ended = Ref(false)
-  let trailing = Ref(false)
-  let trailers : Array[(String, String)] = []
-  let headers_frame = (fields : Array[@header.Header], end_stream : Bool) => {
-    @http2.Frame::Headers(
-      stream_id=s.id,
-      fragment=self.enc.encode(fields),
-      end_stream~,
-      end_headers=true,
-      priority=None,
-      padding=0,
-    ).encode()
-  }
-  let send : @moonasgi.Send = event => {
-    match event {
-      // A 103 (RFC 8297) is a HEADERS frame of its own before the answer (RFC 9113 §8.1).
-      HttpResponseEarlyHint(links~) =>
-        if !started.val && links.length() > 0 {
-          let fields : Array[@header.Header] = [
-            { name: b":status", value: b"103", },
-          ]
-          for link in links {
-            fields.push({ name: b"link", value: h2_str_to_bytes(link), })
-          }
-          self.conn.write(headers_frame(fields, false))
-        }
-      // Trailers are a HEADERS frame after the body that ends the stream (RFC 9113 §8.1).
-      HttpResponseTrailers(headers~, more_trailers~) =>
-        if trailing.val && !ended.val {
-          trailers.push_iter(headers.iter())
-          if !more_trailers {
-            let fields = trailers.map(h => @header.Header::{
-              name: h2_str_to_bytes(h.0.to_lower()),
-              value: h2_str_to_bytes(h.1),
-            })
-            self.conn.write(headers_frame(fields, true))
-            ended.val = true
-          }
-        }
-      HttpResponseStart(status~, headers~, trailers=promised) => {
-        trailing.val = promised
-        started.val = true
-        self.conn.write(
-          headers_frame(
-            h2_response_headers(status, headers, self.config),
-            false,
-          ),
-        )
-      }
-      HttpResponseBody(body~, more_body~) => {
-        let last = !more_body && !trailing.val
-        self.write_body(s.id, s, body, end_stream=last)
-        if last {
-          ended.val = true
-        }
-      }
-      _ => ()
-    }
-  }
-  app(scope, receive, send)
-  if started.val && !ended.val {
-    self.write_body(s.id, s, b"", end_stream=true)
-  } else if !started.val {
-    self.conn.write(headers_frame([{ name: b":status", value: b"500", }], true))
-  }
-}
-
-///|
-/// Dispatch every stream whose request is complete (END_HEADERS + END_STREAM) and
-/// not yet served. Runs after each applied frame; a response is produced for one
-/// stream at a time on the connection (the outbound flow-control pump keeps the
-/// read side live while a response drains), which is the concurrency a single
-/// HTTP/2 endpoint gives without cross-stream response interleaving.
-async fn H2Conn::dispatch_ready(self : H2Conn, app : @moonasgi.AsgiApp) -> Unit {
-  for _id, s in self.streams {
-    if s.headers_done && s.request_ended && !s.dispatched {
-      s.dispatched = true
-      self.dispatch_stream(app, s)
-    }
-  }
 }
 
 ///|
@@ -494,46 +513,6 @@ async fn speaks_h2(conn : @tcp.Conn, config : @config.Config) -> Bool? {
       @async.with_timeout_opt(config.timeout_keep_alive, () => {
         conn.starts_with(@http2.preface[:])
       })
-  }
-}
-
-///|
-/// Drive one HTTP/2 connection to completion: validate the client connection
-/// preface, advertise a wide receive window (a big `SETTINGS_INITIAL_WINDOW_SIZE`
-/// plus a connection-level WINDOW_UPDATE to the §6.9.1 ceiling) so inbound bodies
-/// never stall, then loop — read a frame, apply it, dispatch any now-complete
-/// request — until the peer closes the connection or sends GOAWAY. A read error (a
-/// closed connection) ends the loop cleanly.
-async fn drive_h2(
-  app : @moonasgi.AsgiApp,
-  conn : @tcp.Conn,
-  config : @config.Config,
-  link : Link,
-) -> Unit {
-  let preface = conn.read_exactly(@http2.preface.length())
-  if !@http2.has_preface(preface) {
-    return
-  }
-  let h2 = H2Conn::new(conn, config, link)
-  conn.write(
-    @http2.Frame::Settings(
-      params=[(@http2.settings_initial_window_size, H2_MAX_WINDOW)],
-      ack=false,
-    ).encode(),
-  )
-  conn.write(
-    @http2.Frame::WindowUpdate(
-      stream_id=0,
-      increment=H2_MAX_WINDOW - H2_DEFAULT_WINDOW,
-    ).encode(),
-  )
-  for ;; {
-    if h2.goaway {
-      break
-    }
-    let frame = h2_read_frame(conn) catch { _ => break }
-    h2.apply(frame)
-    h2.dispatch_ready(app)
   }
 }
 
@@ -554,40 +533,12 @@ pub async fn serve_h2c(
 }
 
 ///|
-/// Serve a moonasgi ASGI application over h2c under an explicit `Config`. Mirrors
-/// `serve_config` / `serve_tls_config`: the ASGI lifespan protocol runs around the
-/// accept loop (startup before the listener binds, shutdown on the way out — even
-/// under cancellation, guarded by `protect_from_cancel`), and each accepted
-/// connection is driven by `drive_h2`.
+/// Serve a moonasgi ASGI application over h2c under an explicit `Config`: the same serving
+/// loop as `serve_config`, with its lifespan, limits, logging and graceful shutdown, on a
+/// listener that speaks HTTP/2 alone.
 pub async fn serve_h2c_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
 ) -> Unit {
-  @async.with_task_group(g => {
-    let lifespan = @lifespan.Lifespan::new(app)
-    let task = lifespan.spawn(g)
-    lifespan.startup(task)
-    let server = @socket.TcpServer(
-      @socket.Addr::parse(config.bind()),
-      dual_stack=config.dual_stack,
-      reuse_addr=config.reuse_addr,
-    )
-    defer {
-      @async.protect_from_cancel(() => lifespan.shutdown(task) catch { _ => () })
-      server.close()
-    }
-    server.run_forever(
-      (conn, peer) => {
-        let link = {
-          scheme: "http",
-          bound: Some(server.addr),
-          peer: Some(peer),
-          tls: None,
-        }
-        drive_h2(app, @tcp.Conn::plain(conn), config, link)
-      },
-      allow_failure=config.allow_failure,
-      max_connections?=config.max_connections,
-    )
-  })
+  run(app, config, ShutdownHandle::new(), None, H2)
 }
