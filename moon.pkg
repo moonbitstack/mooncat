@@ -1,4 +1,4 @@
-// mooncat: a native ASGI 3.0 server (← uvicorn). The work is done in the
+// mooncat: an ASGI 3.0 server (← uvicorn). The work is done in the
 // subpackages; the root re-exports their surface. QUIC and HTTP/3 are in
 // `quic`, the command line in `cli`.
 import {
@@ -9,3 +9,7 @@ import {
 }
 
 warnings = "-alert_internal-29"
+
+options(
+  targets: { "serve.mbt": [ "native", "wasm" ] },
+)

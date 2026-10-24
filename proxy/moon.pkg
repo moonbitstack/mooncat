@@ -1,28 +1,2 @@
 // Forwarded-header handling (uvicorn's ProxyHeadersMiddleware): the client and
 // scheme a trusted proxy reports.
-import {
-  "moonbitstack/mooncat/config",
-  "moonbitstack/mooncat/lifespan",
-  "moonbitstack/moonasgi",
-  "moonbitstack/moonhttp/http1",
-  "moonbitstack/moonhttp/http2",
-  "moonbitstack/moonhttp/hpack",
-  "moonbitstack/moonhttp/header",
-  "moonbitstack/moonhttp/ws",
-  "moonbitstack/moonhttp/upgrade",
-  "moonbitstack/moonvar/fixed",
-  "moonbitstack/moonlog",
-  "moonbitstack/moondate",
-  "moonbitlang/async",
-  "moonbitlang/async/io",
-  "moonbitlang/async/pipe",
-  "moonbitlang/async/socket",
-  "moonbitlang/async/http",
-  "moonbitlang/async/websocket",
-  "moonbitlang/async/fs",
-  "moonbitlang/async/aqueue",
-  "moonbitlang/core/encoding/utf8",
-  "moonbitlang/core/buffer",
-}
-
-warnings = "-29"

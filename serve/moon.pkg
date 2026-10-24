@@ -35,3 +35,26 @@ import {
 }
 
 warnings = "-29"
+
+options(
+  targets: {
+    "extensions_wbtest.mbt": [ "native", "wasm" ],
+    "http1.mbt": [ "native", "wasm" ],
+    "http1_wbtest.mbt": [ "native", "wasm" ],
+    "http2.mbt": [ "native", "wasm" ],
+    "http2_test.mbt": [ "native", "wasm" ],
+    "http2_wbtest.mbt": [ "native", "wasm" ],
+    "process_model.mbt": [ "native", "wasm" ],
+    "process_reload.mbt": [ "native", "wasm" ],
+    "scope.mbt": [ "native", "wasm" ],
+    "server.mbt": [ "native", "wasm" ],
+    "server_test.mbt": [ "native", "wasm" ],
+    "tls.mbt": [ "native", "wasm" ],
+    "tls_wbtest.mbt": [ "native", "wasm" ],
+    "websocket.mbt": [ "native", "wasm" ],
+    "websocket_frame_wbtest.mbt": [ "native", "wasm" ],
+    "websocket_io.mbt": [ "native", "wasm" ],
+    "websocket_serve.mbt": [ "native", "wasm" ],
+    "websocket_serve_wbtest.mbt": [ "native", "wasm" ],
+  },
+)

@@ -6,7 +6,7 @@ import re, html, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SECTIONS = [
-    ("serve", ('serve/server.native.mbt', 'serve/scope.native.mbt', 'serve/http1.native.mbt', 'config/config.mbt', 'lifespan/lifespan.mbt', 'serve/process_model.native.mbt', 'serve/process_reload.native.mbt', 'config/date.mbt', 'proxy/proxy.native.mbt', 'config/log.mbt'), "Serving",
+    ("serve", ('serve/server.mbt', 'serve/scope.mbt', 'serve/http1.mbt', 'config/config.mbt', 'lifespan/lifespan.mbt', 'serve/process_model.mbt', 'serve/process_reload.mbt', 'config/date.mbt', 'proxy/proxy.mbt', 'config/log.mbt'), "Serving",
      "The accept loop that turns each connection into a Scope / Receive / Send and "
      "drives your moonasgi app: the Config record uvicorn's settings map onto, the "
      "lifespan protocol run around the listener, the graceful shutdown path that "
@@ -15,23 +15,23 @@ SECTIONS = [
      "is believed on. HTTP/1.1 messages are read and written by moonhttp/http1; "
      "what is here is the connection's inbox that keeps a pipelined request from "
      "being lost between them."),
-    ("cli", ('cli/cli.native.mbt', 'cli/run.native.mbt'), "Command line",
+    ("cli", ('cli/cli.mbt', 'cli/run.mbt'), "Command line",
      "uvicorn's flags, which are the half of `uvicorn main:app` that carries over "
      "to a language that links its app in rather than importing it by string. "
      "run(app) is the whole body of a server program; parse(argv) returns the plan "
      "without opening anything. A uvicorn flag mooncat cannot honour answers with "
      "the reason rather than with 'unexpected argument'."),
-    ("websocket", ('serve/websocket.native.mbt', 'serve/websocket_io.native.mbt', 'serve/websocket_serve.native.mbt'), "WebSocket",
+    ("websocket", ('serve/websocket.mbt', 'serve/websocket_io.mbt', 'serve/websocket_serve.mbt'), "WebSocket",
      "The frame-to-Event bridge that drives a websocket Scope through the SEAM: "
      "connect / accept / receive / send / disconnect / close, over any byte stream, "
      "so ws:// and wss:// share it. The RFC 6455 frames and the opening handshake "
      "are moonhttp's ws and upgrade packages."),
-    ("http2", ("serve/http2.native.mbt",), "HTTP/2",
+    ("http2", ("serve/http2.mbt",), "HTTP/2",
      "Serving HTTP/2, chosen by ALPN under TLS and by the connection preface in the "
      "clear: the frame pump, stream multiplexing and the send windows, each stream "
      "driving the app as one request. The frames are moonhttp/http2 and the header "
      "compression moonhttp/hpack."),
-    ("tls", ('serve/tls.native.mbt',), "TLS",
+    ("tls", ('serve/tls.mbt',), "TLS",
      "HTTPS: the certificate chain and key as PEM files, the same on every platform. "
      "The handshake is moontls on a moonnet connection, offering h2 and http/1.1 by "
      "ALPN; after it a connection is served like a plain one, WebSocket upgrades "
@@ -219,7 +219,7 @@ def esc(t):
 def main():
     HEAD = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            '<title>mooncat — native ASGI 3.0 server for MoonBit</title>'
+            '<title>mooncat — ASGI 3.0 server for MoonBit</title>'
             '<link rel="preconnect" href="https://fonts.googleapis.com">'
             '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
             '<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&'
@@ -227,7 +227,7 @@ def main():
             '<style>' + CSS + '</style></head><body>')
 
     side = ['<aside class="sidebar"><div class="brand"><span class="dot"></span>mooncat</div>'
-            '<p class="brand-sub">native ASGI 3.0 server &#8592; uvicorn</p><nav class="side-nav">']
+            '<p class="brand-sub">ASGI 3.0 server &#8592; uvicorn</p><nav class="side-nav">']
     side += ['<a href="#%s"><span class="at">§</span>%s</a>' % (sid, title)
              for sid, _, title, _ in SECTIONS]
     side += ['</nav>'
@@ -238,7 +238,7 @@ def main():
              '</div></aside>']
 
     hero = ('<main><header class="hero"><h1>mooncat</h1>'
-            '<p class="tag">A native ASGI 3.0 server for MoonBit. It runs a moonasgi app over a real '
+            '<p class="tag">An ASGI 3.0 server for MoonBit. It runs a moonasgi app over a real '
             'network socket — accept a connection, turn each request into a Scope / Receive / Send, and '
             'drive your app — exactly the role uvicorn plays for Python.</p>'
             '<div class="badges">'

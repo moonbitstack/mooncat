@@ -21,7 +21,15 @@ import {
   "moonbitstack/mooncat",
 } for "test"
 
-// Native only: the flags exist to start a server, and `serve` is native.
+// The flags exist to start a server, which runs where the async sockets do: native and wasm.
 // On other targets the package has no sources, so every import is unused.
 
 warnings = "-29"
+
+options(
+  targets: {
+    "cli.mbt": [ "native", "wasm" ],
+    "cli_test.mbt": [ "native", "wasm" ],
+    "run.mbt": [ "native", "wasm" ],
+  },
+)

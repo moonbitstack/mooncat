@@ -2,7 +2,7 @@
 
 # mooncat
 
-**A native ASGI 3.0 server for MoonBit — `← uvicorn`.**
+**An ASGI 3.0 server for MoonBit — `← uvicorn`.**
 
 [![Check and Test](https://github.com/moonbitstack/mooncat/actions/workflows/ci.yml/badge.svg)](https://github.com/moonbitstack/mooncat/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
@@ -23,8 +23,8 @@ flowchart LR
 
 ## Quickstart
 
-`serve` is native-only — it opens a socket — and it is `async`, so the entry
-point is `async fn main` and the target is `--target native`:
+`serve` opens a socket, which moonbitlang/async offers on the native and wasm
+backends, and it is `async`, so the entry point is `async fn main`:
 
 ```moonbit
 async fn main {
@@ -202,9 +202,9 @@ mooncat also serves a small hand-written ASGI handler end to end: the HTTP/1.1 i
 
 **HTTPS/TLS serving**, the **graceful-shutdown + `--reload` process model**, and **HTTP/2 serving** under TLS and in the clear landed too — see the sections above. Roadmap, transliterated from uvicorn feature-by-feature: further TLS detail (ciphers, client certificates), TLS and the clear on one port, ASGI over HTTP/3, multiple workers once it can pass a listening socket to a child process, `backlog` once `TcpServer` takes one, and the remaining WebSocket knobs — `ws-ping-interval` / `ws-ping-timeout` / `ws-max-queue` need a reader that can be interrupted between messages and resumed, and `ws-per-message-deflate` needs a raw DEFLATE codec the async `gzip` package does not expose.
 
-## Native only
+## Targets
 
-The `moonbitlang/async` HTTP **server** is native-only — there is no JS server backend — so `mooncat` builds and runs on the `native` target.
+Serving runs where moonbitlang/async has sockets: native and wasm, and the whole suite runs on both. On js and wasm-gc the `config`, `lifespan` and `proxy` packages build and the serving packages are empty. QUIC is native only.
 
 ## License
 

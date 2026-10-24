@@ -1,7 +1,7 @@
 # Examples
 
 Runnable examples of the current public `@mooncat` API. Each folder is a
-`main` package for the native target:
+`main` package; the serving ones run on the native and wasm backends:
 
 ```bash
 moon run examples/01-lifespan --target native
@@ -28,8 +28,8 @@ stays running until cancelled.
 
 ## Notes
 
-**Native only.** `mooncat` rides `moonbitlang/async` (a native-only HTTP/TLS
-transport), so the library and examples use the `native` target.
+**Native and wasm.** `mooncat` serves on `moonbitlang/async` sockets, which
+those two backends have; the commands here use `--target native`.
 
 `serve` (00-hello) blocks in a keep-alive accept loop until its task is
 cancelled — leave it running and hit it from another shell:

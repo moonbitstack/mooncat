@@ -8,6 +8,13 @@ import {
   "moonbitlang/core/encoding/utf8",
 }
 
-supported_targets = "+native"
-
 pkgtype(kind: "executable")
+
+warnings = "-29"
+
+options(
+  targets: {
+    "main.mbt": [ "native", "wasm" ],
+    "elsewhere.mbt": [ "js", "wasm-gc" ],
+  },
+)
