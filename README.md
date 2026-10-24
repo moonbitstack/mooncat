@@ -118,7 +118,7 @@ tested and how a program can look at the plan before serving.
 )
 ```
 
-The TLS is [`moontls`](https://github.com/moonbitstack/moontls) on [`moonnet`](https://github.com/moonbitstack/moonnet)'s connections, so the same PEM files serve on Linux, macOS and Windows. The files are read once at startup, and a key that is not the certificate's is refused there. `serve_tls_server` takes a `@tls.Server` built by the caller instead, for other suites, groups or ALPN lists. The listener offers `h2` and `http/1.1` by ALPN: a client that picks `h2` is served HTTP/2, any other HTTP/1.1, WebSocket upgrades included (`wss://`). A handshake has `timeout_handshake` to finish, 60 seconds by default as in hypercorn; a connection ends with close_notify.
+The TLS is [`moontls`](https://github.com/moonbitstack/moontls) on [`moonnet`](https://github.com/moonbitstack/moonnet)'s connections, so the same PEM files serve on Linux, macOS and Windows. The files are read once at startup, and a key that is not the certificate's is refused there. `serve_tls_server` takes a `@tls.Server` built by the caller instead, for other suites, groups or ALPN lists. The same port serves the clear too: a connection that does not open with a TLS handshake record is served HTTP/1.1 or h2c with the scheme `http`, so a redirect to `https` is the application's to make (moonasgi's `HttpsRedirect`). `cleartext=false` makes the port TLS only. The listener offers `h2` and `http/1.1` by ALPN: a client that picks `h2` is served HTTP/2, any other HTTP/1.1, WebSocket upgrades included (`wss://`). A handshake has `timeout_handshake` to finish, 60 seconds by default as in hypercorn; a connection ends with close_notify.
 
 CI drives it with the system's TLS as the client (OpenSSL, or SChannel on Windows): `GET` over `https://`, and a WebSocket upgrade with the subprotocol echoed in the 101. Regenerate the throwaway localhost test cert with `scripts/gen-cert.sh`.
 
@@ -228,8 +228,9 @@ server.
 
 ## Listening
 
-The TCP serving entry points default to port **12000**. HTTP/1.1, WebSocket and
-HTTP/2 share one listener; HTTPS is still a listener of its own, until the
-first byte of a connection decides between TLS and the clear.
+The TCP serving entry points default to port **12000**. HTTP/1.1, WebSocket,
+HTTP/2 and TLS share one listener: on a TLS server the first byte of a
+connection decides between TLS and the clear (`Config.cleartext`, on by
+default; `--no-cleartext` turns it off).
 `Config::new(port=...)` changes the TCP port. `quic_serve` binds the UDP address passed by the caller; UDP and TCP use
 separate port spaces, so they may use the same number.

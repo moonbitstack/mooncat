@@ -87,3 +87,83 @@ async test "h2: in the clear one port serves HTTP/1.1 and HTTP/2 by prior knowle
     task.cancel()
   })
 }
+
+///|
+/// Answers with the scope's scheme and HTTP version.
+fn scheme_app() -> @moonasgi.AsgiApp {
+  (scope, receive, send) => {
+    guard scope is Http(h) else { return }
+    ignore(receive())
+    send(HttpResponseStart(status=200, headers=[], trailers=false))
+    send(
+      HttpResponseBody(
+        body=@utf8.encode("\{h.scheme} \{h.http_version}"),
+        more_body=false,
+      ),
+    )
+  }
+}
+
+///|
+/// Send one HTTP/1.1 request on `conn` and return everything until the peer closes.
+async fn h1_exchange(conn : @tcp.Conn) -> String {
+  conn.write("GET / HTTP/1.1\r\nhost: x\r\nconnection: close\r\n\r\n")
+  let got = StringBuilder()
+  while (conn.read_some() catch { _ => None }) is Some(more) {
+    got.write_string(@utf8.decode_lossy(more))
+  }
+  got.to_string()
+}
+
+///|
+/// The family's rule: TLS takes no port of its own. One listener answers TLS by its handshake
+/// record and the clear otherwise, HTTP/1.1 and HTTP/2 both.
+async test "tls: one port serves https, http and h2c" {
+  let port = 18450
+  @async.with_task_group(g => {
+    let task = g.spawn(() => {
+      serve_tls_config(
+        scheme_app(),
+        @config.Config::new(port~, logger=@config.Logger::silent()),
+        test_cert(),
+      )
+    })
+    @async.sleep(400)
+    let secure = h1_exchange(
+      @tcp.dial("127.0.0.1", port~, tls=pinned(["http/1.1"])),
+    )
+    assert_true(secure.has_suffix("https 1.1"))
+    let clear = h1_exchange(@tcp.dial("127.0.0.1", port~))
+    assert_true(clear.has_suffix("http 1.1"))
+    let (status, _, body) = h2c_request("127.0.0.1", port, "GET", "/")
+    assert_eq(status, "200")
+    assert_eq(body, b"http 2")
+    task.cancel()
+  })
+}
+
+///|
+async test "tls: with cleartext off a TLS port does not serve the clear" {
+  let port = 18451
+  @async.with_task_group(g => {
+    let task = g.spawn(() => {
+      serve_tls_config(
+        scheme_app(),
+        @config.Config::new(
+          port~,
+          cleartext=false,
+          logger=@config.Logger::silent(),
+        ),
+        test_cert(),
+      )
+    })
+    @async.sleep(400)
+    let clear = h1_exchange(@tcp.dial("127.0.0.1", port~))
+    assert_false(clear.contains("HTTP/1.1 200"))
+    let secure = h1_exchange(
+      @tcp.dial("127.0.0.1", port~, tls=pinned(["http/1.1"])),
+    )
+    assert_true(secure.has_suffix("https 1.1"))
+    task.cancel()
+  })
+}

@@ -174,9 +174,9 @@ async fn accept_loop(
             Some(c) =>
               match
                 @async.with_timeout_opt(config.timeout_handshake, () => {
-                  @tcp.Conn::server(conn, c)
+                  secure(conn, c, config.cleartext)
                 }) {
-                Some(s) => (s, "https")
+                Some(opened) => opened
                 None => return
               }
             None => (@tcp.Conn::plain(conn), "http")
@@ -208,6 +208,23 @@ async fn accept_loop(
       },
       allow_failure=config.allow_failure,
     )
+  }
+}
+
+///|
+/// The connection on a TLS listener, and its scheme: TLS, or with `cleartext` the clear for a
+/// connection that does not open with a TLS handshake record.
+async fn secure(
+  sock : @socket.Tcp,
+  server : @tls.Server,
+  cleartext : Bool,
+) -> (@tcp.Conn, String) {
+  guard cleartext else { return (@tcp.Conn::server(sock, server), "https") }
+  let conn = @tcp.Conn::plain(sock)
+  if conn.opens_tls() {
+    (conn.secure(server), "https")
+  } else {
+    (conn, "http")
   }
 }
 

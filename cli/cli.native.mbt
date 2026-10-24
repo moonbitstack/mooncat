@@ -135,6 +135,12 @@ pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
       about="accept IPv4 and IPv6 on one socket",
     ),
     @argparse.FlagArg::FlagArg(
+      "cleartext",
+      long="cleartext",
+      negatable=true,
+      about="serve the clear beside TLS on the TLS port",
+    ),
+    @argparse.FlagArg::FlagArg(
       "h2c",
       long="h2c",
       about="speak HTTP/2 in the clear instead of HTTP/1.1",
@@ -247,6 +253,7 @@ fn fold(
     dual_stack: switched(got, "dual_stack", base.dual_stack),
     reuse_addr: switched(got, "reuse_addr", base.reuse_addr),
     date_header: switched(got, "date_header", base.date_header),
+    cleartext: switched(got, "cleartext", base.cleartext),
     proxy_headers: switched(got, "proxy_headers", base.proxy_headers),
     server_headers: if switched(
         got,

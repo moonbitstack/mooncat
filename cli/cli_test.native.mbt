@@ -237,3 +237,9 @@ test "the lifespan mode is one of three words" {
   }
   assert_true(refused is Err(@cli.Value(flag="--lifespan", ..)))
 }
+
+///|
+test "the clear beside TLS can be turned off" {
+  assert_eq(plan([]).config.cleartext, true)
+  assert_eq(plan(["--no-cleartext"]).config.cleartext, false)
+}

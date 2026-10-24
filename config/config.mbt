@@ -139,6 +139,10 @@ pub(all) struct Config {
   h2 : H2Config
   // Whether and how the lifespan protocol runs (← uvicorn's `--lifespan`, `auto` by default).
   lifespan : Lifespan
+  // Whether a TLS listener also serves the clear on the same port: a connection that opens with
+  // a TLS handshake record is served TLS, any other plain HTTP. The family serves both on one
+  // port rather than keeping a second one for TLS.
+  cleartext : Bool
 }
 
 ///|
@@ -187,6 +191,7 @@ pub fn Config::new(
   ws~ : WsConfig = WsConfig::new(),
   h2~ : H2Config = H2Config::new(),
   lifespan~ : Lifespan = Auto,
+  cleartext~ : Bool = true,
 ) -> Config {
   {
     host,
@@ -211,6 +216,7 @@ pub fn Config::new(
     ws,
     h2,
     lifespan,
+    cleartext,
   }
 }
 
