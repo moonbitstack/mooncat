@@ -46,6 +46,7 @@ priv struct H2Stream {
 priv struct H2Conn {
   conn : @tcp.Conn
   config : @config.Config
+  link : Link
   dec : @hpack.Decoder
   enc : @hpack.Encoder
   mut conn_send_window : Int32
@@ -56,10 +57,15 @@ priv struct H2Conn {
 }
 
 ///|
-fn H2Conn::new(conn : @tcp.Conn, config : @config.Config) -> H2Conn {
+fn H2Conn::new(
+  conn : @tcp.Conn,
+  config : @config.Config,
+  link : Link,
+) -> H2Conn {
   {
     conn,
     config,
+    link,
     dec: @hpack.Decoder::new(),
     enc: @hpack.Encoder::new(),
     conn_send_window: H2_DEFAULT_WINDOW,
@@ -330,15 +336,18 @@ fn h2_response_headers(
 
 ///|
 /// Turn a completed request stream's decoded HEADERS into an ASGI HTTP `Scope`.
-/// The pseudo-headers `:method` / `:path` / `:scheme` / `:authority` (RFC 7540
-/// §8.1.2.3) become the scope's method / path+query / scheme, and every ordinary
-/// header is carried through; a synthetic `host` is derived from `:authority` when
-/// the request has no explicit `host`, matching how HTTP/2 servers present the
-/// authority to an application. `http_version` is `"2"`.
-fn h2_build_scope(headers : Array[@header.Header]) -> @moonasgi.Scope {
+/// `:method` and `:path` (RFC 9113 §8.3.1) give the method and target, every
+/// ordinary header is carried through, and a `host` is derived from `:authority`
+/// when the request has no explicit one. The scheme is the connection's, as on
+/// HTTP/1.1, rather than what the client wrote in `:scheme`; the rest is
+/// `http_scope`'s, shared with HTTP/1.1. `http_version` is `"2"`.
+fn h2_build_scope(
+  headers : Array[@header.Header],
+  link : Link,
+  config : @config.Config,
+) -> @moonasgi.Scope {
   let mut verb = "GET"
   let mut target = "/"
-  let mut scheme = "http"
   let mut authority = ""
   let mut has_host = false
   let pairs : Array[(String, String)] = []
@@ -349,8 +358,6 @@ fn h2_build_scope(headers : Array[@header.Header]) -> @moonasgi.Scope {
       verb = value
     } else if name == ":path" {
       target = value
-    } else if name == ":scheme" {
-      scheme = value
     } else if name == ":authority" {
       authority = value
     } else if name.length() > 0 && name[0] != ':' {
@@ -363,22 +370,7 @@ fn h2_build_scope(headers : Array[@header.Header]) -> @moonasgi.Scope {
   if not_empty(authority) && !has_host {
     pairs.push(("host", authority))
   }
-  let (path, query) = split_query(target)
-  @moonasgi.Scope::Http({
-    http_version: "2",
-    http_method: verb,
-    scheme,
-    path,
-    raw_path: @utf8.encode(path),
-    query_string: @utf8.encode(query),
-    root_path: "",
-    headers: pairs,
-    client: None,
-    server: None,
-    asgi: @moonasgi.AsgiVersion::http(),
-    extensions: @moonasgi.Extensions::none(),
-    state: Map([]),
-  })
+  http_scope(link, config, "2", verb, target, pairs)
 }
 
 ///|
@@ -398,7 +390,7 @@ async fn H2Conn::dispatch_stream(
   app : @moonasgi.AsgiApp,
   s : H2Stream,
 ) -> Unit {
-  let scope = h2_build_scope(s.headers)
+  let scope = h2_build_scope(s.headers, self.link, self.config)
   let body_done = Ref(false)
   let receive : @moonasgi.Receive = () => {
     if body_done.val {
@@ -410,27 +402,58 @@ async fn H2Conn::dispatch_stream(
   }
   let started = Ref(false)
   let ended = Ref(false)
+  let trailing = Ref(false)
+  let trailers : Array[(String, String)] = []
+  let headers_frame = (fields : Array[@header.Header], end_stream : Bool) => {
+    @http2.Frame::Headers(
+      stream_id=s.id,
+      fragment=self.enc.encode(fields),
+      end_stream~,
+      end_headers=true,
+      priority=None,
+      padding=0,
+    ).encode()
+  }
   let send : @moonasgi.Send = event => {
     match event {
-      HttpResponseStart(status~, headers~, ..) => {
+      // A 103 (RFC 8297) is a HEADERS frame of its own before the answer (RFC 9113 §8.1).
+      HttpResponseEarlyHint(links~) =>
+        if !started.val && links.length() > 0 {
+          let fields : Array[@header.Header] = [
+            { name: b":status", value: b"103", },
+          ]
+          for link in links {
+            fields.push({ name: b"link", value: h2_str_to_bytes(link), })
+          }
+          self.conn.write(headers_frame(fields, false))
+        }
+      // Trailers are a HEADERS frame after the body that ends the stream (RFC 9113 §8.1).
+      HttpResponseTrailers(headers~, more_trailers~) =>
+        if trailing.val && !ended.val {
+          trailers.push_iter(headers.iter())
+          if !more_trailers {
+            let fields = trailers.map(h => @header.Header::{
+              name: h2_str_to_bytes(h.0.to_lower()),
+              value: h2_str_to_bytes(h.1),
+            })
+            self.conn.write(headers_frame(fields, true))
+            ended.val = true
+          }
+        }
+      HttpResponseStart(status~, headers~, trailers=promised) => {
+        trailing.val = promised
         started.val = true
-        let block = self.enc.encode(
-          h2_response_headers(status, headers, self.config),
-        )
         self.conn.write(
-          @http2.Frame::Headers(
-            stream_id=s.id,
-            fragment=block,
-            end_stream=false,
-            end_headers=true,
-            priority=None,
-            padding=0,
-          ).encode(),
+          headers_frame(
+            h2_response_headers(status, headers, self.config),
+            false,
+          ),
         )
       }
       HttpResponseBody(body~, more_body~) => {
-        self.write_body(s.id, s, body, end_stream=!more_body)
-        if !more_body {
+        let last = !more_body && !trailing.val
+        self.write_body(s.id, s, body, end_stream=last)
+        if last {
           ended.val = true
         }
       }
@@ -441,17 +464,7 @@ async fn H2Conn::dispatch_stream(
   if started.val && !ended.val {
     self.write_body(s.id, s, b"", end_stream=true)
   } else if !started.val {
-    let block = self.enc.encode([{ name: b":status", value: b"500", }])
-    self.conn.write(
-      @http2.Frame::Headers(
-        stream_id=s.id,
-        fragment=block,
-        end_stream=true,
-        end_headers=true,
-        priority=None,
-        padding=0,
-      ).encode(),
-    )
+    self.conn.write(headers_frame([{ name: b":status", value: b"500", }], true))
   }
 }
 
@@ -495,12 +508,13 @@ async fn drive_h2(
   app : @moonasgi.AsgiApp,
   conn : @tcp.Conn,
   config : @config.Config,
+  link : Link,
 ) -> Unit {
   let preface = conn.read_exactly(@http2.preface.length())
   if !@http2.has_preface(preface) {
     return
   }
-  let h2 = H2Conn::new(conn, config)
+  let h2 = H2Conn::new(conn, config, link)
   conn.write(
     @http2.Frame::Settings(
       params=[(@http2.settings_initial_window_size, H2_MAX_WINDOW)],
@@ -563,7 +577,15 @@ pub async fn serve_h2c_config(
       server.close()
     }
     server.run_forever(
-      (conn, _addr) => drive_h2(app, @tcp.Conn::plain(conn), config),
+      (conn, peer) => {
+        let link = {
+          scheme: "http",
+          bound: Some(server.addr),
+          peer: Some(peer),
+          tls: None,
+        }
+        drive_h2(app, @tcp.Conn::plain(conn), config, link)
+      },
       allow_failure=config.allow_failure,
       max_connections?=config.max_connections,
     )

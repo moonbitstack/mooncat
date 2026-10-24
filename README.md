@@ -122,6 +122,18 @@ The TLS is [`moontls`](https://github.com/moonbitstack/moontls) on [`moonnet`](h
 
 CI drives it with the system's TLS as the client (OpenSSL, or SChannel on Windows): `GET` over `https://`, and a WebSocket upgrade with the subprotocol echoed in the 101. Regenerate the throwaway localhost test cert with `scripts/gen-cert.sh`.
 
+## ASGI extensions
+
+Every HTTP scope advertises what mooncat honours, on HTTP/1.1 and HTTP/2 alike:
+
+| Extension | What happens |
+|:--|:--|
+| `http.response.early_hint` | a `103 Early Hints` with the `link` values goes out before the answer (not to an HTTP/1.0 client) |
+| `http.response.trailers` | a response started with `trailers=true` is chunked on HTTP/1.1 and its trailers ride in the last chunk; on HTTP/2 they are the closing HEADERS frame |
+| `tls` | on a TLS connection: `tls_version` (`0x0304`), `cipher_suite`, and the server's certificate as PEM |
+
+HTTP/2 and HTTP/1.1 build their scopes in one place, so both percent-decode `path` beside the raw one, honour `root_path`, carry the client and server addresses, and apply `--proxy-headers` the same way.
+
 ## Process model
 
 `serve_graceful` runs the app under uvicorn's process model — a graceful shutdown and a `--reload` file watcher:

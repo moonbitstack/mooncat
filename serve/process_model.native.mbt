@@ -48,10 +48,8 @@ async fn serve_conn(
   app : @moonasgi.AsgiApp,
   reader : &@io.Reader,
   writer : &@io.Writer,
-  scheme : String,
+  link : Link,
   config : @config.Config,
-  bound : @socket.Addr,
-  peer : @socket.Addr,
   inflight : Ref[Int32],
   served : Ref[Int32],
   handle : ShutdownHandle,
@@ -82,10 +80,11 @@ async fn serve_conn(
       req,
       inbox,
       writer,
-      scheme~,
+      scheme=link.scheme,
       config~,
-      server_addr=bound,
-      client_addr=peer,
+      server_addr?=link.bound,
+      client_addr?=link.peer,
+      tls?=link.tls,
     )
     served.val = served.val + 1
     if over_request_limit(served.val, config.limit_max_requests) {
@@ -159,12 +158,21 @@ async fn accept_loop(
               }
             None => (@tcp.Conn::plain(conn), "http")
           }
+          let chain = match tls {
+            Some(c) => c.chain
+            None => []
+          }
+          let link = {
+            scheme,
+            bound: Some(bound),
+            peer: Some(peer),
+            tls: tls_facts(stream, chain),
+          }
           match speaks_h2(stream, config) {
-            Some(true) => drive_h2(app, stream, config)
+            Some(true) => drive_h2(app, stream, config, link)
             Some(false) =>
               serve_conn(
-                app, stream, stream, scheme, config, bound, peer, inflight, served,
-                handle,
+                app, stream, stream, link, config, inflight, served, handle,
               )
             None => ()
           }

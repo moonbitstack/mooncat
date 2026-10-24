@@ -6,7 +6,7 @@ import re, html, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SECTIONS = [
-    ("serve", ('serve/server.native.mbt', 'serve/http1.native.mbt', 'config/config.mbt', 'lifespan/lifespan.mbt', 'serve/process_model.native.mbt', 'serve/process_reload.native.mbt', 'config/date.mbt', 'proxy/proxy.native.mbt', 'config/log.mbt'), "Serving",
+    ("serve", ('serve/server.native.mbt', 'serve/scope.native.mbt', 'serve/http1.native.mbt', 'config/config.mbt', 'lifespan/lifespan.mbt', 'serve/process_model.native.mbt', 'serve/process_reload.native.mbt', 'config/date.mbt', 'proxy/proxy.native.mbt', 'config/log.mbt'), "Serving",
      "The accept loop that turns each connection into a Scope / Receive / Send and "
      "drives your moonasgi app: the Config record uvicorn's settings map onto, the "
      "lifespan protocol run around the listener, the graceful shutdown path that "

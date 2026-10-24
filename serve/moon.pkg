@@ -16,6 +16,7 @@ import {
   "moonbitstack/moonlog",
   "moonbitstack/moondate",
   "moonbitstack/moonnet/tcp",
+  "moonbitstack/moonbase/base64",
   "moonbitstack/moontls/tls",
   "moonbitstack/mooncred/x509",
   "moonbitlang/async",

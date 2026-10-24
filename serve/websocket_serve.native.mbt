@@ -26,36 +26,40 @@ async fn serve_websocket_raw(
   config~ : @config.Config,
   server_addr? : @socket.Addr,
   client_addr? : @socket.Addr,
+  tls? : @moonasgi.TlsExtension,
 ) -> Unit {
-  let (path, query) = split_query(req.target)
-  let peer = match client_addr {
-    Some(a) => Some(addr_pair(a))
-    None => None
+  let link = {
+    scheme: if tls is Some(_) {
+      "wss"
+    } else {
+      "ws"
+    },
+    bound: server_addr,
+    peer: client_addr,
+    tls,
   }
-  let (client, scheme) = if config.proxy_headers {
-    @proxy.proxy_rewrite(
-      fields_map(req.fields),
-      peer,
-      "ws",
-      trusted=config.forwarded_allow_ips,
-      websocket=true,
-    )
-  } else {
-    (peer, "ws")
-  }
+  let (raw_path, query) = split_query(req.target)
+  let headers = fields_pairs(req.fields)
+  let (client, scheme) = seen_from(
+    link,
+    config,
+    headers,
+    link.scheme,
+    websocket=true,
+  )
   let scope = @moonasgi.Scope::WebSocket({
     http_version: "1.1",
     scheme,
-    path,
-    raw_path: @utf8.encode(path),
+    path: @utf8.decode_lossy(percent_decode(raw_path)),
+    raw_path: @utf8.encode(raw_path),
     query_string: @utf8.encode(query),
     root_path: config.root_path,
-    headers: fields_pairs(req.fields),
+    headers,
     client,
     server: server_pair(server_addr),
     subprotocols: parse_subprotocols(fields_map(req.fields)),
     asgi: @moonasgi.AsgiVersion::websocket(),
-    extensions: @moonasgi.Extensions::none(),
+    extensions: ws_extensions(link),
     state: Map([]),
   })
   let connected = Ref(false)

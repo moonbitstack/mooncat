@@ -194,8 +194,10 @@ async fn dispatch_http1(
   config~ : @config.Config = @config.Config::new(),
   server_addr? : @socket.Addr,
   client_addr? : @socket.Addr,
+  tls? : @moonasgi.TlsExtension,
 ) -> Bool {
   let server_headers = config.server_headers
+  let link = { scheme, bound: server_addr, peer: client_addr, tls, }
   // A WebSocket upgrade is bridged over the raw stream (with subprotocol echo) and ends the
   // connection — it never returns to the keep-alive HTTP loop.
   // A conforming client sends nothing after an upgrade request until it has the 101
@@ -209,45 +211,19 @@ async fn dispatch_http1(
       config~,
       server_addr?,
       client_addr?,
+      tls?,
     )
     return false
   }
-  let (raw_path, query) = split_query(req.target)
-  let peer = match client_addr {
-    Some(a) => Some(addr_pair(a))
-    None => None
-  }
-  let (client, req_scheme) = if config.proxy_headers {
-    @proxy.proxy_rewrite(
-      fields_map(req.fields),
-      peer,
-      scheme,
-      trusted=config.forwarded_allow_ips,
-    )
-  } else {
-    (peer, scheme)
-  }
-  let scope = @moonasgi.Scope::Http({
-    http_version: if req.version == "HTTP/1.0" {
-      "1.0"
-    } else {
-      "1.1"
-    },
-    http_method: req.verb,
-    scheme: req_scheme,
-    // ASGI's `path` is percent-decoded and `raw_path` is not; handing over the encoded
-    // form for both leaves a router unable to tell `%2F` from `/`.
-    path: @utf8.decode_lossy(percent_decode(raw_path)),
-    raw_path: @utf8.encode(raw_path),
-    query_string: @utf8.encode(query),
-    root_path: config.root_path,
-    headers: fields_pairs(req.fields),
-    client,
-    server: server_pair(server_addr),
-    asgi: @moonasgi.AsgiVersion::http(),
-    extensions: @moonasgi.Extensions::none(),
-    state: Map([]),
-  })
+  let version = if req.version == "HTTP/1.0" { "1.0" } else { "1.1" }
+  let scope = http_scope(
+    link,
+    config,
+    version,
+    req.verb,
+    req.target,
+    fields_pairs(req.fields),
+  )
   // The body goes to the app as it arrives, one `http.request` per piece with
   // `more_body` until the last, as uvicorn does; reading it whole first would let one
   // upload hold its full size in memory.
@@ -359,16 +335,42 @@ async fn dispatch_http1(
     sb.write_string(extra)
     sb.to_string()
   }
+  // Trailers ride in the last chunk, so a response that promises them is chunked whatever its
+  // length; HTTP/1.0 and HEAD have nowhere to put them.
+  let trailing = Ref(false)
+  let trailers : Array[@header.Header] = []
   let send : @moonasgi.Send = event => {
     match event {
-      HttpResponseStart(status~, headers~, ..) => {
+      HttpResponseStart(status~, headers~, trailers=promised) => {
         resp_status.val = status
         resp_headers.val = headers
+        trailing.val = promised && !is_http10 && !is_head
       }
+      // A 103 (RFC 8297) goes before the answer; an HTTP/1.0 client need not expect a 1xx.
+      HttpResponseEarlyHint(links~) =>
+        if !started.val && !is_http10 && links.length() > 0 {
+          let sb = StringBuilder()
+          sb.write_string("HTTP/1.1 103 Early Hints\r\n")
+          for link in links {
+            sb.write_string("link: \{link}\r\n")
+          }
+          sb.write_string("\r\n")
+          writer.write(sb.to_string())
+        }
+      HttpResponseTrailers(headers~, more_trailers~) =>
+        if chunked.val && trailing.val && !ended.val {
+          for h in headers {
+            trailers.push(@header.Header::of(h.0, h.1))
+          }
+          if !more_trailers {
+            writer.write(@http1.last_chunk(trailers~))
+            ended.val = true
+          }
+        }
       HttpResponseBody(body~, more_body~) =>
         if !started.val {
           started.val = true
-          if !more_body {
+          if !more_body && !trailing.val {
             writer.write(head("content-length: \{body.length()}\r\n\r\n"))
             if !is_head {
               writer.write(body)
@@ -391,7 +393,7 @@ async fn dispatch_http1(
           }
         } else if chunked.val {
           write_chunk(writer, body)
-          if !more_body {
+          if !more_body && !trailing.val {
             writer.write(@http1.last_chunk())
             ended.val = true
           }
