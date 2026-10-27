@@ -4,7 +4,7 @@
 /// the `TlsCert` bundle `serve_tls_config` consumes. Built and printed
 /// in-process — no socket is bound.
 ///
-///     moon run examples/02-config --target native
+///     moon run src/examples/02-config --target native
 #coverage.skip
 fn main {
   let cfg = @mooncat.Config::new(
@@ -33,8 +33,8 @@ fn main {
     "defaults         = \{d.bind()} backlog=\{d.backlog} reuse_addr=\{d.reuse_addr} allow_failure=\{d.allow_failure}",
   )
   let cert = @mooncat.TlsCert::{
-    certificate_file: "certs/cert.pem",
-    private_key_file: "certs/key.pem",
+    certificate_file: "src/certs/cert.pem",
+    private_key_file: "src/certs/key.pem",
   }
   println(
     "tls bundle       = cert=\{cert.certificate_file} key=\{cert.private_key_file}",

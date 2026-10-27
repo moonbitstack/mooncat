@@ -52,7 +52,7 @@ curl http://127.0.0.1:12000
 ```
 
 `moon.mod` needs `moonbitstack/mooncat` and `moonbitstack/moonasgi`; the
-package importing them needs both in its `moon.pkg`. `moon run examples/00-hello
+package importing them needs both in its `moon.pkg`. `moon run src/examples/00-hello
 --target native` is the same program in this repository.
 
 `serve` blocks in a keep-alive accept loop until its task is cancelled. Each request is bridged faithfully: the method/path/query/headers become an `http` `Scope`, the request body streams through `Receive`, and `HttpResponseStart` / `HttpResponseBody` events are written back via the connection.

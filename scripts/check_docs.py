@@ -14,6 +14,7 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+SRC = ROOT / "src"
 SKIP_DIRS = ("examples/", "_build/", ".mooncakes/", "scripts/")
 
 
@@ -26,8 +27,8 @@ def listed():
 def sources():
     out = set()
     for pattern in ("*.mbt", "*/*.mbt"):
-        for found in glob.glob(str(ROOT / pattern)):
-            rel = os.path.relpath(found, ROOT).replace(os.sep, "/")
+        for found in glob.glob(str(SRC / pattern)):
+            rel = os.path.relpath(found, SRC).replace(os.sep, "/")
             if rel.startswith(SKIP_DIRS):
                 continue
             if "_wbtest." in rel or "_test." in rel:
@@ -42,7 +43,7 @@ def sources():
 
 
 named = listed()
-dead = [n for n in named if not (ROOT / n).exists()]
+dead = [n for n in named if not (SRC / n).exists()]
 missing = sorted(sources() - set(named))
 
 for n in dead:

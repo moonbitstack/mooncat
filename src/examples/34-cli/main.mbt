@@ -5,14 +5,14 @@
 /// imports by string. MoonBit links it in instead, so the app is a value and
 /// the flags are what carries over:
 ///
-///     moon run examples/34-cli --target native -- --port 9000 --log-level debug
-///     moon run examples/34-cli --target native -- --help
+///     moon run src/examples/34-cli --target native -- --port 9000 --log-level debug
+///     moon run src/examples/34-cli --target native -- --help
 ///     curl http://127.0.0.1:9000
 ///
 /// `--help` lists every flag. A uvicorn flag mooncat cannot honour answers
 /// with the reason rather than with "unexpected argument":
 ///
-///     moon run examples/34-cli --target native -- --workers 4
+///     moon run src/examples/34-cli --target native -- --workers 4
 #coverage.skip
 async fn main {
   let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {

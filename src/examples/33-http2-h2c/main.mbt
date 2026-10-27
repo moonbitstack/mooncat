@@ -38,7 +38,7 @@ fn fields(list : Array[@header.Header]) -> String {
 /// answer goes back as a head and DATA. `serve_h2c_config` does the same over a socket, with
 /// each stream in a task of its own.
 ///
-///     moon run examples/33-http2-h2c --target native
+///     moon run src/examples/33-http2-h2c --target native
 #coverage.skip
 fn main raise {
   let limits = @mooncat.H2Config::new()

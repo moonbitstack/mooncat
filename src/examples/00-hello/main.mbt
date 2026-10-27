@@ -4,7 +4,7 @@
 /// ASGI app. It blocks in the keep-alive accept loop until the task is
 /// cancelled, so leave it running and hit it from another shell:
 ///
-///     moon run examples/00-hello --target native
+///     moon run src/examples/00-hello --target native
 ///     curl http://127.0.0.1:12000
 #coverage.skip
 async fn main {

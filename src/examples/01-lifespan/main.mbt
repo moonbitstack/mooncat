@@ -4,7 +4,7 @@
 /// driver pushes `lifespan.startup`, the app answers `startup.complete`, then
 /// `lifespan.shutdown` and `shutdown.complete`, in that fixed order.
 ///
-///     moon run examples/01-lifespan --target native
+///     moon run src/examples/01-lifespan --target native
 #coverage.skip
 async fn main {
   @async.with_task_group(g => {

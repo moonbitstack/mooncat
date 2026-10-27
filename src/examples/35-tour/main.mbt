@@ -5,7 +5,7 @@
 /// real sockets, drives them with real clients, prints what came back, and
 /// stops — so running it is the whole proof, not a screenshot of one:
 ///
-///     moon run examples/35-tour --target native
+///     moon run src/examples/35-tour --target native
 ///
 /// What it covers: the configuration uvicorn's settings map onto, the lifespan
 /// protocol, routing an ASGI app, keep-alive across requests, the request

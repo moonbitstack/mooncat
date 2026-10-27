@@ -15,7 +15,7 @@ import pathlib
 import re
 import sys
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent / "src"
 # A server binds with `port=N` or `Config::new(port=N, ...)`; a client reaches
 # it by URL. Only the binding side can collide.
 BIND = re.compile(r"port=(\d{4,5})")
