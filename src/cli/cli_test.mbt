@@ -189,10 +189,12 @@ test "a base config shows through where no flag covers it" {
 /// replaces the one in `base` rather than adjusting it.
 test "a logging flag replaces the logger, and silence survives without one" {
   let quiet = @mooncat.Config::new(logger=@mooncat.Logger::silent())
-  assert_false(@cli.parse([][:], base=quiet).config.logger.enabled(Info))
+  assert_false(
+    @cli.parse([][:], base=quiet).config.logger.enabled(@moonlog.info),
+  )
   assert_true(
     @cli.parse(["--log-level", "debug"][:], base=quiet).config.logger.enabled(
-      Debug,
+      @moonlog.debug,
     ),
   )
 }

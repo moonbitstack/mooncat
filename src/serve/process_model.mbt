@@ -76,7 +76,9 @@ async fn Load::count(self : Load, config : @config.Config) -> Bool {
   guard over_request_limit(self.served, config.limit_max_requests) else {
     return false
   }
-  config.logger.log(Info, "Maximum request limit reached, stopping the server")
+  config.logger.log(
+    @moonlog.info, "Maximum request limit reached, stopping the server",
+  )
   self.handle.request_stop()
   true
 }
@@ -98,7 +100,7 @@ async fn serve_conn(
   for ;; {
     guard next_head(inbox, config) is Some(req) else {
       if inbox.refused is Some(e) {
-        config.logger.log(Warning, "Invalid HTTP request received.")
+        config.logger.log(@moonlog.warn, "Invalid HTTP request received.")
         writer.write(refusal(e.status()))
       }
       break
@@ -107,8 +109,7 @@ async fn serve_conn(
     // ceiling — a request refused promptly is better for a caller than one that waits.
     if load.busy(config.limit_concurrency) {
       config.logger.log(
-        Warning,
-        "Exceeded concurrency limit, refusing with 503",
+        @moonlog.warn, "Exceeded concurrency limit, refusing with 503",
       )
       writer.write(
         "HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
@@ -389,7 +390,7 @@ async fn run(
     )
     let scheme = if tls is Some(_) { "https" } else { "http" }
     config.logger.log(
-      Info,
+      @moonlog.info,
       "Started server process on \{scheme}://" + config.bind(),
     )
     let load = Load::new(handle)

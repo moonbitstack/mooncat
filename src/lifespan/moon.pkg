@@ -1,6 +1,7 @@
 // The ASGI lifespan protocol: startup before the first connection, shutdown
 // after the last.
 import {
+  "moonbitstack/moonlog",
   "moonbitstack/mooncat/config",
   "moonbitstack/moonasgi",
   "moonbitlang/async",

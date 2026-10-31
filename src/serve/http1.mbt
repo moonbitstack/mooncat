@@ -430,7 +430,7 @@ async fn dispatch_http1(
   app(scope, receive, send) catch {
     err => {
       config.logger.log(
-        Error,
+        @moonlog.error,
         "exception in ASGI application: " + err.to_string(),
       )
       failed.val = true

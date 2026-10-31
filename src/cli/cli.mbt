@@ -337,7 +337,7 @@ fn logger(
   }
   let level = match level {
     Some(text) => speech(text)
-    None => @moonlog.Level::Info
+    None => @moonlog.info
   }
   @mooncat.Logger::new(
     level~,
@@ -349,15 +349,15 @@ fn logger(
 }
 
 ///|
-/// uvicorn's level names. `critical` is the one that is not also a `Level`.
+/// uvicorn's level names; `warning` and `critical` are moonlog's `warn` and `fatal`.
 fn speech(text : String) -> @moonlog.Level raise Refused {
   match text {
-    "trace" => Trace
-    "debug" => Debug
-    "info" => Info
-    "warning" => Warning
-    "error" => Error
-    "critical" => Fatal
+    "trace" => @moonlog.trace
+    "debug" => @moonlog.debug
+    "info" => @moonlog.info
+    "warning" => @moonlog.warn
+    "error" => @moonlog.error
+    "critical" => @moonlog.fatal
     other =>
       raise Value(
         flag="--log-level",

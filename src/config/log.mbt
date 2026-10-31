@@ -17,34 +17,41 @@ pub struct Logger {
 }
 
 ///|
-/// One line in uvicorn's shape: the level, a colon, and five spaces.
-fn uvicorn(record : @moonlog.Record) -> String {
-  record.level.name() + ":     " + record.message
-}
-
-///|
 /// A logger printing to stdout at `level`, with the access log on — uvicorn's
 /// defaults. `access` off silences the per-request lines while keeping the
 /// server's own.
 pub fn Logger::new(
-  level~ : @moonlog.Level = Info,
+  level~ : @moonlog.Level = @moonlog.info,
   access~ : Bool = true,
   write~ : (String) -> Unit = line => println(line),
 ) -> Logger {
-  {
-    out: @moonlog.Logger::new(
-      @moonlog.Lines::new(write, format=uvicorn),
-      level~,
-    ),
-    access,
+  // Python's level names, as uvicorn prints them: INFO, WARNING, CRITICAL.
+  let hub = @moonlog.Hub::new(profile=Python, filter=@moonlog.Filter::at(level))
+  let line = @moonlog.Pattern::parse("{level}:     {msg}") catch {
+    _ => abort("the uvicorn line pattern does not parse")
   }
+  ignore(
+    hub.add(
+      @moonlog.Slot::new(@moonlog.Lines::new(write), name="uvicorn").layout(
+        line,
+      ),
+    ),
+  ) catch {
+    _ => abort("a fresh hub refused its one slot")
+  }
+  { out: hub.logger("uvicorn.error"), access, }
 }
 
 ///|
 /// A logger that says nothing, for an embedder that does its own reporting or a
 /// test that would rather not have output.
 pub fn Logger::silent() -> Logger {
-  { out: @moonlog.Logger::silent(), access: false, }
+  {
+    out: @moonlog.Hub::new(filter=@moonlog.Filter::off()).logger(
+      "uvicorn.error",
+    ),
+    access: false,
+  }
 }
 
 ///|

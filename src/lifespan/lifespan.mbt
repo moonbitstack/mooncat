@@ -93,27 +93,29 @@ pub fn Driver::spawn(self : Driver, g : @async.TaskGroup[Unit]) -> Unit {
 /// `On`; under `Auto` such a failure means the application does not speak the protocol.
 pub async fn Driver::startup(self : Driver) -> Unit {
   guard self.running else { return }
-  self.logger.log(Info, "Waiting for application startup.")
+  self.logger.log(@moonlog.info, "Waiting for application startup.")
   self.inbox.put(LifespanStartup)
   match self.replies.get() {
     Said(LifespanStartupFailed(message~)) => {
-      self.logger.log(Error, message)
-      self.logger.log(Error, "Application startup failed. Exiting.")
+      self.logger.log(@moonlog.error, message)
+      self.logger.log(@moonlog.error, "Application startup failed. Exiting.")
       raise LifespanError(message)
     }
     Raised(e) if self.mode is On => {
       self.logger.log(
-        Error,
+        @moonlog.error,
         "Exception in 'lifespan' protocol: " + e.to_string(),
       )
-      self.logger.log(Error, "Application startup failed. Exiting.")
+      self.logger.log(@moonlog.error, "Application startup failed. Exiting.")
       raise LifespanError(e.to_string())
     }
     Raised(_) =>
-      self.logger.log(Info, "ASGI 'lifespan' protocol appears unsupported.")
+      self.logger.log(
+        @moonlog.info, "ASGI 'lifespan' protocol appears unsupported.",
+      )
     _ => ()
   }
-  self.logger.log(Info, "Application startup complete.")
+  self.logger.log(@moonlog.info, "Application startup complete.")
 }
 
 ///|
@@ -122,21 +124,21 @@ pub async fn Driver::startup(self : Driver) -> Unit {
 /// failure of the application under `On`.
 pub async fn Driver::shutdown(self : Driver) -> Unit {
   guard self.running else { return }
-  self.logger.log(Info, "Waiting for application shutdown.")
+  self.logger.log(@moonlog.info, "Waiting for application shutdown.")
   self.inbox.put(LifespanShutdown)
   match self.replies.get() {
     Said(LifespanShutdownFailed(message~)) => {
-      self.logger.log(Error, message)
+      self.logger.log(@moonlog.error, message)
       raise LifespanError(message)
     }
     Raised(e) if self.mode is On => {
       self.logger.log(
-        Error,
+        @moonlog.error,
         "Exception in 'lifespan' protocol: " + e.to_string(),
       )
       raise LifespanError(e.to_string())
     }
     _ => ()
   }
-  self.logger.log(Info, "Application shutdown complete.")
+  self.logger.log(@moonlog.info, "Application shutdown complete.")
 }

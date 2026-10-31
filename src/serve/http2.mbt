@@ -178,7 +178,7 @@ async fn H2::serve(
   app(scope, receive, send) catch {
     err => {
       self.config.logger.log(
-        Error,
+        @moonlog.error,
         "exception in ASGI application: " + err.to_string(),
       )
       failed.val = true
@@ -249,8 +249,7 @@ async fn H2::open(
 ) -> Unit {
   if self.load.busy(self.config.limit_concurrency) {
     self.config.logger.log(
-      Warning,
-      "Exceeded concurrency limit, refusing with 503",
+      @moonlog.warn, "Exceeded concurrency limit, refusing with 503",
     )
     self.wire.headers(id, h2_response_headers(503, [], self.config), end=true)
     self.flush()
