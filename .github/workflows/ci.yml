@@ -66,6 +66,12 @@ jobs:
             fi
           done
 
+      - name: workers, with real processes
+        if: runner.os == 'Linux'
+        run: |
+          moon build --target native
+          bash scripts/check_workers.sh
+
       - name: lint (fmt is clean)
         run: |
           moon fmt && git -c core.autocrlf=false diff --ignore-cr-at-eol --exit-code

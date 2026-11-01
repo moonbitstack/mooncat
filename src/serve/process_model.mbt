@@ -324,19 +324,11 @@ async fn drain(load : Load, timeout : Int32?) -> Unit {
 /// the server down. `limit_concurrency` is the other kind of ceiling — a request
 /// arriving past it is answered `503` rather than queued.
 ///
-/// ## Multi-worker boundary
+/// ## Several workers
 ///
-/// uvicorn's `--workers` binds the port once in the parent (`SO_REUSEADDR`, an
-/// inheritable socket) and hands that socket to N worker processes it starts with
-/// `multiprocessing`'s spawn context. `moonbitlang/async` can start a process but
-/// cannot give it a listening socket, and its event loop allows only one
-/// outstanding `accept` per listener handle (`wait_read` guards on a single
-/// waiter), so even N in-process acceptor tasks on one shared listener aren't
-/// expressible — a second concurrent `accept` on the same listener aborts.
-/// mooncat therefore serves from one acceptor that spawns a concurrent handler
-/// per connection, which is the concurrency a single uvicorn worker provides on
-/// its event loop. Multiple workers land when the async layer can pass a
-/// listening socket to a child process.
+/// With `Config::workers` above 1 this process only supervises: see `supervise`. Each worker comes
+/// back through this same function, binds the port under `SO_REUSEPORT`, and serves as described
+/// here.
 ///
 /// ## Signal boundary
 ///
@@ -374,6 +366,26 @@ async fn run(
   tls : @tls.Server?,
   speak : Speak,
 ) -> Unit {
+  if config.workers > 1 && !is_worker() {
+    return supervise(config)
+  }
+  let listening = Ref(false)
+  serve_here(app, config, handle, tls, speak, listening) catch {
+    e if is_worker() && !listening.val => leave_failed(config, e)
+    e => raise e
+  }
+}
+
+///|
+/// This process's share of the serving; `listening` turns true once the socket is bound.
+async fn serve_here(
+  app : @moonasgi.AsgiApp,
+  config : @config.Config,
+  handle : ShutdownHandle,
+  tls : @tls.Server?,
+  speak : Speak,
+  listening : Ref[Bool],
+) -> Unit {
   @async.with_task_group(g => {
     let lifespan = @lifespan.Driver::new(
       app,
@@ -387,7 +399,9 @@ async fn run(
       bound,
       dual_stack=config.dual_stack,
       reuse_addr=config.reuse_addr,
+      reuse_port_lb=config.workers > 1,
     )
+    listening.val = true
     let scheme = if tls is Some(_) { "https" } else { "http" }
     config.logger.log(
       @moonlog.info,

@@ -143,11 +143,11 @@ test "a level outside the six is refused, and names the six" {
 /// The point of declaring the flags mooncat cannot honour: the answer says
 /// why, instead of calling the flag a typo.
 test "a uvicorn flag we cannot honour explains itself" {
-  guard refusal(["--workers", "4"]) is Some(@cli.Unsupported(flag~, why~)) else {
-    fail("--workers was accepted")
+  guard refusal(["--uds", "/tmp/s"]) is Some(@cli.Unsupported(flag~, why~)) else {
+    fail("--uds was accepted")
   }
-  assert_eq(flag, "--workers")
-  assert_true(why.contains("one process"))
+  assert_eq(flag, "--uds")
+  assert_true(why.contains("TCP"))
   guard refusal(["--reload"]) is Some(@cli.Unsupported(why~, ..)) else {
     fail("--reload was accepted")
   }
@@ -213,7 +213,8 @@ test "the help text names the flags a user will reach for" {
   }
   // The ones we cannot honour are hidden: they answer when typed, and do not
   // clutter the list of what works.
-  assert_false(help.contains("--workers"))
+  assert_true(help.contains("--workers"))
+  assert_false(help.contains("--uds"))
 }
 
 ///|
@@ -244,4 +245,10 @@ test "the lifespan mode is one of three words" {
 test "the clear beside TLS can be turned off" {
   assert_eq(plan([]).config.cleartext, true)
   assert_eq(plan(["--no-cleartext"]).config.cleartext, false)
+}
+
+///|
+test "--workers sets how many processes serve, and the default is one" {
+  assert_eq(@cli.parse([]).config.workers, 1)
+  assert_eq(@cli.parse(["--workers", "4"]).config.workers, 4)
 }

@@ -143,6 +143,10 @@ pub(all) struct Config {
   // a TLS handshake record is served TLS, any other plain HTTP. The family serves both on one
   // port rather than keeping a second one for TLS.
   cleartext : Bool
+  // How many processes serve (← uvicorn's `--workers`). Above 1 the process that was started only
+  // supervises: it runs this same program that many times and replaces any that die. Linux only,
+  // because that is where the kernel shares a port across processes.
+  workers : Int32
 }
 
 ///|
@@ -192,6 +196,7 @@ pub fn Config::new(
   h2~ : H2Config = H2Config::new(),
   lifespan~ : Lifespan = Auto,
   cleartext~ : Bool = true,
+  workers~ : Int32 = 1,
 ) -> Config {
   {
     host,
@@ -217,6 +222,7 @@ pub fn Config::new(
     h2,
     lifespan,
     cleartext,
+    workers,
   }
 }
 

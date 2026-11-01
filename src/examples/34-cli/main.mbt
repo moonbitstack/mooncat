@@ -12,7 +12,7 @@
 /// `--help` lists every flag. A uvicorn flag mooncat cannot honour answers
 /// with the reason rather than with "unexpected argument":
 ///
-///     moon run src/examples/34-cli --target native -- --workers 4
+///     moon run src/examples/34-cli --target native -- --uds /tmp/app.sock
 #coverage.skip
 async fn main {
   let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {

@@ -26,12 +26,14 @@ import {
   "moonbitlang/async/http",
   "moonbitlang/async/websocket",
   "moonbitlang/async/fs",
+  "moonbitlang/async/process",
   "moonbitlang/async/aqueue",
   "moonbitlang/async/cond_var",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/buffer",
   "moonbitlang/core/deque",
   "moonbitlang/core/cmp",
+  "moonbitlang/core/env",
 }
 
 warnings = "-29"
@@ -56,5 +58,7 @@ options(
     "websocket_io.mbt": [ "native", "wasm" ],
     "websocket_serve.mbt": [ "native", "wasm" ],
     "websocket_serve_wbtest.mbt": [ "native", "wasm" ],
+    "workers.mbt": [ "native" ],
+    "workers_wasm.mbt": [ "wasm" ],
   },
 )

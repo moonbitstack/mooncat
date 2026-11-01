@@ -86,15 +86,15 @@ mooncat adds `--h2c`, `--max-connections`, `--dual-stack` and `--reuse-addr`.
 A uvicorn flag mooncat cannot honour says why, rather than calling it a typo:
 
 ```
-$ moon run src/main --target native -- --workers 4
-mooncat: --workers: mooncat serves from one process; there is no fork here
+$ moon run src/main --target native -- --uds /tmp/app.sock
+mooncat: --uds: the async transport binds TCP only
 ```
 
-That covers `--reload`, `--workers`, `--uds`, `--fd`, `--factory`, `--app-dir`,
+That covers `--reload`, `--uds`, `--fd`, `--factory`, `--app-dir`,
 `--interface`, `--loop`, `--http`, `--ws`, `--log-config`, `--env-file`, the
 three WebSocket timing knobs, and the `--ssl-*` options beyond the two above.
 Each answers with its own reason. Silently ignoring them is worse: somebody who
-writes `--workers 4` would find out at load time.
+writes `--uds` would find out at load time.
 
 `cli` is a subpackage because reading argv is a program's business, not a
 library's — mooncat embedded in something larger never touches the command
@@ -151,7 +151,7 @@ Every entry point (`serve`, `serve_config`, `serve_tls_config`, `serve_tls_serve
 
 `reload_watch(dir, on_reload)` watches a source tree with `@fs.Watcher` and fires `on_reload` on each change — hook it to a `ShutdownHandle` to turn a file save into a graceful restart.
 
-**Multi-worker boundary**: uvicorn's `--workers` binds the port once in the parent and hands the socket to N worker processes started with `multiprocessing`'s spawn context. `moonbitlang/async` can start a process but cannot give it a listening socket, and its event loop permits only one outstanding `accept` per listener (a second concurrent `accept` on the same handle aborts), so N in-process acceptor tasks aren't expressible either. mooncat serves from one acceptor that spawns a concurrent handler per connection, the same concurrency a single uvicorn worker gives on its event loop. Multiple workers land when the async layer can pass a listening socket to a child process.
+**Several workers**: `--workers 4`, or `Config::new(workers=4)`, on Linux. The process that was started serves nothing: it runs the same program four more times, each worker binds the port under `SO_REUSEPORT` and runs its own lifespan, and the kernel spreads connections across them. A worker that dies is replaced, which is also how `--limit-max-requests` recycles one; a worker that cannot start ends the supervisor with exit code 3, as in uvicorn; stopping the supervisor stops them all, each given `--timeout-graceful-shutdown` to drain. `WEB_CONCURRENCY` sets the number when the flag is absent. Other systems refuse the setting: only Linux balances connections across sockets, and `moonbitlang/async` cannot hand a child a listening socket.
 
 ## HTTP/2
 
@@ -200,7 +200,7 @@ that needs those four; a server answering HTTP/1.1 links none of them.
 
 mooncat also serves a small hand-written ASGI handler end to end: the HTTP/1.1 integration test answers `/greet/<name>` with JSON over a live socket, and verifies both `200` and a `404` route miss. A matching HTTP/2 test exercises the same handler.
 
-**HTTPS/TLS serving**, the **graceful-shutdown + `--reload` process model**, and **HTTP/2 serving** under TLS and in the clear landed too — see the sections above. Roadmap, transliterated from uvicorn feature-by-feature: further TLS detail (ciphers, client certificates), TLS and the clear on one port, ASGI over HTTP/3, multiple workers once it can pass a listening socket to a child process, `backlog` once `TcpServer` takes one, and the remaining WebSocket knobs — `ws-ping-interval` / `ws-ping-timeout` / `ws-max-queue` need a reader that can be interrupted between messages and resumed, and `ws-per-message-deflate` needs a raw DEFLATE codec the async `gzip` package does not expose.
+**HTTPS/TLS serving**, the **graceful-shutdown + `--reload` process model**, and **HTTP/2 serving** under TLS and in the clear landed too — see the sections above. Roadmap, transliterated from uvicorn feature-by-feature: further TLS detail (ciphers, client certificates), TLS and the clear on one port, ASGI over HTTP/3, `backlog` once `TcpServer` takes one, and the remaining WebSocket knobs — `ws-ping-interval` / `ws-ping-timeout` / `ws-max-queue` need a reader that can be interrupted between messages and resumed, and `ws-per-message-deflate` needs a raw DEFLATE codec the async `gzip` package does not expose.
 
 ## Targets
 

@@ -19,6 +19,7 @@ stays running until cancelled.
 | 00 | [`hello`](00-hello/) | Serve the smallest moonasgi app over native HTTP/1.1 | `serve`, `@moonasgi.AsgiApp`, `Event::HttpResponseStart` / `HttpResponseBody` |
 | 01 | [`lifespan`](01-lifespan/) | The ASGI lifespan protocol driven in-process over async queues | `Lifespan::new` / `spawn` / `startup` / `shutdown` |
 | 02 | [`config`](02-config/) | The `Config` transport knobs and the `TlsCert` bundle | `Config::new` / `bind`, `TlsCert` |
+| 36 | [`workers`](36-workers/) | Several processes on one port, on Linux; each answer names its worker | `Config::workers`, `--workers` |
 
 ## HTTP/2
 
