@@ -3,7 +3,11 @@ package "moonbitstack/mooncat/quic"
 
 import {
   "moonbitlang/async/socket",
+  "moonbitstack/moonasgi/spec",
+  "moonbitstack/mooncat/config",
+  "moonbitstack/mooncat/serve",
   "moonbitstack/moonquic/conn",
+  "moonbitstack/moontls/tls",
 }
 
 // Values
@@ -11,7 +15,11 @@ pub fn now() -> Int64
 
 pub async fn serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -> Unit
 
+pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @serve.TlsCert) -> Unit
+
 pub async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -> Unit
+
+pub async fn serve_site(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @serve.Site, @tls.Server, transport? : @conn.Config, tick_ms? : Int32) -> Unit
 
 // Errors
 

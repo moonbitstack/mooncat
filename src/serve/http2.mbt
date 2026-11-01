@@ -84,7 +84,7 @@ async fn H2::serve(
   fields : Array[@header.Header],
 ) -> Unit {
   let (verb, target) = request_line(fields)
-  let scope = h2_build_scope(fields, self.link, self.config)
+  let scope = field_scope(fields, self.link, self.config, "2")
   let head = verb == "HEAD"
   let delivered = Ref(false)
   let receive : @moonasgi.Receive = () => {
@@ -474,11 +474,12 @@ fn h2_response_headers(
 /// (RFC 9113 §8.3.1) give the method and target, every ordinary header is carried through, and
 /// a `host` is derived from `:authority` when the request has no explicit one. The scheme is the
 /// connection's, as on HTTP/1.1, rather than what the client wrote in `:scheme`; the rest is
-/// `http_scope`'s, shared with HTTP/1.1. `http_version` is `"2"`.
-fn h2_build_scope(
+/// `http_scope`'s, shared with HTTP/1.1. HTTP/3 reads the same fields (RFC 9114 §4.3.1).
+fn field_scope(
   headers : Array[@header.Header],
   link : Link,
   config : @config.Config,
+  version : String,
 ) -> @moonasgi.Scope {
   let (verb, target) = request_line(headers)
   let mut authority = ""
@@ -498,7 +499,7 @@ fn h2_build_scope(
   if authority.length() > 0 && !has_host {
     pairs.push(("host", authority))
   }
-  http_scope(link, config, "2", verb, target, pairs)
+  http_scope(link, config, version, verb, target, pairs)
 }
 
 ///|

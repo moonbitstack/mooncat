@@ -27,6 +27,12 @@ stays running until cancelled.
 | --- | --- | --- | --- |
 | 33 | [`http2-h2c`](33-http2-h2c/) | One HTTP/2 exchange as mooncat serves it, in-process: two connection state machines, the server end with mooncat's default settings, the request answered by a moonasgi handler; it does not bind a socket | `H2Config`, `@http2.Conn`, `@moonasgi.Handler` |
 
+## HTTP/3
+
+| # | Example | What it shows | Key API |
+| --- | --- | --- | --- |
+| 37 | [`http3`](37-http3/) | HTTP/1.1, HTTP/2 and HTTP/3 on one port, under one certificate | `@quic.serve_config` |
+
 ## Notes
 
 **Native and wasm.** `mooncat` serves on `moonbitlang/async` sockets, which
@@ -40,8 +46,8 @@ curl http://127.0.0.1:12000
 # hello from mooncat, heke1228
 ```
 
-TLS, QUIC, HTTP/3, WebSocket, and cryptographic implementation details are
-covered by their owning packages. This repository's examples focus on the
+TLS, QUIC, WebSocket, and cryptographic implementation details are covered by
+their owning packages. This repository's examples focus on the
 server API and the h2c integration surface.
 
 ## 34-cli

@@ -5,9 +5,21 @@
 // A subpackage because of what it costs to carry: moonquic and its TLS are packages a server
 // answering HTTP/1.1 and HTTP/2 never touches.
 import {
+  "moonbitstack/mooncat/config",
+  "moonbitstack/mooncat/serve",
+  "moonbitstack/moonasgi",
   "moonbitstack/moonquic/conn",
+  "moonbitstack/moonhttp/http3",
+  "moonbitstack/moonhttp/qpack",
+  "moonbitstack/moonhttp/header",
+  "moonbitstack/moonlog",
+  "moonbitstack/moontls/tls",
+  "moonbitstack/moonvar/quic",
   "moonbitlang/async",
+  "moonbitlang/async/cond_var",
   "moonbitlang/async/socket",
+  "moonbitlang/core/cmp",
+  "moonbitlang/core/env",
 }
 
 // Used only by the whitebox tests, which exercise the frame, packet and
@@ -17,8 +29,6 @@ import {
   "moonbitstack/moonquic/crypto",
   "moonbitstack/moonquic/recovery",
   "moonbitstack/moonquic/stream",
-  "moonbitstack/moonhttp/http3",
-  "moonbitstack/moonhttp/header",
   "moonbitstack/mooncrypt/hash/sha2",
   "moonbitstack/mooncred/x509",
   "moonbitstack/moontls/ext",

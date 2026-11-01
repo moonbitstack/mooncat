@@ -36,6 +36,7 @@ pub(all) struct Plan {
   config : @config.Config
   tls : @serve.TlsCert?
   h2c : Bool
+  http3 : Bool
 }
 
 // Type aliases

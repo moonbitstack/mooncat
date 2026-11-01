@@ -103,7 +103,8 @@ async test "quic over udp: client ClientHello and server ServerHello complete an
     client_ep.send_datagram(initial, server_addr)
     // Receive the server's ServerHello Initial packet and decode it.
     let (sh_datagram, _) = client_ep.recv_datagram()
-    let decoded = match @conn.recv_long(sh_datagram, keys) {
+    let decoded = match
+      @conn.recv_long(sh_datagram, server_initial_keys(dcid)) {
       Some((frames, _)) => {
         let mut result : @msg.Server? = None
         for frame in frames {
@@ -270,7 +271,7 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
     )
     // ServerHello over the wire: the raw SH bytes for the transcript and the server key_share.
     let (sh_dg, _) = client_ep.recv_datagram()
-    let sh_msg = match @conn.recv_long(sh_dg, initial_keys) {
+    let sh_msg = match @conn.recv_long(sh_dg, server_initial_keys(dcid)) {
       Some((frames, _)) => wire_crypto(frames)
       None => abort("client could not open the ServerHello Initial")
     }

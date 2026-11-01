@@ -10,6 +10,7 @@
 // line, and only this half needs `env` and `argparse`.
 import {
   "moonbitstack/mooncat",
+  "moonbitstack/mooncat/quic",
   "moonbitstack/moonasgi",
   "moonbitstack/moonlog",
   "moonbitlang/core/argparse",
@@ -31,5 +32,6 @@ options(
     "cli.mbt": [ "native", "wasm" ],
     "cli_test.mbt": [ "native", "wasm" ],
     "run.mbt": [ "native", "wasm" ],
+    "http3_wasm.mbt": [ "wasm" ],
   },
 )

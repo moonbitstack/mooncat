@@ -146,7 +146,7 @@ async test "quic http3 connection: handshake then serve a request on one connect
       server_addr,
     )
     let (sh_dg, _) = client_ep.recv_datagram()
-    let sh_msg = match @conn.recv_long(sh_dg, initial_keys) {
+    let sh_msg = match @conn.recv_long(sh_dg, server_initial_keys(dcid)) {
       Some((frames, _)) => wire_crypto(frames)
       None => abort("client could not open the ServerHello")
     }

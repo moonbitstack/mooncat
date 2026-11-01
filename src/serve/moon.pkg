@@ -51,6 +51,7 @@ options(
     "scope.mbt": [ "native", "wasm" ],
     "server.mbt": [ "native", "wasm" ],
     "server_test.mbt": [ "native", "wasm" ],
+    "site.mbt": [ "native", "wasm" ],
     "tls.mbt": [ "native", "wasm" ],
     "tls_wbtest.mbt": [ "native", "wasm" ],
     "websocket.mbt": [ "native", "wasm" ],

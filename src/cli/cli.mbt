@@ -43,6 +43,7 @@ pub(all) struct Plan {
   config : @mooncat.Config
   tls : @mooncat.TlsCert?
   h2c : Bool
+  http3 : Bool
 }
 
 // ------------------------------------------------------------------ grammar
@@ -57,7 +58,7 @@ pub(all) struct Plan {
 /// it before complaining.
 let refused : Array[(String, Bool, String)] = [
   (
-    "reload", false, "a save cannot change a compiled binary; watch files with @mooncat.reload_watch and let a supervisor rebuild and restart",
+    "reload", false, "a save cannot change a compiled binary; run the server with mctl serve --reload, which rebuilds and restarts it",
   ),
   ("reload-dir", true, "see --reload"),
   ("reload-include", true, "see --reload"),
@@ -144,6 +145,11 @@ pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
       long="h2c",
       about="speak HTTP/2 in the clear instead of HTTP/1.1",
     ),
+    @argparse.FlagArg::FlagArg(
+      "http3",
+      long="http3",
+      about="serve HTTP/3 on UDP beside HTTPS, on the same port",
+    ),
   ]
   for one in refused {
     if !one.1 {
@@ -180,7 +186,7 @@ pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
   }
   @argparse.Command::Command(
     "mooncat",
-    about="Serve an ASGI application over HTTP/1.1, HTTP/2 or HTTPS.",
+    about="Serve an ASGI application over HTTP/1.1, HTTP/2, HTTPS or HTTP/3.",
     version~,
     flags~,
     options~,
@@ -231,7 +237,17 @@ pub fn parse(
   let config = fold(got, base)
   let tls = certificate(got)
   let h2c = got.flags.get("h2c") is Some(true)
-  { config, tls, h2c, }
+  let http3 = got.flags.get("http3") is Some(true)
+  if http3 && tls is None {
+    raise Unsupported(flag="--http3", why="QUIC needs --ssl-certfile")
+  }
+  if http3 && config.workers > 1 {
+    raise Unsupported(
+      flag="--http3",
+      why="a UDP port cannot be shared across workers yet",
+    )
+  }
+  { config, tls, h2c, http3, }
 }
 
 ///|

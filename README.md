@@ -81,7 +81,8 @@ moon run src/main --target native -- --help
 `--limit-max-requests`, `--timeout-keep-alive`, `--timeout-graceful-shutdown`,
 `--h11-max-incomplete-event-size`, `--forwarded-allow-ips`, `--ws-max-size`,
 `--ssl-certfile` with `--ssl-keyfile`, and the `--no-` form of every switch.
-mooncat adds `--h2c`, `--max-connections`, `--dual-stack` and `--reuse-addr`.
+mooncat adds `--h2c`, `--http3`, `--max-connections`, `--dual-stack` and
+`--reuse-addr`.
 
 A uvicorn flag mooncat cannot honour says why, rather than calling it a typo:
 
@@ -90,7 +91,7 @@ $ moon run src/main --target native -- --uds /tmp/app.sock
 mooncat: --uds: the async transport binds TCP only
 ```
 
-That covers `--reload`, `--uds`, `--fd`, `--factory`, `--app-dir`,
+`--reload` is `mctl serve --reload`, in [`moonctl`](https://github.com/moonbitstack/moonctl): a compiled server is rebuilt and restarted from outside. That and the rest cover `--uds`, `--fd`, `--factory`, `--app-dir`,
 `--interface`, `--loop`, `--http`, `--ws`, `--log-config`, `--env-file`, the
 three WebSocket timing knobs, and the `--ssl-*` options beyond the two above.
 Each answers with its own reason. Silently ignoring them is worse: somebody who
@@ -124,7 +125,7 @@ CI drives it with the system's TLS as the client (OpenSSL, or SChannel on Window
 
 ## ASGI extensions
 
-Every HTTP scope advertises what mooncat honours, on HTTP/1.1 and HTTP/2 alike:
+Every HTTP scope advertises what mooncat honours, on HTTP/1.1, HTTP/2 and HTTP/3 alike:
 
 | Extension | What happens |
 |:--|:--|
@@ -132,7 +133,7 @@ Every HTTP scope advertises what mooncat honours, on HTTP/1.1 and HTTP/2 alike:
 | `http.response.trailers` | a response started with `trailers=true` is chunked on HTTP/1.1 and its trailers ride in the last chunk; on HTTP/2 they are the closing HEADERS frame |
 | `tls` | on a TLS connection: `tls_version` (`0x0304`), `cipher_suite`, and the server's certificate as PEM |
 
-HTTP/2 and HTTP/1.1 build their scopes in one place, so both percent-decode `path` beside the raw one, honour `root_path`, carry the client and server addresses, and apply `--proxy-headers` the same way.
+The three versions build their scopes in one place, so all percent-decode `path` beside the raw one, honour `root_path`, carry the client and server addresses, and apply `--proxy-headers` the same way.
 
 ## Process model
 
@@ -149,7 +150,7 @@ handle.shutdown()   // stop accepting → drain in-flight → lifespan shutdown 
 
 Every entry point (`serve`, `serve_config`, `serve_tls_config`, `serve_tls_server`, `serve_h2c_config`, `serve_graceful`) runs this one loop, so they share the same limits, keep-alive, pipelining and WebSocket bridge; `serve_graceful` only adds the handle. A request body reaches the app as it arrives, one `http.request` event per piece with `more_body` until the last, so an upload is never held whole in memory; a body the app leaves unread closes the connection rather than being read as the next request. Once the body is delivered, a further `receive` waits until the response is complete or the client has gone before it says `http.disconnect`, as uvicorn does, so a streamed response that listens for the client leaving is not ended at once. A head that cannot be parsed is answered `400` (`431` when it passes `max_head_size`) with uvicorn's `Invalid HTTP request received.` before the connection closes. A real `@websocket` client doing a text + binary round-trip against a `serve_graceful` server verifies the bridge in CI.
 
-`reload_watch(dir, on_reload)` watches a source tree with `@fs.Watcher` and fires `on_reload` on each change — hook it to a `ShutdownHandle` to turn a file save into a graceful restart.
+`mctl serve --reload` rebuilds the program and restarts it on a save. `reload_watch(dir, on_reload)` is the library half, for a supervisor of your own: it watches a source tree with `@fs.Watcher` and fires `on_reload` on each change.
 
 **Several workers**: `--workers 4`, or `Config::new(workers=4)`, on Linux. The process that was started serves nothing: it runs the same program four more times, each worker binds the port under `SO_REUSEPORT` and runs its own lifespan, and the kernel spreads connections across them. A worker that dies is replaced, which is also how `--limit-max-requests` recycles one; a worker that cannot start ends the supervisor with exit code 3, as in uvicorn; stopping the supervisor stops them all, each given `--timeout-graceful-shutdown` to drain. `WEB_CONCURRENCY` sets the number when the flag is absent. Other systems refuse the setting: only Linux balances connections across sockets, and `moonbitlang/async` cannot hand a child a listening socket.
 
@@ -172,7 +173,22 @@ The connection is [`moonhttp/http2`](https://github.com/moonbitstack/moonhttp)'s
 
 The limits that apply to HTTP/1.1 apply per stream: past `limit_concurrency` a stream is answered `503`, every stream counts toward `limit_max_requests`, which then ends the connection with a GOAWAY, and a connection with no stream open for `timeout_keep_alive` is sent a GOAWAY and closed. A client's RST_STREAM reaches the application as `http.disconnect`. A failure before the response starts is a `500`; after it, the stream is reset with `INTERNAL_ERROR`. Each stream writes one access-log line. `serve_h2c_config` runs the same loop as `serve_config`, with its lifespan, limits and graceful shutdown.
 
-CI drives it with a client on the same state machine over TLS and in the clear: a slow stream is overtaken by a fast one on the same connection, a request body arrives piece by piece, an upload far past the window flows as the application reads it, and every DATA frame stays inside a small granted window. mooncat does not yet expose an ASGI-over-HTTP/3 server.
+CI drives it with a client on the same state machine over TLS and in the clear: a slow stream is overtaken by a fast one on the same connection, a request body arrives piece by piece, an upload far past the window flows as the application reads it, and every DATA frame stays inside a small granted window.
+
+## HTTP/3
+
+`--http3` beside `--ssl-certfile` serves HTTP/3 on UDP at the same port number as TCP, and every HTTP/1.1 and HTTP/2 response advertises it with `alt-svc`:
+
+```moonbit
+@quic.serve_config(app, @mooncat.Config::new(port=12000), {
+  certificate_file: "certs/cert.pem",
+  private_key_file: "certs/key.pem",
+})
+```
+
+`mooncat/quic` is built the way the HTTP/2 side is: every request stream runs the application in a task of its own, a body reaches the application as it asks for it, and a stream's credit comes back at that pace. `receive` says `http.disconnect` when the response is complete or the client has reset the stream, a response is paced by what the client has acknowledged, and the limits, access log, lifespan and graceful shutdown are the same ones. On shutdown clients get a GOAWAY, and the streams already taken run out under `timeout_graceful_shutdown`.
+
+HTTP/3 runs in one process: `--http3` with `--workers` above 1 is refused, because a UDP port cannot yet be shared across workers. `scripts/check_http3.py` runs in CI against [aioquic](https://github.com/aiortc/aioquic), with all three cipher suites, directly and through a relay that drops 5% of the datagrams each way. `moon run src/examples/37-http3 --target native` serves all three versions on port 12000.
 
 ## Packages
 
@@ -184,11 +200,11 @@ CI drives it with a client on the same state machine over TLS and in the clear: 
 | `mooncat/proxy` | forwarded headers from a trusted proxy | — |
 | `mooncat/serve` | The accept loop, workers and reload, HTTP/1.1, HTTP/2, WebSocket, TLS | moonasgi, moonhttp's http1 / http2 / hpack / ws / upgrade, moonnet, moontls |
 | `mooncat/cli` | uvicorn's flags, and `run(app)` | the above, plus core's argparse |
-| `mooncat/quic` | QUIC and HTTP/3: the UDP socket, the datagram loop, the handshake QUIC does inline | moonquic, moontls, mooncred's certificate reader, moonhttp/http3 |
+| `mooncat/quic` | HTTP/3 over ASGI: the UDP socket, the datagram loop, and the request streams | moonquic, moontls, moonhttp's http3 and qpack |
 
-QUIC is separate because of that third column. It performs its own TLS 1.3
-handshake rather than riding a record layer, so it is the only half of mooncat
-that needs those four; a server answering HTTP/1.1 links none of them.
+QUIC is separate because of that third column: a server that answers only over
+TCP links none of it. `serve_site` is how the two halves meet: it runs beside the
+TCP listener from `serve_tls_beside`, under the same lifespan and limits.
 
 ## Status
 
@@ -200,7 +216,7 @@ that needs those four; a server answering HTTP/1.1 links none of them.
 
 mooncat also serves a small hand-written ASGI handler end to end: the HTTP/1.1 integration test answers `/greet/<name>` with JSON over a live socket, and verifies both `200` and a `404` route miss. A matching HTTP/2 test exercises the same handler.
 
-**HTTPS/TLS serving**, the **graceful-shutdown + `--reload` process model**, and **HTTP/2 serving** under TLS and in the clear landed too — see the sections above. Roadmap, transliterated from uvicorn feature-by-feature: further TLS detail (ciphers, client certificates), TLS and the clear on one port, ASGI over HTTP/3, `backlog` once `TcpServer` takes one, and the remaining WebSocket knobs — `ws-ping-interval` / `ws-ping-timeout` / `ws-max-queue` need a reader that can be interrupted between messages and resumed, and `ws-per-message-deflate` needs a raw DEFLATE codec the async `gzip` package does not expose.
+**HTTPS/TLS serving**, the **graceful-shutdown + `--reload` process model**, and **HTTP/2 serving** under TLS and in the clear landed too — see the sections above. Roadmap, transliterated from uvicorn feature-by-feature: further TLS detail (ciphers, client certificates), `backlog` once `TcpServer` takes one, and the remaining WebSocket knobs — `ws-ping-interval` / `ws-ping-timeout` / `ws-max-queue` need a reader that can be interrupted between messages and resumed, and `ws-per-message-deflate` needs a raw DEFLATE codec the async `gzip` package does not expose.
 
 ## Targets
 
@@ -223,8 +239,7 @@ behind the log lines are
 The protocol implementations come from `mooncrypt`, `mooncred`, `moontls`,
 `moonhttp`, and `moonquic`. mooncat owns the server-side integration: socket
 listeners, ASGI request and event bridging, graceful process handling, and TLS
-and QUIC endpoint binding. It does not currently provide an ASGI-over-HTTP/3
-server.
+and QUIC endpoint binding.
 
 ## Listening
 
@@ -232,5 +247,5 @@ The TCP serving entry points default to port **12000**. HTTP/1.1, WebSocket,
 HTTP/2 and TLS share one listener: on a TLS server the first byte of a
 connection decides between TLS and the clear (`Config.cleartext`, on by
 default; `--no-cleartext` turns it off).
-`Config::new(port=...)` changes the TCP port. `quic_serve` binds the UDP address passed by the caller; UDP and TCP use
-separate port spaces, so they may use the same number.
+`Config::new(port=...)` changes the port. HTTP/3 binds the same number on UDP, which is a
+separate port space.

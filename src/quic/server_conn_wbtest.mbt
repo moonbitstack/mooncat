@@ -9,6 +9,11 @@ fn client_initial_keys(dcid : Bytes) -> @crypto.Keys {
 }
 
 ///|
+fn server_initial_keys(dcid : Bytes) -> @crypto.Keys {
+  @crypto.initial(dcid[:]).1
+}
+
+///|
 test "server conn: a ClientHello in one Initial packet reaches RECVD_CH" {
   let dcid = @base16.decode_lossy("8394c8f03e515708")
   let keys = client_initial_keys(dcid)
@@ -97,8 +102,8 @@ test "server conn: send_server_hello produces a ServerHello the client can decod
   // ServerHello alone does not complete the flight; the state stays at RECVD_CH until the
   // Handshake-space messages are sent.
   assert_eq(server.handshake_state(), RecvdClientHello)
-  // The client (sharing the Initial keys) receives it and decodes the ServerHello.
-  let decoded = match @conn.recv_long(sh_packet, keys) {
+  // The client receives it under the server's Initial keys and decodes the ServerHello.
+  let decoded = match @conn.recv_long(sh_packet, server_initial_keys(dcid)) {
     Some((frames, _)) => {
       let mut result : @msg.Server? = None
       for frame in frames {

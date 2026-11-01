@@ -365,12 +365,13 @@ async fn run(
   handle : ShutdownHandle,
   tls : @tls.Server?,
   speak : Speak,
+  beside? : async (Site) -> Unit,
 ) -> Unit {
   if config.workers > 1 && !is_worker() {
     return supervise(config)
   }
   let listening = Ref(false)
-  serve_here(app, config, handle, tls, speak, listening) catch {
+  serve_here(app, config, handle, tls, speak, listening, beside?) catch {
     e if is_worker() && !listening.val => leave_failed(config, e)
     e => raise e
   }
@@ -385,6 +386,7 @@ async fn serve_here(
   tls : @tls.Server?,
   speak : Speak,
   listening : Ref[Bool],
+  beside? : async (Site) -> Unit,
 ) -> Unit {
   @async.with_task_group(g => {
     let lifespan = @lifespan.Driver::new(
@@ -424,6 +426,10 @@ async fn serve_here(
       },
       allow_failure=true,
     )
+    let site : Site = { config, bound, load, state: lifespan.state, }
+    let neighbour = beside.map(run => {
+      g.spawn(() => run(site), allow_failure=true)
+    })
     handle.request.get() catch {
       _ => ()
     }
@@ -431,6 +437,9 @@ async fn serve_here(
       stop_accepting(server, load)
       acceptor.cancel()
       drain(load, config.graceful_timeout)
+      if neighbour is Some(task) {
+        task.cancel()
+      }
       lifespan.shutdown() catch {
         _ => ()
       }

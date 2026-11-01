@@ -72,6 +72,14 @@ jobs:
           moon build --target native
           bash scripts/check_workers.sh
 
+      - name: HTTP/3 against another implementation
+        if: runner.os == 'Linux'
+        run: |
+          moon build src/examples/37-http3 --target native
+          python3 -m venv "$RUNNER_TEMP/aioquic"
+          "$RUNNER_TEMP/aioquic/bin/pip" install --quiet aioquic
+          "$RUNNER_TEMP/aioquic/bin/python" scripts/check_http3.py
+
       - name: lint (fmt is clean)
         run: |
           moon fmt && git -c core.autocrlf=false diff --ignore-cr-at-eol --exit-code

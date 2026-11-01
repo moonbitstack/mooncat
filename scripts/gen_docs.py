@@ -6,7 +6,7 @@ import re, html, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SECTIONS = [
-    ("serve", ('serve/server.mbt', 'serve/scope.mbt', 'serve/http1.mbt', 'config/config.mbt', 'lifespan/lifespan.mbt', 'serve/process_model.mbt', 'serve/process_reload.mbt', 'serve/workers.mbt', 'serve/workers_wasm.mbt', 'config/date.mbt', 'proxy/proxy.mbt', 'config/log.mbt'), "Serving",
+    ("serve", ('serve/server.mbt', 'serve/scope.mbt', 'serve/site.mbt', 'serve/http1.mbt', 'config/config.mbt', 'lifespan/lifespan.mbt', 'serve/process_model.mbt', 'serve/process_reload.mbt', 'serve/workers.mbt', 'serve/workers_wasm.mbt', 'config/date.mbt', 'proxy/proxy.mbt', 'config/log.mbt'), "Serving",
      "The accept loop that turns each connection into a Scope / Receive / Send and "
      "drives your moonasgi app: the Config record uvicorn's settings map onto, the "
      "lifespan protocol run around the listener, the graceful shutdown path that "
@@ -15,7 +15,7 @@ SECTIONS = [
      "is believed on. HTTP/1.1 messages are read and written by moonhttp/http1; "
      "what is here is the connection's inbox that keeps a pipelined request from "
      "being lost between them."),
-    ("cli", ('cli/cli.mbt', 'cli/run.mbt'), "Command line",
+    ("cli", ('cli/cli.mbt', 'cli/run.mbt', 'cli/http3.native.mbt', 'cli/http3_wasm.mbt'), "Command line",
      "uvicorn's flags, which are the half of `uvicorn main:app` that carries over "
      "to a language that links its app in rather than importing it by string. "
      "run(app) is the whole body of a server program; parse(argv) returns the plan "
@@ -36,7 +36,7 @@ SECTIONS = [
      "The handshake is moontls on a moonnet connection, offering h2 and http/1.1 by "
      "ALPN; after it a connection is served like a plain one, WebSocket upgrades "
      "included."),
-    ("quic", ('quic/serve.native.mbt', 'quic/udp.native.mbt'), "QUIC",
+    ("quic", ('quic/serve.native.mbt', 'quic/udp.native.mbt', 'quic/h3.native.mbt'), "QUIC",
      "The UDP half, in a package of its own because of what it carries: moonquic "
      "and the TLS 1.3 its connections handshake with, which a server answering "
      "HTTP/1.1 and HTTP/2 never needs. The socket, the datagram loop that routes "

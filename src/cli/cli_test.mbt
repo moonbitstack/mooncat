@@ -151,7 +151,7 @@ test "a uvicorn flag we cannot honour explains itself" {
   guard refusal(["--reload"]) is Some(@cli.Unsupported(why~, ..)) else {
     fail("--reload was accepted")
   }
-  assert_true(why.contains("reload_watch"))
+  assert_true(why.contains("mctl serve --reload"))
   for
     one in [
       "--uds", "--fd", "--app-dir", "--interface", "--loop", "--http", "--ws", "--log-config",
