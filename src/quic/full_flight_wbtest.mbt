@@ -22,9 +22,11 @@ test "full flight: the server's Handshake flight carries real EE, Certificate, a
   let cert_pub = cert_key.public()
   // ClientHello (with key_share) over an Initial packet; server receives it.
   let ch = @msg.Hello::{
+    version: 0x0303,
     random: Bytes::make(32, b'\x23'),
     session_id: b"lfanke",
     suites: [0x1301],
+    compression: b"\x00",
     extensions: [
       {
         kind: @ext.Kind::KeyShare,
@@ -48,9 +50,11 @@ test "full flight: the server's Handshake flight carries real EE, Certificate, a
   )
   // ServerHello with key_share; derive the handshake secret from the ECDHE.
   let sh = @msg.Server::{
+    version: 0x0303,
     random: Bytes::make(32, b'\x66'),
     session_id: b"lfanke",
     suite: 0x1301,
+    compression: 0,
     extensions: [
       @ext.Ext::{
         kind: KeyShare,

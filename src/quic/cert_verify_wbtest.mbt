@@ -20,9 +20,11 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
   let cert_pub = cert_key.public()
   // Client ClientHello with its x25519 key_share, delivered over an Initial packet.
   let ch = @msg.Hello::{
+    version: 0x0303,
     random: Bytes::make(32, b'\x23'),
     session_id: b"lfanke",
     suites: [0x1301],
+    compression: b"\x00",
     extensions: [
       {
         kind: @ext.Kind::KeyShare,
@@ -46,9 +48,11 @@ test "server conn: the handshake flight carries a real ES256 CertificateVerify t
   )
   // Server ServerHello with its key_share; derive the handshake secret from the ECDHE.
   let sh = @msg.Server::{
+    version: 0x0303,
     random: Bytes::make(32, b'\x66'),
     session_id: b"lfanke",
     suite: 0x1301,
+    compression: 0,
     extensions: [
       @ext.Ext::{
         kind: KeyShare,

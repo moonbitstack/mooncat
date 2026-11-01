@@ -38,9 +38,11 @@ async test "quic http3 connection: handshake then serve a request on one connect
       let (ch_dg, client_addr) = server_ep.recv_datagram()
       let _ = server_conn.receive_initial(ch_dg) catch { _ => [] }
       let sh = @msg.Server::{
+        version: 0x0303,
         random: Bytes::make(32, b'\x66'),
         session_id: b"lfanke",
         suite: 0x1301,
+        compression: 0,
         extensions: [
           @ext.Ext::{
             kind: KeyShare,
@@ -117,9 +119,11 @@ async test "quic http3 connection: handshake then serve a request on one connect
     // Client: drive the handshake, derive the 1-RTT keys, then send the request and read the reply.
     let client_ep = Endpoint::bind("127.0.0.1:0")
     let ch = @msg.Hello::{
+      version: 0x0303,
       random: Bytes::make(32, b'\x23'),
       session_id: b"lfanke",
       suites: [0x1301],
+      compression: b"\x00",
       extensions: [
         {
           kind: @ext.Kind::KeyShare,

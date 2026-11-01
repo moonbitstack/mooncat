@@ -75,9 +75,11 @@ async test "quic over udp: client ClientHello and server ServerHello complete an
       let (datagram, client_addr) = server_ep.recv_datagram()
       let _ = server_conn.receive_initial(datagram) catch { _ => [] }
       let sh = @msg.Server::{
+        version: 0x0303,
         random: Bytes::make(32, b'\xab'),
         session_id: b"",
         suite: 0x1301,
+        compression: 0,
         extensions: [],
       }
       let sh_packet = server_conn.send_server_hello(
@@ -187,9 +189,11 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
       let (ch_dg, client_addr) = server_ep.recv_datagram()
       let _ = server_conn.receive_initial(ch_dg) catch { _ => [] }
       let sh = @msg.Server::{
+        version: 0x0303,
         random: Bytes::make(32, b'\x66'),
         session_id: b"lfanke",
         suite: 0x1301,
+        compression: 0,
         extensions: [
           @ext.Ext::{
             kind: KeyShare,
@@ -238,9 +242,11 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
     // wire, derive the same secrets, authenticate the server Finished, and send its own.
     let client_ep = Endpoint::bind("127.0.0.1:0")
     let ch = @msg.Hello::{
+      version: 0x0303,
       random: Bytes::make(32, b'\x23'),
       session_id: b"lfanke",
       suites: [0x1301],
+      compression: b"\x00",
       extensions: [
         {
           kind: @ext.Kind::KeyShare,

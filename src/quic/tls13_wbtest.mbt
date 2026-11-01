@@ -175,7 +175,8 @@ fn tls13_client_hello_x25519(client_hello : Bytes) -> Bytes? {
   }
   guard @msg.read_hello(body[:]) is Some(ch) else { return None }
   guard @ext.find(ch.extensions[:], KeyShare) is Some(e) else { return None }
-  for share in @ext.read_shares(e.data[:]) {
+  guard @ext.read_shares(e.data[:]) is Some(shares) else { return None }
+  for share in shares {
     if share.0 == @ext.x25519 {
       return Some(share.1)
     }
@@ -187,14 +188,11 @@ fn tls13_client_hello_x25519(client_hello : Bytes) -> Bytes? {
 /// The single ALPN protocol a server's extension list selected, or `None`.
 fn tls_selected_alpn(extensions : Array[@ext.Ext]) -> String? {
   match @ext.find(extensions[:], Alpn) {
-    Some(e) => {
-      let names = @ext.read_protocols(e.data[:])
-      if names.length() == 1 {
-        Some(names[0])
-      } else {
-        None
+    Some(e) =>
+      match @ext.read_protocols(e.data[:]) {
+        Some([name]) => Some(name)
+        _ => None
       }
-    }
     None => None
   }
 }

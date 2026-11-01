@@ -86,9 +86,11 @@ test "server conn: send_server_hello produces a ServerHello the client can decod
   assert_eq(server.handshake_state(), RecvdClientHello)
   // The server builds and protects its ServerHello.
   let sh = @msg.Server::{
+    version: 0x0303,
     random: Bytes::make(32, b'\xab'),
     session_id: b"",
     suite: 0x1301,
+    compression: 0,
     extensions: [],
   }
   let sh_packet = server.send_server_hello(sh, b"", b"\x01\x02\x03\x04", 0)
@@ -139,9 +141,11 @@ test "server conn: send_handshake_flight emits EE/Cert/CertVerify/Finished the c
   )
   let _ = server.receive_initial(ch_packet)
   let sh = @msg.Server::{
+    version: 0x0303,
     random: Bytes::make(32, b'\xcd'),
     session_id: b"",
     suite: 0x1301,
+    compression: 0,
     extensions: [],
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
@@ -229,9 +233,11 @@ test "server conn: receive_handshake verifies the client Finished and reaches CO
   )
   let _ = server.receive_initial(ch_packet)
   let sh = @msg.Server::{
+    version: 0x0303,
     random: Bytes::make(32, b'\xcd'),
     session_id: b"",
     suite: 0x1301,
+    compression: 0,
     extensions: [],
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
@@ -311,9 +317,11 @@ test "server conn: receive_handshake rejects a Finished with the wrong verify_da
   )
   let _ = server.receive_initial(ch_packet)
   let sh = @msg.Server::{
+    version: 0x0303,
     random: Bytes::make(32, b'\xcd'),
     session_id: b"",
     suite: 0x1301,
+    compression: 0,
     extensions: [],
   }
   let _ = server.send_server_hello(sh, b"", b"\x0a\x0b\x0c\x0d", 0)
@@ -365,9 +373,11 @@ test "server conn: the handshake flight is protected with ECDHE-derived keys the
   let server_pub = tls13_x25519_public(server_priv)
   // The client sends a real ClientHello carrying its x25519 key_share.
   let ch = @msg.Hello::{
+    version: 0x0303,
     random: Bytes::make(32, b'\x23'),
     session_id: b"heke1228",
     suites: [0x1301],
+    compression: b"\x00",
     extensions: [
       {
         kind: @ext.Kind::KeyShare,
@@ -392,9 +402,11 @@ test "server conn: the handshake flight is protected with ECDHE-derived keys the
   // The server replies with a ServerHello carrying its key_share, then derives its handshake
   // secret from the ECDHE over the CH..SH transcript.
   let sh = @msg.Server::{
+    version: 0x0303,
     random: Bytes::make(32, b'\x66'),
     session_id: b"heke1228",
     suite: 0x1301,
+    compression: 0,
     extensions: [
       @ext.Ext::{
         kind: KeyShare,
@@ -472,9 +484,11 @@ test "server conn: a full ECDHE handshake reaches CONNECTED" {
   let server_pub = tls13_x25519_public(server_priv)
   // Client ClientHello with key_share, delivered over an Initial packet.
   let ch = @msg.Hello::{
+    version: 0x0303,
     random: Bytes::make(32, b'\x23'),
     session_id: b"lfanke",
     suites: [0x1301],
+    compression: b"\x00",
     extensions: [
       {
         kind: @ext.Kind::KeyShare,
@@ -499,9 +513,11 @@ test "server conn: a full ECDHE handshake reaches CONNECTED" {
   )
   // Server ServerHello with key_share; derive the handshake secret from the ECDHE.
   let sh = @msg.Server::{
+    version: 0x0303,
     random: Bytes::make(32, b'\x66'),
     session_id: b"lfanke",
     suite: 0x1301,
+    compression: 0,
     extensions: [
       @ext.Ext::{
         kind: KeyShare,
