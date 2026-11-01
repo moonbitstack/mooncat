@@ -167,3 +167,10 @@ async test "tls: with cleartext off a TLS port does not serve the clear" {
     task.cancel()
   })
 }
+
+///|
+async test "tls: a certificate loads with the TLS 1.2 suites it is given" {
+  let chosen = @record.all12[:2].to_owned()
+  assert_eq(test_cert().load(suites12=chosen).suites12, chosen)
+  assert_eq(test_cert().load().suites12, @tls.suites12)
+}

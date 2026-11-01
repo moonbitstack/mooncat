@@ -20,12 +20,14 @@ pub async fn TlsCert::load(
   self : TlsCert,
   alpn~ : Array[String] = alpn,
   suites~ : Array[@record.Suite] = @tls.suites,
+  suites12~ : Array[@record.Suite12] = @tls.suites12,
 ) -> @tls.Server {
   @tls.Server::new(
     @x509.pems(@fs.read_file(self.certificate_file).text()),
     @x509.PrivateKey::pem(@fs.read_file(self.private_key_file).text()),
     alpn~,
     suites~,
+    suites12~,
   )
 }
 

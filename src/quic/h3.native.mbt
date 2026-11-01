@@ -599,11 +599,12 @@ pub async fn serve_config(
   config : @config.Config,
   cert : @serve.TlsCert,
   suites? : Array[@record.Suite],
+  suites12? : Array[@record.Suite12],
 ) -> Unit {
   guard config.workers <= 1 else { fail("HTTP/3 runs in one process") }
   let headers = config.server_headers.copy()
   headers["alt-svc"] = "h3=\":\{config.port}\"; ma=86400"
-  let tcp = cert.load(suites?)
+  let tcp = cert.load(suites?, suites12?)
   let udp = cert.load(alpn=["h3"], suites?)
   @serve.serve_tls_beside(app, { ..config, server_headers: headers, }, tcp, site => {
     serve_site(app, site, udp)

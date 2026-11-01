@@ -286,7 +286,18 @@ test "--ssl-ciphers names TLS 1.3 suites, and --http3 needs a certificate" {
     "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem", "--ssl-ciphers", "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256",
   ])
   assert_eq(plan.suites, Some([Aes256Gcm, ChaCha20Poly1305]))
+  assert_eq(plan.suites12, None)
   assert_true(refusal(["--ssl-ciphers", "RC4"]) is Some(@cli.Value(..)))
+  let both = @cli.parse([
+    "--ssl-ciphers", "TLS_RSA_WITH_AES_128_CBC_SHA:TLS_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+  ])
+  assert_eq(both.suites, Some([Aes128Gcm]))
+  assert_eq(
+    both.suites12.map(list => list.map(suite => suite.code)),
+    Some([0x002f, 0xc02f]),
+  )
+  let older = @cli.parse(["--ssl-ciphers", "TLS_DHE_RSA_WITH_AES_256_CCM_8"])
+  assert_eq(older.suites, None)
   assert_true(refusal(["--http3"]) is Some(@cli.Unsupported(..)))
   assert_true(
     refusal([

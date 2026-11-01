@@ -44,8 +44,9 @@ pub(all) struct Plan {
   tls : @mooncat.TlsCert?
   h2c : Bool
   http3 : Bool
-  // The suites `--ssl-ciphers` names; absent, moontls's preset.
+  // The suites `--ssl-ciphers` names, by TLS version; absent, moontls's preset for that version.
   suites : Array[@record.Suite]?
+  suites12 : Array[@record.Suite12]?
 }
 
 // ------------------------------------------------------------------ grammar
@@ -177,7 +178,9 @@ pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
     text("lifespan", "auto, on or off"),
     text("ssl-certfile", "PEM certificate; serves HTTPS"),
     text("ssl-keyfile", "PEM private key; serves HTTPS"),
-    text("ssl-ciphers", "TLS 1.3 suites to accept, colon-separated, best first"),
+    text(
+      "ssl-ciphers", "TLS 1.3 and 1.2 suites to accept by IANA name, colon-separated, best first",
+    ),
   ]
   for one in refused {
     if one.1 {
@@ -249,11 +252,11 @@ pub fn parse(
       why="a UDP port cannot be shared across workers yet",
     )
   }
-  let suites = match reading(got, "ssl-ciphers") {
-    Some(text) => Some(cipher_list(text))
-    None => None
+  let (suites, suites12) = match reading(got, "ssl-ciphers") {
+    Some(text) => cipher_list(text)
+    None => (None, None)
   }
-  { config, tls, h2c, http3, suites, }
+  { config, tls, h2c, http3, suites, suites12, }
 }
 
 ///|
@@ -434,25 +437,43 @@ fn pause(
 }
 
 ///|
-/// The suites `--ssl-ciphers` names, colon-separated in preference order as OpenSSL writes them.
-fn cipher_list(text : String) -> Array[@record.Suite] raise Refused {
-  let out : Array[@record.Suite] = []
+/// The suites `--ssl-ciphers` names, colon-separated in preference order as OpenSSL writes them,
+/// by TLS version. A version none of them belongs to keeps its preset, so restricting 1.3 does
+/// not turn 1.2 off.
+fn cipher_list(
+  text : String,
+) -> (Array[@record.Suite]?, Array[@record.Suite12]?) raise Refused {
+  let suites : Array[@record.Suite] = []
+  let suites12 : Array[@record.Suite12] = []
   for name in text.split(":") {
-    out.push(
-      match name.to_owned() {
-        "TLS_AES_128_GCM_SHA256" => Aes128Gcm
-        "TLS_AES_256_GCM_SHA384" => Aes256Gcm
-        "TLS_CHACHA20_POLY1305_SHA256" => ChaCha20Poly1305
-        other =>
+    match name.to_owned() {
+      "TLS_AES_128_GCM_SHA256" => suites.push(Aes128Gcm)
+      "TLS_AES_256_GCM_SHA384" => suites.push(Aes256Gcm)
+      "TLS_CHACHA20_POLY1305_SHA256" => suites.push(ChaCha20Poly1305)
+      other =>
+        if @record.all12.filter(s => s.name() == other) is [suite] {
+          suites12.push(suite)
+        } else {
           raise Value(
             flag="--ssl-ciphers",
             got=other,
-            want="TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384 or TLS_CHACHA20_POLY1305_SHA256",
+            want="a TLS 1.3 or 1.2 suite by its IANA name",
           )
-      },
-    )
+        }
+    }
   }
-  out
+  (
+    if suites.is_empty() {
+      None
+    } else {
+      Some(suites)
+    },
+    if suites12.is_empty() {
+      None
+    } else {
+      Some(suites12)
+    },
+  )
 }
 
 ///|
