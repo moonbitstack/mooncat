@@ -44,6 +44,8 @@ pub(all) struct Plan {
   tls : @mooncat.TlsCert?
   h2c : Bool
   http3 : Bool
+  // The suites `--ssl-ciphers` names; absent, moontls's preset.
+  suites : Array[@record.Suite]?
 }
 
 // ------------------------------------------------------------------ grammar
@@ -74,21 +76,12 @@ let refused : Array[(String, Bool, String)] = [
   ("ws", true, "there is one WebSocket implementation"),
   ("log-config", true, "logging is configured in code, through Config::logger"),
   ("env-file", true, "read the file yourself and build a Config"),
-  (
-    "ws-ping-interval", true, "a heartbeat needs a read that can be interrupted mid-message, which a native blocking read cannot be",
-  ),
-  ("ws-ping-timeout", true, "see --ws-ping-interval"),
-  (
-    "ws-max-queue", true, "bounding the queue needs that same interruptible reader",
-  ),
-  (
-    "ws-per-message-deflate", false, "the async gzip package frames gzip streams only, and accepting the extension without raw DEFLATE would corrupt every frame",
-  ),
   ("ssl-keyfile-password", true, "the TLS backend takes unencrypted keys"),
-  ("ssl-version", true, "TLS 1.3 only"),
+  (
+    "ssl-version", true, "versions are set on @tls.Server, and serve_tls_server takes it",
+  ),
   ("ssl-cert-reqs", true, "client certificates are not requested"),
   ("ssl-ca-certs", true, "client certificates are not requested"),
-  ("ssl-ciphers", true, "the suites are TLS 1.3's, and not selectable"),
 ]
 
 ///|
@@ -173,9 +166,18 @@ pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
     ),
     text("log-level", "trace, debug, info, warning, error or critical"),
     text("ws-max-size", "bytes a WebSocket message may reach"),
+    text("ws-max-queue", "WebSocket messages waiting for the application"),
+    text(
+      "ws-ping-interval", "seconds between keepalive pings; 0 turns them off",
+    ),
+    text("ws-ping-timeout", "seconds a pong may take; 0 waits for ever"),
+    text(
+      "ws-per-message-deflate", "accept WebSocket compression: true or false",
+    ),
     text("lifespan", "auto, on or off"),
     text("ssl-certfile", "PEM certificate; serves HTTPS"),
     text("ssl-keyfile", "PEM private key; serves HTTPS"),
+    text("ssl-ciphers", "TLS 1.3 suites to accept, colon-separated, best first"),
   ]
   for one in refused {
     if one.1 {
@@ -247,7 +249,11 @@ pub fn parse(
       why="a UDP port cannot be shared across workers yet",
     )
   }
-  { config, tls, h2c, http3, }
+  let suites = match reading(got, "ssl-ciphers") {
+    Some(text) => Some(cipher_list(text))
+    None => None
+  }
+  { config, tls, h2c, http3, suites, }
 }
 
 ///|
@@ -312,7 +318,23 @@ fn fold(
       Some(text) => commas(text)
       None => base.forwarded_allow_ips
     },
-    ws: { max_size: count(got, "ws-max-size", base.ws.max_size), },
+    ws: {
+      max_size: count(got, "ws-max-size", base.ws.max_size),
+      max_queue: count(got, "ws-max-queue", base.ws.max_queue),
+      ping_interval: pause(got, "ws-ping-interval", base.ws.ping_interval),
+      ping_timeout: pause(got, "ws-ping-timeout", base.ws.ping_timeout),
+      deflate: match reading(got, "ws-per-message-deflate") {
+        Some("true") => true
+        Some("false") => false
+        Some(other) =>
+          raise Value(
+            flag="--ws-per-message-deflate",
+            got=other,
+            want="true or false",
+          )
+        None => base.ws.deflate
+      },
+    },
     lifespan: match reading(got, "lifespan") {
       Some("auto") => Auto
       Some("on") => On
@@ -392,6 +414,45 @@ fn reading(got : @argparse.Matches, name : String) -> String? {
     Some(values) => if values.length() > 0 { Some(values[0]) } else { None }
     None => None
   }
+}
+
+///|
+/// A time in seconds as milliseconds, where 0 means none at all.
+fn pause(
+  got : @argparse.Matches,
+  name : String,
+  fallback : Int32?,
+) -> Int32? raise Refused {
+  match reading(got, name) {
+    Some(text) =>
+      match number("--" + name, text) {
+        0 => None
+        seconds => Some(seconds * 1000)
+      }
+    None => fallback
+  }
+}
+
+///|
+/// The suites `--ssl-ciphers` names, colon-separated in preference order as OpenSSL writes them.
+fn cipher_list(text : String) -> Array[@record.Suite] raise Refused {
+  let out : Array[@record.Suite] = []
+  for name in text.split(":") {
+    out.push(
+      match name.to_owned() {
+        "TLS_AES_128_GCM_SHA256" => Aes128Gcm
+        "TLS_AES_256_GCM_SHA384" => Aes256Gcm
+        "TLS_CHACHA20_POLY1305_SHA256" => ChaCha20Poly1305
+        other =>
+          raise Value(
+            flag="--ssl-ciphers",
+            got=other,
+            want="TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384 or TLS_CHACHA20_POLY1305_SHA256",
+          )
+      },
+    )
+  }
+  out
 }
 
 ///|

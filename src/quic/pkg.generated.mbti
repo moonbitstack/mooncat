@@ -7,6 +7,7 @@ import {
   "moonbitstack/mooncat/config",
   "moonbitstack/mooncat/serve",
   "moonbitstack/moonquic/conn",
+  "moonbitstack/moontls/record",
   "moonbitstack/moontls/tls",
 }
 
@@ -15,7 +16,7 @@ pub fn now() -> Int64
 
 pub async fn serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -> Unit
 
-pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @serve.TlsCert) -> Unit
+pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite]) -> Unit
 
 pub async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -> Unit
 

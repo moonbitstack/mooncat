@@ -155,13 +155,13 @@ test "a uvicorn flag we cannot honour explains itself" {
   for
     one in [
       "--uds", "--fd", "--app-dir", "--interface", "--loop", "--http", "--ws", "--log-config",
-      "--env-file", "--ws-ping-interval", "--ws-max-queue", "--ssl-version", "--ssl-ciphers",
+      "--env-file", "--ssl-version",
     ] {
     guard refusal([one, "x"]) is Some(@cli.Unsupported(..)) else {
       fail("\{one} was accepted")
     }
   }
-  for one in ["--factory", "--ws-per-message-deflate"] {
+  for one in ["--factory"] {
     guard refusal([one]) is Some(@cli.Unsupported(..)) else {
       fail("\{one} was accepted")
     }
@@ -251,4 +251,47 @@ test "the clear beside TLS can be turned off" {
 test "--workers sets how many processes serve, and the default is one" {
   assert_eq(@cli.parse([]).config.workers, 1)
   assert_eq(@cli.parse(["--workers", "4"]).config.workers, 4)
+}
+
+///|
+test "the WebSocket flags reach the config, in seconds, with 0 for off" {
+  let base = @cli.parse([]).config.ws
+  assert_eq(base.max_queue, 32)
+  assert_eq(base.ping_interval, Some(20000))
+  assert_eq(base.ping_timeout, Some(20000))
+  assert_true(base.deflate)
+  let ws = @cli.parse([
+      "--ws-max-queue", "4", "--ws-ping-interval", "5", "--ws-ping-timeout", "0",
+      "--ws-per-message-deflate", "false",
+    ]).config.ws
+  assert_eq(ws.max_queue, 4)
+  assert_eq(ws.ping_interval, Some(5000))
+  assert_eq(ws.ping_timeout, None)
+  assert_false(ws.deflate)
+  assert_eq(
+    refusal(["--ws-per-message-deflate", "maybe"]),
+    Some(
+      @cli.Value(
+        flag="--ws-per-message-deflate",
+        got="maybe",
+        want="true or false",
+      ),
+    ),
+  )
+}
+
+///|
+test "--ssl-ciphers names TLS 1.3 suites, and --http3 needs a certificate" {
+  let plan = @cli.parse([
+    "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem", "--ssl-ciphers", "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256",
+  ])
+  assert_eq(plan.suites, Some([Aes256Gcm, ChaCha20Poly1305]))
+  assert_true(refusal(["--ssl-ciphers", "RC4"]) is Some(@cli.Value(..)))
+  assert_true(refusal(["--http3"]) is Some(@cli.Unsupported(..)))
+  assert_true(
+    refusal([
+      "--http3", "--workers", "2", "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem",
+    ])
+    is Some(@cli.Unsupported(..)),
+  )
 }

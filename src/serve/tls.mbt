@@ -19,11 +19,13 @@ pub let alpn : Array[String] = ["h2", "http/1.1"]
 pub async fn TlsCert::load(
   self : TlsCert,
   alpn~ : Array[String] = alpn,
+  suites~ : Array[@record.Suite] = @tls.suites,
 ) -> @tls.Server {
   @tls.Server::new(
     @x509.pems(@fs.read_file(self.certificate_file).text()),
     @x509.PrivateKey::pem(@fs.read_file(self.private_key_file).text()),
     alpn~,
+    suites~,
   )
 }
 

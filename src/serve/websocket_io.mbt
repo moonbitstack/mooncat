@@ -20,6 +20,18 @@ pub async fn read_frame(
   client~ : Bool = true,
   limit~ : Int32 = @ws.limit,
 ) -> @ws.Frame {
+  next_frame(reader, client~, limit~, extended=false).0
+}
+
+///|
+/// One frame, and whether RSV1 was set on it. With no extension negotiated (`extended` false) a set
+/// bit is a protocol error.
+async fn next_frame(
+  reader : &@io.Reader,
+  client~ : Bool,
+  limit~ : Int32,
+  extended~ : Bool,
+) -> (@ws.Frame, Bool) {
   let head = reader.read_exactly(2)
   let b0 = head[0].to_int()
   let b1 = head[1].to_int()
@@ -34,7 +46,11 @@ pub async fn read_frame(
       .unwrap()
       .reinterpret_as_int64()
   }
-  let opcode = @ws.check(b0, b1, len, client~, limit~)
+  let (opcode, rsv1) = if extended {
+    @ws.check_extension(b0, b1, len, client~, limit~)
+  } else {
+    (@ws.check(b0, b1, len, client~, limit~), false)
+  }
   // `check` bounded it, so narrowing cannot truncate.
   let n = len.to_int()
   let mask = if (b1 & 0x80) != 0 { reader.read_exactly(4) } else { b"" }
@@ -48,7 +64,7 @@ pub async fn read_frame(
   } else {
     raw
   }
-  { fin: (b0 & 0x80) != 0, opcode, payload, }
+  ({ fin: (b0 & 0x80) != 0, opcode, payload, }, rsv1)
 }
 
 ///|

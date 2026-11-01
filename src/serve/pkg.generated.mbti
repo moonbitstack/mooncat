@@ -9,6 +9,7 @@ import {
   "moonbitstack/mooncat/config",
   "moonbitstack/moonhttp/header",
   "moonbitstack/moonhttp/ws",
+  "moonbitstack/moontls/record",
   "moonbitstack/moontls/tls",
 }
 
@@ -67,7 +68,7 @@ pub(all) struct TlsCert {
   certificate_file : String
   private_key_file : String
 }
-pub async fn TlsCert::load(Self, alpn? : Array[String]) -> @tls.Server
+pub async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite]) -> @tls.Server
 
 // Type aliases
 

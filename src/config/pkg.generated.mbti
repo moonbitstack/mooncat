@@ -15,6 +15,10 @@ pub let port : Int32
 
 pub fn reason(Int32) -> String
 
+pub let ws_max_queue : Int32
+
+pub let ws_ping : Int32
+
 // Errors
 
 // Types and methods
@@ -77,8 +81,12 @@ pub fn Logger::silent() -> Self
 
 pub(all) struct WsConfig {
   max_size : Int32
+  max_queue : Int32
+  ping_interval : Int32?
+  ping_timeout : Int32?
+  deflate : Bool
 }
-pub fn WsConfig::new(max_size? : Int32) -> Self
+pub fn WsConfig::new(max_size? : Int32, max_queue? : Int32, ping_interval? : Int32?, ping_timeout? : Int32?, deflate? : Bool) -> Self
 
 // Type aliases
 

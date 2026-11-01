@@ -42,8 +42,13 @@ pub async fn run(
 /// plan — or change it — before the socket opens.
 pub async fn serve(app : @moonasgi.AsgiApp, plan : Plan) -> Unit {
   match plan.tls {
-    Some(cert) if plan.http3 => serve_http3(app, plan.config, cert)
-    Some(cert) => @mooncat.serve_tls_config(app, plan.config, cert)
+    Some(cert) if plan.http3 => serve_http3(app, plan.config, cert, plan.suites)
+    Some(cert) =>
+      @mooncat.serve_tls_server(
+        app,
+        plan.config,
+        cert.load(suites?=plan.suites),
+      )
     None =>
       if plan.h2c {
         @mooncat.serve_h2c_config(app, plan.config)

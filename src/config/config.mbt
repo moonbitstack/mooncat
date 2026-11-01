@@ -1,26 +1,44 @@
 ///|
-/// The WebSocket knobs uvicorn exposes on its own config (`--ws-max-size`).
+/// The WebSocket knobs uvicorn exposes (`--ws-max-size`, `--ws-max-queue`, `--ws-ping-interval`,
+/// `--ws-ping-timeout`, `--ws-per-message-deflate`), with its defaults.
 ///
 /// `max_size` is the ceiling on a received payload, in bytes: it bounds a single frame and, across
 /// continuation frames, a reassembled message, and a peer that announces more fails the connection
-/// with `1009`. It is the knob with teeth on the receive side — an unbounded length is exactly what
-/// a hostile client sends.
+/// with `1009`.
 ///
-/// uvicorn's remaining WebSocket knobs are not here rather than here-and-ignored:
-/// `--ws-ping-interval` / `--ws-ping-timeout` need a heartbeat task alongside a reader that can be
-/// interrupted between messages and resumed, `--ws-max-queue` needs that same reader pumping a
-/// bounded queue, and neither is expressible while a native blocking read cannot be cancelled and
-/// resumed mid-stream; `--ws-per-message-deflate` needs a raw DEFLATE codec, which the async
-/// library's `gzip` package (gzip-framed streams only) does not provide. Accepting the extension
-/// without one would corrupt every frame.
+/// `max_queue` is how many received messages wait for the application. Once it is full nothing more
+/// is read from the socket, so a client that outruns its application is held back by TCP.
+///
+/// `ping_interval` is the milliseconds between keepalive pings, and `ping_timeout` how long a pong
+/// may take before the connection fails with `1011`. `None` turns either off.
+///
+/// `deflate` accepts permessage-deflate (RFC 7692) when a client offers it.
 pub(all) struct WsConfig {
   max_size : Int32
+  max_queue : Int32
+  ping_interval : Int32?
+  ping_timeout : Int32?
+  deflate : Bool
 }
 
 ///|
-/// Build a `WsConfig`, defaulting `max_size` to uvicorn's own 16 MiB.
-pub fn WsConfig::new(max_size~ : Int32 = @ws.limit) -> WsConfig {
-  { max_size, }
+/// How many received messages wait for the application (uvicorn's `--ws-max-queue`).
+pub let ws_max_queue : Int32 = 32
+
+///|
+/// The milliseconds between pings, and the wait for a pong (uvicorn's 20 seconds each).
+pub let ws_ping : Int32 = 20000
+
+///|
+/// A `WsConfig` from uvicorn's defaults, `max_size` its 16 MiB.
+pub fn WsConfig::new(
+  max_size~ : Int32 = @ws.limit,
+  max_queue~ : Int32 = ws_max_queue,
+  ping_interval~ : Int32? = Some(ws_ping),
+  ping_timeout~ : Int32? = Some(ws_ping),
+  deflate~ : Bool = true,
+) -> WsConfig {
+  { max_size, max_queue, ping_interval, ping_timeout, deflate, }
 }
 
 ///|

@@ -598,12 +598,13 @@ pub async fn serve_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
   cert : @serve.TlsCert,
+  suites? : Array[@record.Suite],
 ) -> Unit {
   guard config.workers <= 1 else { fail("HTTP/3 runs in one process") }
   let headers = config.server_headers.copy()
   headers["alt-svc"] = "h3=\":\{config.port}\"; ma=86400"
-  let tcp = cert.load()
-  let udp = cert.load(alpn=["h3"])
+  let tcp = cert.load(suites?)
+  let udp = cert.load(alpn=["h3"], suites?)
   @serve.serve_tls_beside(app, { ..config, server_headers: headers, }, tcp, site => {
     serve_site(app, site, udp)
   })

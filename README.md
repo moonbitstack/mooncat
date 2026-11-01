@@ -80,7 +80,9 @@ moon run src/main --target native -- --help
 `--host`, `--backlog`, `--root-path`, `--limit-concurrency`,
 `--limit-max-requests`, `--timeout-keep-alive`, `--timeout-graceful-shutdown`,
 `--h11-max-incomplete-event-size`, `--forwarded-allow-ips`, `--ws-max-size`,
-`--ssl-certfile` with `--ssl-keyfile`, and the `--no-` form of every switch.
+`--ssl-certfile` with `--ssl-keyfile`, `--ssl-ciphers`, `--ws-max-queue`,
+`--ws-ping-interval`, `--ws-ping-timeout`, `--ws-per-message-deflate`, and the `--no-`
+form of every switch.
 mooncat adds `--h2c`, `--http3`, `--max-connections`, `--dual-stack` and
 `--reuse-addr`.
 
@@ -92,8 +94,8 @@ mooncat: --uds: the async transport binds TCP only
 ```
 
 `--reload` is `mctl serve --reload`, in [`moonctl`](https://github.com/moonbitstack/moonctl): a compiled server is rebuilt and restarted from outside. That and the rest cover `--uds`, `--fd`, `--factory`, `--app-dir`,
-`--interface`, `--loop`, `--http`, `--ws`, `--log-config`, `--env-file`, the
-three WebSocket timing knobs, and the `--ssl-*` options beyond the two above.
+`--interface`, `--loop`, `--http`, `--ws`, `--log-config`, `--env-file`, and the
+`--ssl-*` options beyond the three above.
 Each answers with its own reason. Silently ignoring them is worse: somebody who
 writes `--uds` would find out at load time.
 
@@ -211,12 +213,12 @@ TCP listener from `serve_tls_beside`, under the same lifespan and limits.
 `v0` — HTTP/1.1 request → ASGI `Scope`/`Receive`/`Send` → response is **working and verified by a real socket round-trip in CI** (a server task answers a live `@http.get`). Landed and CI-verified alongside it:
 
 - the **lifespan** protocol — the app runs once under a `Lifespan` scope, `startup` is driven before the listener binds and `shutdown` on the way out, even under cancellation. `Config.lifespan` is uvicorn's `--lifespan`: `Auto` (the default) serves an application that fails on the lifespan scope without it, `On` refuses to start, `Off` skips the protocol. What startup stores in the scope's `state` reaches every HTTP and WebSocket scope as a shallow copy;
-- the **full WebSocket frame↔`Event` bridge** — a `Connection: upgrade` + `Upgrade: websocket` handshake becomes a `websocket` `Scope` driven through the moonasgi SEAM: `receive()` emits `websocket.connect` then real inbound text/binary frames as `WebSocketReceive` (fragments reassemble) and a peer close as `WebSocketDisconnect(code)`; `send()` turns `WebSocketAccept` into the deferred 101 handshake, `WebSocketSendText`/`WebSocketSendBytes` into message frames, and `WebSocketClose(code, reason)` into a close frame. `WebSocketAccept(subprotocol=..)` echoes the choice in the 101's `Sec-WebSocket-Protocol`. Rejecting before accept answers `403`; pings are answered and, as in uvicorn, not surfaced to the app. The receive side enforces RFC 6455 rather than trusting the peer: a set RSV bit, a reserved opcode, an unmasked client frame and a malformed control frame each fail the connection with `1002`, a payload past `ws.max_size` with `1009` — checked before the payload is read, so a 64-bit length is never truncated into a short allocation — invalid UTF-8 in a text message with `1007`, and an inbound close is echoed per §5.5.1. Proven by a **real `@websocket` client** doing a full text + binary round-trip and a clean close in CI;
+- the **full WebSocket frame↔`Event` bridge** — a `Connection: upgrade` + `Upgrade: websocket` handshake becomes a `websocket` `Scope` driven through the moonasgi SEAM: `receive()` emits `websocket.connect` then real inbound text/binary frames as `WebSocketReceive` (fragments reassemble) and a peer close as `WebSocketDisconnect(code)`; `send()` turns `WebSocketAccept` into the deferred 101 handshake, `WebSocketSendText`/`WebSocketSendBytes` into message frames, and `WebSocketClose(code, reason)` into a close frame. `WebSocketAccept(subprotocol=..)` echoes the choice in the 101's `Sec-WebSocket-Protocol`. Rejecting before accept answers `403`; pings are answered and, as in uvicorn, not surfaced to the app. A keepalive ping goes out every `ping_interval`, and a peer that misses `ping_timeout` is closed with `1011`. Messages wait for the application in a queue of `max_queue`, and a full queue stops the reading, so a fast client is held back by TCP. `permessage-deflate` is accepted when offered, and `deflate=false` turns it off. `scripts/autobahn/run.sh` runs the Autobahn suite in CI: every case passes. The receive side enforces RFC 6455 rather than trusting the peer: a set RSV bit, a reserved opcode, an unmasked client frame and a malformed control frame each fail the connection with `1002`, a payload past `ws.max_size` with `1009` — checked before the payload is read, so a 64-bit length is never truncated into a short allocation — invalid UTF-8 in a text message with `1007`, and an inbound close is echoed per §5.5.1. Proven by a **real `@websocket` client** doing a full text + binary round-trip and a clean close in CI;
 - a `Config` in the shape of uvicorn's, and honoured rather than merely recorded: `dual_stack`, `reuse_addr`, per-server response `headers`, `max_connections`, `allow_failure`, `timeout_keep_alive` (an idle keep-alive connection is dropped), `limit_max_requests` (the server stops itself), `limit_concurrency` (uvicorn's `503` rather than a queue), `max_head_size` (uvicorn's `h11_max_incomplete_event_size`), `date_header`, `proxy_headers` / `forwarded_allow_ips`, and `ws.max_size`. `backlog` is the one field that does nothing: `@socket.TcpServer` calls `listen()` itself with a fixed depth and exposes no way to change it. Chunked request/response framing is handled by the codec.
 
 mooncat also serves a small hand-written ASGI handler end to end: the HTTP/1.1 integration test answers `/greet/<name>` with JSON over a live socket, and verifies both `200` and a `404` route miss. A matching HTTP/2 test exercises the same handler.
 
-**HTTPS/TLS serving**, the **graceful-shutdown + `--reload` process model**, and **HTTP/2 serving** under TLS and in the clear landed too — see the sections above. Roadmap, transliterated from uvicorn feature-by-feature: further TLS detail (ciphers, client certificates), `backlog` once `TcpServer` takes one, and the remaining WebSocket knobs — `ws-ping-interval` / `ws-ping-timeout` / `ws-max-queue` need a reader that can be interrupted between messages and resumed, and `ws-per-message-deflate` needs a raw DEFLATE codec the async `gzip` package does not expose.
+**HTTPS/TLS serving**, the **graceful-shutdown + `--reload` process model**, and **HTTP/2 serving** under TLS and in the clear landed too — see the sections above. Roadmap, transliterated from uvicorn feature-by-feature: further TLS detail (ciphers, client certificates), `backlog` once `TcpServer` takes one.
 
 ## Targets
 

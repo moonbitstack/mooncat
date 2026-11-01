@@ -8,6 +8,7 @@ import {
   "moonbitstack/mooncat/lifespan",
   "moonbitstack/mooncat/serve",
   "moonbitstack/moonhttp/ws",
+  "moonbitstack/moontls/tls",
 }
 
 // Values
@@ -37,7 +38,11 @@ pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async
 
 pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -> Unit
 
+pub async fn serve_tls_beside(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server, async (@serve.Site) -> Unit) -> Unit
+
 pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @serve.TlsCert) -> Unit
+
+pub async fn serve_tls_server(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server) -> Unit
 
 // Errors
 

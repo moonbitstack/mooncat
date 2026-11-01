@@ -87,3 +87,27 @@ jobs:
       - name: interfaces are up to date
         run: |
           moon info --target all && git -c core.autocrlf=false diff --ignore-cr-at-eol --exit-code
+
+  # Autobahn's fuzzingclient against the echo endpoint: framing, fragments, UTF-8, close handling,
+  # limits and permessage-deflate. A job of its own because it needs Docker.
+  conformance:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: install moon
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+
+      - name: post install
+        run: |
+          moon version --all
+          moon update
+
+      - name: autobahn
+        run: sh scripts/autobahn/run.sh

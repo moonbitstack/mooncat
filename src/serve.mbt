@@ -18,4 +18,6 @@ pub using @serve {
   serve_h2c_config,
   serve_tls,
   serve_tls_config,
+  serve_tls_server,
+  serve_tls_beside,
 }

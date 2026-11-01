@@ -51,90 +51,228 @@ async fn serve_websocket_raw(
     extensions: ws_extensions(link),
     state: link.state.copy(),
   })
+  let fields = fields_map(req.fields)
   let connected = Ref(false)
   let accepted = Ref(false)
   let closed = Ref(false)
-  let receive : @moonasgi.Receive = () => {
-    if not_yet(connected) {
-      @moonasgi.Event::WebSocketConnect
-    } else if closed.val {
-      @moonasgi.Event::WebSocketDisconnect(code=1006, reason=None)
-    } else {
-      let msg : Result[@ws.Message, Int32] = Ok(
-        read_message(reader, writer, limit=config.ws.max_size),
-      ) catch {
-        // A violation names the code the connection must be failed with; anything else is the
-        // stream ending under us, which has no status to report.
-        @ws.Protocol(_) => Err(1002)
-        @ws.Payload(_) => Err(1007)
-        @ws.Exceeded(..) => Err(1009)
-        _ => Err(1006)
+  let wire = Wire::new(writer)
+  let inbox : @aqueue.Queue[Inbound] = @aqueue.Queue(
+    kind=Blocking(config.ws.max_queue),
+  )
+  let terms = if config.ws.deflate {
+    fields
+    .get("sec-websocket-extensions")
+    .bind(offer => @pmd.Extension::agree(@pmd.offers(offer[:])[:]))
+  } else {
+    None
+  }
+  @async.with_task_group(group => {
+    let receive : @moonasgi.Receive = () => {
+      if not_yet(connected) {
+        return @moonasgi.Event::WebSocketConnect
       }
-      match msg {
-        Err(code) => {
+      if closed.val {
+        return @moonasgi.Event::WebSocketDisconnect(code=1006, reason=None)
+      }
+      match inbox.get() {
+        Failed(code) => {
           closed.val = true
-          if code != 1006 {
-            // §7.1.7: fail the connection, but say why on the wire first.
-            writer.write(
-              (
-                { fin: true, opcode: Close, payload: @ws.close(code), } :
-                @ws.Frame).encode(),
-            ) catch {
-              _ => ()
-            }
-          }
           @moonasgi.Event::WebSocketDisconnect(code~, reason=None)
         }
-        Ok(Text(text)) =>
+        Arrived(Text(text)) =>
           @moonasgi.Event::WebSocketReceive(text=Some(text), bytes=None)
-        Ok(Binary(bytes)) =>
+        Arrived(Binary(bytes)) =>
           @moonasgi.Event::WebSocketReceive(text=None, bytes=Some(bytes))
-        Ok(Close(status~, ..)) => {
+        Arrived(Close(status~, ..)) => {
           closed.val = true
           @moonasgi.Event::WebSocketDisconnect(code=status, reason=None)
         }
       }
     }
-  }
-  let send : @moonasgi.Send = event => {
-    match event {
-      WebSocketAccept(subprotocol~, headers~) =>
-        if !accepted.val {
-          accepted.val = true
-          let key = fields_map(req.fields)
-            .get("sec-websocket-key")
-            .unwrap_or("")
-          let protocol = subprotocol
-          writer.write(@upgrade.response(key, protocol?, extra=headers[:]))
+    let send : @moonasgi.Send = event => {
+      match event {
+        WebSocketAccept(subprotocol~, headers~) =>
+          if !accepted.val {
+            accepted.val = true
+            let key = fields.get("sec-websocket-key").unwrap_or("")
+            let protocol = subprotocol
+            let extra = headers.copy()
+            if terms is Some(agreed) {
+              extra.push(
+                ("sec-websocket-extensions", agreed.encode(role=Server)),
+              )
+              wire.compress(agreed)
+            }
+            wire.write(@upgrade.response(key, protocol?, extra=extra[:]))
+            group.spawn_bg(no_wait=true, () => {
+              pump(reader, wire, inbox, config.ws, terms)
+            })
+            if config.ws.ping_interval is Some(every) {
+              group.spawn_bg(no_wait=true, () => {
+                keep_alive(wire, inbox, every, config.ws.ping_timeout)
+              })
+            }
+          }
+        WebSocketSendText(text) =>
+          if accepted.val {
+            wire.message(Text, @utf8.encode(text))
+          }
+        WebSocketSendBytes(data) =>
+          if accepted.val {
+            wire.message(Binary, data)
+          }
+        WebSocketClose(code~, reason~) => {
+          if accepted.val {
+            wire.frame(Close, @ws.close(code, reason~))
+          } else {
+            wire.write(@utf8.encode("HTTP/1.1 403 Forbidden\r\n\r\n"))
+          }
+          closed.val = true
         }
-      WebSocketSendText(text) =>
-        if accepted.val {
-          writer.write(
-            (
-              { fin: true, opcode: Text, payload: @utf8.encode(text), } :
-              @ws.Frame).encode(),
-          )
-        }
-      WebSocketSendBytes(data) =>
-        if accepted.val {
-          writer.write(
-            ({ fin: true, opcode: Binary, payload: data, } : @ws.Frame).encode(),
-          )
-        }
-      WebSocketClose(code~, reason~) => {
-        if accepted.val {
-          writer.write(
-            (
-              { fin: true, opcode: Close, payload: @ws.close(code, reason~), } :
-              @ws.Frame).encode(),
-          )
-        } else {
-          writer.write(@utf8.encode("HTTP/1.1 403 Forbidden\r\n\r\n"))
-        }
-        closed.val = true
+        _ => ()
       }
+    }
+    app(scope, receive, send)
+  })
+}
+
+///|
+/// What the reading task hands the application: a message, or the code the connection ended with.
+priv enum Inbound {
+  Arrived(@ws.Message)
+  Failed(Int32)
+}
+
+///|
+/// The write half of a connection. The application and the reading task, which owes the peer pongs
+/// and close echoes, both write, so the lock keeps one frame from landing inside another.
+priv struct Wire {
+  writer : &@io.Writer
+  lock : @async.Mutex
+  mut deflater : @pmd.Writer?
+  // When the last pong arrived, by `@async.now`.
+  mut pong : Int64
+}
+
+///|
+fn Wire::new(writer : &@io.Writer) -> Wire {
+  { writer, lock: @async.Mutex(), deflater: None, pong: 0L, }
+}
+
+///|
+fn Wire::compress(self : Wire, terms : @pmd.Extension) -> Unit {
+  self.deflater = Some(@pmd.Writer::new(extension=terms, role=Server))
+}
+
+///|
+async fn Wire::write(self : Wire, data : Bytes) -> Unit {
+  self.lock.acquire()
+  defer self.lock.release()
+  self.writer.write(data)
+}
+
+///|
+/// A control frame, or any frame that is not to be compressed.
+async fn Wire::frame(self : Wire, opcode : @ws.Opcode, payload : Bytes) -> Unit {
+  self.write(({ fin: true, opcode, payload, } : @ws.Frame).encode())
+}
+
+///|
+/// A whole message, compressed when the connection agreed to that.
+async fn Wire::message(
+  self : Wire,
+  opcode : @ws.Opcode,
+  payload : Bytes,
+) -> Unit {
+  match self.deflater {
+    Some(deflater) => {
+      let (frame, compressed) = deflater.frame(opcode, payload[:])
+      self.write(frame.encode_extension(rsv1=compressed))
+    }
+    None => self.frame(opcode, payload)
+  }
+}
+
+///|
+/// Read the connection until it ends, handing messages to the application. A full `inbox` stops the
+/// reading, which is what holds a fast client back. A peer that breaks RFC 6455 fails the connection
+/// with the code the violation names (§7.1.7), and a peer that went away reaches the application as
+/// `1006`.
+async fn pump(
+  reader : &@io.Reader,
+  wire : Wire,
+  inbox : @aqueue.Queue[Inbound],
+  config : @config.WsConfig,
+  terms : @pmd.Extension?,
+) -> Unit {
+  let limit = config.max_size
+  let feed : (@ws.Frame, Bool) -> @ws.Step raise @ws.Refused = match terms {
+    Some(agreed) => {
+      let reader = @pmd.Reader::new(extension=agreed, role=Server, limit~)
+      (frame, compressed) => reader.feed(frame, compressed~)
+    }
+    None => {
+      let reader = @ws.Reader::new(limit~)
+      (frame, _) => reader.feed(frame)
+    }
+  }
+  let code = try {
+    for ;; {
+      let (frame, compressed) = next_frame(
+        reader,
+        client=true,
+        limit~,
+        extended=terms is Some(_),
+      )
+      if frame.opcode is Pong {
+        wire.pong = @async.now()
+      }
+      let step = feed(frame, compressed)
+      if step.reply is Some(reply) {
+        wire.write(reply.encode())
+      }
+      if step.message is Some(message) {
+        inbox.put(Arrived(message))
+        if message is Close(..) {
+          return
+        }
+      }
+    }
+  } catch {
+    @ws.Protocol(_) => 1002
+    @ws.Payload(_) => 1007
+    @ws.Exceeded(..) => 1009
+    e if @async.is_being_cancelled() => raise e
+    _ => 1006
+  }
+  if code != 1006 {
+    wire.frame(Close, @ws.close(code)) catch {
       _ => ()
     }
   }
-  app(scope, receive, send)
+  inbox.put(Failed(code))
+}
+
+///|
+/// Ping every `every` milliseconds. A pong that does not come within `timeout` means the peer is
+/// gone without saying so, and the connection fails with `1011`, as uvicorn's does.
+async fn keep_alive(
+  wire : Wire,
+  inbox : @aqueue.Queue[Inbound],
+  every : Int32,
+  timeout : Int32?,
+) -> Unit {
+  for ;; {
+    @async.sleep(every)
+    let asked = @async.now()
+    wire.frame(Ping, b"")
+    guard timeout is Some(wait) else { continue }
+    @async.sleep(wait)
+    if wire.pong < asked {
+      wire.frame(Close, @ws.close(1011)) catch {
+        _ => ()
+      }
+      return inbox.put(Failed(1011))
+    }
+  }
 }

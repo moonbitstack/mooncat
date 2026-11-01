@@ -13,6 +13,7 @@ import {
   "moonbitstack/mooncat/quic",
   "moonbitstack/moonasgi",
   "moonbitstack/moonlog",
+  "moonbitstack/moontls/record",
   "moonbitlang/core/argparse",
   "moonbitlang/core/env",
 }
@@ -20,6 +21,7 @@ import {
 import {
   "moonbitstack/mooncat/cli",
   "moonbitstack/mooncat",
+  "moonbitstack/moontls/record",
 } for "test"
 
 // The flags exist to start a server, which runs where the async sockets do: native and wasm.
