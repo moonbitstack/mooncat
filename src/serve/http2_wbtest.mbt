@@ -22,8 +22,27 @@ priv struct Reply {
 }
 
 ///|
+/// Connects once the server listens: the server is started in a sibling task, and on a busy CI
+/// runner a fixed sleep before the connect is sometimes not long enough.
+async fn dial(port : Int32) -> @socket.Tcp {
+  let addr = @socket.Addr::parse("127.0.0.1:\{port}")
+  for attempt in 0..<40 {
+    return @socket.Tcp::connect(addr) catch {
+      e => {
+        if attempt == 39 {
+          raise e
+        }
+        @async.sleep(50)
+        continue
+      }
+    }
+  }
+  abort("unreachable")
+}
+
+///|
 async fn Peer::connect(port : Int32, settings? : @http2.Settings) -> Peer {
-  let sock = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:\{port}"))
+  let sock = dial(port)
   let wire = @http2.Conn::new(
     Client,
     settings=settings.unwrap_or(@http2.settings),
