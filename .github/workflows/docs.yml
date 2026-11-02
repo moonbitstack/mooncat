@@ -40,9 +40,10 @@ jobs:
 
       # The reference is generated from the interfaces, so a page that does not
       # match the sources is a page that was not regenerated. Fail before deploying.
-      - name: the reference is generated from the sources
+      - name: the reference and the search index are generated from the sources
         run: |
           python scripts/docs/gen_api.py
+          python scripts/docs/gen_search.py
           git -c core.autocrlf=false diff --exit-code -- docs/
 
       - name: the site agrees with the sources

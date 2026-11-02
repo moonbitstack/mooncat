@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-root=".">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,13 +17,17 @@
   <div class="wrap">
     <div class="head">
       <a class="brand" href="./index.html">
-        <img id="logo" src="assets/icon.png" data-alt="assets/icon-alt.png" alt="mooncat" width="54" height="49">
+        <img id="logo" src="assets/icon-light.png" data-light="assets/icon-light.png" data-dark="assets/icon.png" data-alt-light="assets/icon-alt-light.png" data-alt-dark="assets/icon-alt.png" data-alt-alt="MoonCat" alt="mooncat" width="54" height="49">
         <span class="name">
           <b>mooncat</b>
           <span>An ASGI 3.0 server for MoonBit</span>
         </span>
       </a>
       <div class="head-tools">
+        <span class="lang" aria-label="Language">
+          <a href="./zh/playground.html" hreflang="zh" lang="zh">中文</a>
+          <a href="./playground.html" aria-current="true">EN</a>
+        </span>
         <a href="https://github.com/moonbitstack/mooncat" title="Source on GitHub">
           <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
         </a>
@@ -39,48 +43,47 @@
       <a href="./guide.html">Guide</a>
       <a href="./api.html">API reference</a>
       <a href="./playground.html" aria-current="page">Playground</a>
-      <a class="gh" href="https://github.com/moonbitstack/mooncat">GitHub</a>
     </div>
   </nav>
 </header>
 
 <main id="middle">
-  <aside id="side">
-    <div class="grp">
-      <h2>mooncat</h2>
-      <ul>
-        <li><a href="./index.html">Home</a></li>
-        <li><a href="./playground.html" aria-current="page">Playground</a></li>
-        <li><a href="./api.html">API reference</a></li>
-      </ul>
-    </div>
-    <div class="grp">
-      <h2>Guide</h2>
-      <ul>
-        <li><a href="./guide.html#first">Your first server</a></li>
-        <li><a href="./guide.html#config">Configuration</a></li>
-        <li><a href="./guide.html#cli">Command line</a></li>
-        <li><a href="./guide.html#tls">TLS</a></li>
-        <li><a href="./guide.html#websocket">WebSocket</a></li>
-        <li><a href="./guide.html#http2">HTTP/2 and h2c</a></li>
-        <li><a href="./guide.html#http3">HTTP/3</a></li>
-        <li><a href="./guide.html#lifespan">Lifespan</a></li>
-        <li><a href="./guide.html#workers">Workers</a></li>
-        <li><a href="./guide.html#proxy">Proxy headers</a></li>
-        <li><a href="./guide.html#extensions">Extensions</a></li>
-      </ul>
-    </div>
-    <div class="grp">
-      <h2>Elsewhere</h2>
-      <ul>
-        <li><a href="https://github.com/moonbitstack/mooncat">GitHub</a></li>
-        <li><a href="https://github.com/moonbitstack/mooncat/issues">Issues</a></li>
-        <li><a href="https://mooncakes.io/docs/moonbitstack/mooncat">mooncakes</a></li>
-      </ul>
-    </div>
+<aside id="side">
+  <form class="search" id="search-form" role="search">
+    <label class="sr-only" for="q">Search the documentation</label>
+    <input id="q" type="search" placeholder="Search..." autocomplete="off">
+    <button type="submit">GO</button>
+    <ul class="hits" hidden></ul>
+  </form>
+  <section class="grp">
+    <h2>mooncat</h2>
+    <ul>
+      <li><a href="./index.html">Home</a></li>
+      <li><a href="./playground.html" aria-current="page">Playground</a></li>
+    </ul>
+  </section>
+  <section class="grp">
+    <h2>Documentation</h2>
+    <ul>
+      <li><a href="./guide.html">Guide</a></li>
+      <li><a href="./api.html">API reference</a></li>
+    </ul>
+  </section>
+  <section class="grp">
+    <h2>Download</h2>
+    <ul>
+      <li><a href="https://mooncakes.io/docs/moonbitstack/mooncat">mooncakes</a></li>
+    </ul>
+  </section>
+  <section class="grp">
+    <h2>Problems?</h2>
+    <ul>
+      <li><a href="https://github.com/moonbitstack/mooncat/issues">Issues</a></li>
+    </ul>
+  </section>
   </aside>
 
-  <div class="content">
+  <article class="content">
 
     <h1>How a connection is answered</h1>
     <p class="lede">One port, one application, six ways in. Pick a client and follow it: the socket, the handshake or the preface, the first bytes that decide, and the loop that ends up serving it. Every trace is what the client actually received.</p>
@@ -89,39 +92,38 @@
 
     <div class="trace-head" id="command-line"></div>
 
-    <div class="steps" id="steps"></div>
+    <ol class="steps" id="steps"></ol>
 
     <h2 class="bar" id="trace-bar">What came back<span class="aside" id="trace-where"></span></h2>
-    <div class="term" id="trace-box">
-      <div class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded</div>
+    <figure class="term" id="trace-box">
+      <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded</figcaption>
       <pre id="trace"></pre>
-    </div>
+    </figure>
     <p id="trace-note" class="pkg-desc"></p>
 
-    <div class="note">
+    <aside class="note">
       <p><b>Where these come from.</b> <code>scripts/docs/record_traces.py</code> ran each client against the HTTP/3 example (<code>src/examples/07-http3</code>) and the WebSocket echo example (<code>src/examples/05-websocket-echo</code>), and wrote down what came back. The dates are the dates of that recording. Nothing here is a mock: the application answers with <code>http_version</code>, which is why the body of each trace reads <code>1.1</code>, <code>2</code> or <code>3</code>.</p>
-    </div>
+    </aside>
 
-    <div class="pager">
+    <nav class="pager" aria-label="Previous and next page">
       <a href="./guide.html">← Guide</a>
       <a href="./api.html">API reference →</a>
     </div>
-  </div>
+  </article>
 </main>
 
 <footer id="footer">
   <div class="wrap">
     <span>mooncat — Apache-2.0. The API page is generated from the source tree.</span>
-    <span class="links">
-      <a href="./guide.html">Guide</a>
-      <a href="./api.html">API</a>
-      <a href="./playground.html">Playground</a>
-      <a href="https://github.com/moonbitstack/mooncat">GitHub</a>
-    </span>
   </div>
 </footer>
 
+<button class="to-top" id="to-top" type="button" aria-label="Back to top" hidden>
+  <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 3.5 3.5 8l1.06 1.06L7.25 6.4V13h1.5V6.4l2.69 2.66L12.5 8 8 3.5Z"/></svg>
+</button>
+
 <script src="assets/negotiation.js"></script>
+<script src="assets/search-index.js"></script>
 <script src="assets/site.js"></script>
 <script>
 (function () {
@@ -196,7 +198,7 @@
     var plan = steps[trace.kind] || steps.clear;
     list.innerHTML = "";
     plan.forEach(function (pair, i) {
-      var row = document.createElement("div");
+      var row = document.createElement("li");
       row.className = "step";
       row.innerHTML =
         '<span class="n">' + String(i + 1).padStart(2, "0") + "</span>" +

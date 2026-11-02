@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="zh" data-root="..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>指南 — mooncat</title>
+<meta name="description" content="从一个应用讲到 TLS、WebSocket、HTTP/2、HTTP/3、lifespan、多 worker 与代理头。">
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header id="header">
+  <div class="wrap">
+    <div class="head">
+      <a class="brand" href="./index.html">
+        <img id="logo" src="../assets/icon-alt-light.png" data-light="../assets/icon-alt-light.png" data-dark="../assets/icon-alt.png" data-alt-light="../assets/icon-light.png" data-alt-dark="../assets/icon.png" data-alt-alt="mooncat" alt="MoonCat" width="54" height="49">
+        <span class="name">
+          <b>mooncat</b>
+          <span>MoonBit 的 ASGI 3.0 服务器</span>
+        </span>
+      </a>
+      <div class="head-tools">
+        <span class="lang" aria-label="语言">
+          <a href="./guide.html" aria-current="true" lang="zh">中文</a>
+          <a href="../guide.html" hreflang="en">EN</a>
+        </span>
+        <a href="https://github.com/moonbitstack/mooncat" title="源码在 GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        </a>
+        <button id="theme" type="button" aria-label="切换主题">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 1Zm0 11a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 12Zm7-4a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 15 8ZM4 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 4 8Zm9.02-4.02a.75.75 0 0 1 0 1.06l-1.06 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0ZM5.1 10.9a.75.75 0 0 1 0 1.06L4.04 13.02a.75.75 0 0 1-1.06-1.06L4.04 10.9a.75.75 0 0 1 1.06 0Zm7.92 2.12a.75.75 0 0 1-1.06 0L10.9 11.96a.75.75 0 0 1 1.06-1.06l1.06 1.06a.75.75 0 0 1 0 1.06ZM5.1 5.1a.75.75 0 0 1-1.06 0L2.98 4.04a.75.75 0 0 1 1.06-1.06L5.1 4.04a.75.75 0 0 1 0 1.06ZM8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm0 1.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <nav class="tabs" aria-label="页面">
+    <div class="wrap">
+      <a href="./index.html">首页</a>
+      <a href="./guide.html" aria-current="page">指南</a>
+      <a href="./api.html">API 参考</a>
+      <a href="./playground.html">演示</a>
+    </div>
+  </nav>
+</header>
+
+<main id="middle">
+  <aside id="side">
+  <form class="search" id="search-form" role="search">
+    <label class="sr-only" for="q">搜索文档</label>
+    <input id="q" type="search" placeholder="搜索…" autocomplete="off">
+    <button type="submit">GO</button>
+    <ul class="hits" hidden></ul>
+  </form>
+  <section class="grp">
+    <h2>mooncat</h2>
+    <ul>
+      <li><a href="./index.html">首页</a></li>
+      <li><a href="./playground.html">演示</a></li>
+    </ul>
+  </section>
+  <section class="grp">
+    <h2>文档</h2>
+    <ul>
+      <li><a href="./guide.html" aria-current="page">指南</a></li>
+      <li class="sub"><a href="#first">第一个服务器</a></li>
+      <li class="sub"><a href="#scope">scope 里有什么</a></li>
+      <li class="sub"><a href="#body">流式读取请求体</a></li>
+      <li class="sub"><a href="#config">配置</a></li>
+      <li class="sub"><a href="#cli">命令行</a></li>
+      <li class="sub"><a href="#tls">TLS</a></li>
+      <li class="sub"><a href="#websocket">WebSocket</a></li>
+      <li class="sub"><a href="#http2">HTTP/2 与 h2c</a></li>
+      <li class="sub"><a href="#http3">HTTP/3</a></li>
+      <li class="sub"><a href="#lifespan">lifespan</a></li>
+      <li class="sub"><a href="#workers">多 worker</a></li>
+      <li class="sub"><a href="#proxy">代理头</a></li>
+      <li class="sub"><a href="#extensions">扩展</a></li>
+      <li class="sub"><a href="#targets">目标平台</a></li>
+      <li><a href="./api.html">API 参考</a></li>
+    </ul>
+  </section>
+  <section class="grp">
+    <h2>下载</h2>
+    <ul>
+      <li><a href="https://mooncakes.io/docs/moonbitstack/mooncat">mooncakes</a></li>
+    </ul>
+  </section>
+  <section class="grp">
+    <h2>问题？</h2>
+    <ul>
+      <li><a href="https://github.com/moonbitstack/mooncat/issues">议题</a></li>
+    </ul>
+  </section>
+  </aside>
+
+  <article class="content">
+
+    <h1>指南</h1>
+    <p class="lede">从一个应用开始，逐项讲配置、命令行、TLS、WebSocket、HTTP/2、HTTP/3、lifespan、多 worker 与代理头。代码都能编译，终端块都是运行输出。</p>
+
+    <section class="section" id="first">
+      <h2 class="bar">第一个服务器</h2>
+
+      <p>装两个包：服务器与接口定义。</p>
+      <figure class="code">
+        <figcaption>shell</figcaption>
+        <pre>moon add moonbitstack/mooncat
+moon add moonbitstack/moonasgi</pre>
+      </figure>
+
+      <p>ASGI 应用是接受三个参数的异步函数：scope、读请求体、写响应。</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(
+      @moonasgi.Event::HttpResponseStart(
+        status=<span class="ty">200</span>,
+        headers=[(<span class="st">"content-type"</span>, <span class="st">"text/plain; charset=utf-8"</span>)],
+        trailers=<span class="k">false</span>,
+      ),
+    )
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"hello from mooncat\n"</span>, more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve(app, host=<span class="st">"127.0.0.1"</span>, port=<span class="ty">12000</span>)
+}</pre>
+      </figure>
+
+      <p><code>serve</code> 绑定套接字，停在接受循环里，直到任务被取消。</p>
+
+      <figure class="code">
+        <figcaption>shell</figcaption>
+        <pre>moon run src/main --target native
+curl -i http://127.0.0.1:12000/</pre>
+      </figure>
+
+      <figure class="term">
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录</figcaption>
+        <pre><span class="p">$</span> curl --noproxy '*' -i http://127.0.0.1:12000/
+<span class="ok">HTTP/1.1 200 OK</span>
+content-type: text/plain; charset=utf-8
+server: mooncat
+date: Mon, 02 Nov 2026 10:11:23 GMT
+content-length: 19
+
+<span class="o">hello from mooncat</span></pre>
+      </figure>
+
+      <p><code>server</code> 与 <code>date</code> 由服务器添加，都可关闭。单段响应按正文算 <code>content-length</code>，分段响应改用 chunked。</p>
+
+      <h3 class="bar" id="scope">scope 里有什么</h3>
+      <p>请求以 scope 到达。下列字段在三代 HTTP 上一致。</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>字段</th><th>HTTP 请求上</th><th>WebSocket 上</th></tr></thead>
+          <tbody>
+            <tr><td><code>http_method</code></td><td><code>"GET"</code>、<code>"POST"</code> …</td><td class="no">—</td></tr>
+            <tr><td><code>path</code> · <code>raw_path</code></td><td>百分号解码后的，以及原样的字节</td><td class="no">—</td></tr>
+            <tr><td><code>query_string</code></td><td>字节，不含 <code>?</code></td><td class="no">—</td></tr>
+            <tr><td><code>headers</code></td><td>名字小写，重复的字段都留着</td><td>升级请求的 <code>headers</code></td></tr>
+            <tr><td><code>scheme</code></td><td><code>"http"</code> 或 <code>"https"</code>，经代理头改写</td><td><code>"ws"</code> 或 <code>"wss"</code></td></tr>
+            <tr><td><code>client</code> · <code>server</code></td><td>对端与监听端，都是 <code>(host, port)</code></td><td>同上</td></tr>
+            <tr><td><code>http_version</code></td><td><code>"1.0"</code>、<code>"1.1"</code>、<code>"2"</code>、<code>"3"</code></td><td><code>"1.1"</code></td></tr>
+            <tr><td><code>root_path</code></td><td>前面的东西剥掉的前缀</td><td>同上</td></tr>
+            <tr><td><code>state</code></td><td>startup 存下的东西的浅拷贝</td><td>同一份拷贝</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="bar" id="body">流式读取请求体</h3>
+      <p>请求体不整块收下：每次 <code>receive()</code> 给出已到的片段，并说明后面还有没有。</p>
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (scope, receive, send) =&gt; {
+    guard scope <span class="k">is</span> Http(http) <span class="k">else</span> { <span class="k">return</span> }
+    <span class="k">let mut</span> size = <span class="ty">0</span>
+    <span class="k">for</span> ;; {
+      guard receive() <span class="k">is</span> HttpRequest(body~, more_body~) <span class="k">else</span> { <span class="k">return</span> }
+      size = size + body.length()
+      <span class="k">if</span> !more_body { <span class="k">break</span> }
+    }
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    <span class="k">let</span> line = <span class="st">"\{http.http_method} \{http.path}: \{size} bytes\n"</span>
+    send(@moonasgi.Event::HttpResponseBody(body=@utf8.encode(line), more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve(app, port=<span class="ty">12000</span>)
+}</pre>
+      </figure>
+      <p>可以先作答再读完：剩余部分被读掉或关闭连接，不会当成下一个请求。请求体交完后，<code>receive()</code> 等到响应结束或客户端离开才给 <code>http.disconnect</code>。</p>
+    </section>
+
+    <section class="section" id="config">
+      <h2 class="bar">配置</h2>
+      <p><code>serve_config</code> 收一个 <code>Config</code>。字段都有默认值，只写不同的：</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"ok"</span>, more_body=<span class="k">false</span>))
+  }
+  <span class="k">let</span> config = @mooncat.Config::new(
+    host=<span class="st">"127.0.0.1"</span>,
+    port=<span class="ty">12000</span>,
+    limit_concurrency=<span class="ty">64</span>,
+    limit_max_requests=<span class="ty">1000</span>,
+    timeout_keep_alive=<span class="ty">5000</span>,
+    server_headers=Map([(<span class="st">"server"</span>, <span class="st">"mooncat"</span>), (<span class="st">"x-app"</span>, <span class="st">"demo"</span>)]),
+  )
+  @mooncat.serve_config(app, config)
+}</pre>
+      </figure>
+
+      <h3 class="bar">要紧的那些字段</h3>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>字段</th><th>默认</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td><code>host</code> · <code>port</code></td><td><code>"127.0.0.1"</code> · <code>12000</code></td><td>监听地址</td></tr>
+            <tr><td><code>backlog</code></td><td><code>2048</code></td><td>监听队列；只记录不生效——套接字层自己调 <code>listen</code></td></tr>
+            <tr><td><code>dual_stack</code></td><td><code>false</code></td><td>一个 IPv6 套接字同时收 IPv4</td></tr>
+            <tr><td><code>max_connections</code></td><td>无</td><td>超过之后，客户端在套接字上等</td></tr>
+            <tr><td><code>limit_concurrency</code></td><td>无</td><td>超过之后，请求直接回 <code>503</code></td></tr>
+            <tr><td><code>limit_max_requests</code></td><td>无</td><td>答满这么多请求后服务器退休</td></tr>
+            <tr><td><code>timeout_keep_alive</code></td><td><code>5000</code> 毫秒</td><td>空闲的 keep-alive 连接到点就关</td></tr>
+            <tr><td><code>timeout_handshake</code></td><td><code>60000</code> 毫秒</td><td>到点还没握完手的 TLS 连接丢掉</td></tr>
+            <tr><td><code>graceful_timeout</code></td><td>无</td><td>排空在飞的请求最多等多久</td></tr>
+            <tr><td><code>max_head_size</code></td><td><code>16384</code></td><td>请求头超过这个数回 <code>431</code></td></tr>
+            <tr><td><code>server_headers</code></td><td><code>{"server": "mooncat"}</code></td><td>加进每个响应；留空就什么都不加</td></tr>
+            <tr><td><code>date_header</code></td><td><code>true</code></td><td>给每个响应盖 <code>date</code></td></tr>
+            <tr><td><code>root_path</code></td><td><code>""</code></td><td>前面的东西剥掉的前缀</td></tr>
+            <tr><td><code>lifespan</code></td><td><code>Auto</code></td><td><code>Auto</code>、<code>On</code> 或 <code>Off</code></td></tr>
+            <tr><td><code>cleartext</code></td><td><code>true</code></td><td>TLS 端口上，也服务不以握手开头的连接</td></tr>
+            <tr><td><code>workers</code></td><td><code>1</code></td><td>一个端口上的进程数，见下文</td></tr>
+            <tr><td><code>ws</code> · <code>h2</code></td><td>见下文</td><td>两个协议各自的开关组</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <aside class="note">
+        <p><b>两种写法。</b> <code>Config::new(..)</code> 造记录；也可在原记录上换字段：<code>{ ..config, port: 9000 }</code>。</p>
+      </aside>
+    </section>
+
+    <section class="section" id="cli">
+      <h2 class="bar">命令行</h2>
+      <p><code>@cli.run(app)</code> 就是完整的服务器程序：读参数、拼配置、服务。</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"served from the command line"</span>, more_body=<span class="k">false</span>))
+  }
+  @cli.run(app)
+}</pre>
+      </figure>
+
+      <figure class="code">
+        <figcaption>shell</figcaption>
+        <pre>moon run src/main --target native -- --port 9000 --log-level debug
+moon run src/main --target native -- --help</pre>
+      </figure>
+
+      <p>参数都可省略，含义与同形状的 Python 服务器一致：</p>
+
+      <figure class="term">
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录 — 调了 run(app) 的程序的 --help</figcaption>
+        <pre><span class="p">$</span> ./app --help
+Usage: mooncat [options]
+
+Serve an ASGI application over HTTP/1.1, HTTP/2, HTTPS or HTTP/3.
+
+Options:
+  -h, --help                                                       Show help information.
+  -V, --version                                                    Show version information.
+  <span class="c">--[no-]date-header</span>                                               stamp a Date header on every response
+  <span class="c">--[no-]server-header</span>                                             stamp a Server header
+  <span class="c">--[no-]proxy-headers</span>                                             believe X-Forwarded-* from the allowed peers
+  <span class="c">--[no-]access-log</span>                                                log one line per request
+  <span class="c">--[no-]reuse-addr</span>                                                set SO_REUSEADDR on the listener
+  --dual-stack                                                     accept IPv4 and IPv6 on one socket
+  <span class="c">--[no-]cleartext</span>                                                 serve the clear beside TLS on the TLS port
+  --h2c                                                            speak HTTP/2 in the clear instead of HTTP/1.1
+  --http3                                                          serve HTTP/3 on UDP beside HTTPS, on the same port
+  --host <span class="dim">&lt;host&gt;</span>                                                    address to bind [env: MOONCAT_HOST]
+  --port <span class="dim">&lt;port&gt;</span>                                                    port to bind [env: MOONCAT_PORT]
+  --workers <span class="dim">&lt;workers&gt;</span>                                              processes to serve from (Linux) [env: WEB_CONCURRENCY]
+  --limit-concurrency <span class="dim">&lt;limit-concurrency&gt;</span>                          refuse with 503 above this many in flight
+  --limit-max-requests <span class="dim">&lt;limit-max-requests&gt;</span>                        stop serving after this many requests
+  --timeout-keep-alive <span class="dim">&lt;timeout-keep-alive&gt;</span>                        seconds an idle keep-alive connection is held
+  --forwarded-allow-ips <span class="dim">&lt;forwarded-allow-ips&gt;</span>                      comma-separated peers whose forwarded headers count
+  --lifespan <span class="dim">&lt;lifespan&gt;</span>                                            auto, on or off
+  --ssl-certfile <span class="dim">&lt;ssl-certfile&gt;</span>                                    PEM certificate; serves HTTPS
+  --ssl-keyfile <span class="dim">&lt;ssl-keyfile&gt;</span>                                      PEM private key; serves HTTPS
+  --ssl-ciphers <span class="dim">&lt;ssl-ciphers&gt;</span>                                      TLS 1.3 and 1.2 suites to accept by IANA name, colon-separated, best first</pre>
+      </figure>
+
+      <p>做不到的参数回原因，不说「未知参数」。</p>
+
+      <figure class="term">
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录</figcaption>
+        <pre><span class="p">$</span> ./app --uds /tmp/app.sock
+<span class="o">mooncat: --uds: the async transport binds TCP only</span></pre>
+      </figure>
+
+      <p>只读参数用 <code>@cli.parse(argv)</code>，返回计划，不打开任何东西：</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">fn</span> main {
+  <span class="k">let</span> plan = @cli.parse(@env.args()[<span class="ty">1</span>:]) <span class="k">catch</span> {
+    err =&gt; {
+      println(<span class="st">"\{err}"</span>)
+      <span class="k">return</span>
+    }
+  }
+  println(<span class="st">"bind   \{plan.config.bind()}"</span>)
+  println(<span class="st">"h2c    \{plan.h2c}"</span>)
+  println(<span class="st">"http3  \{plan.http3}"</span>)
+}</pre>
+      </figure>
+    </section>
+
+    <section class="section" id="tls">
+      <h2 class="bar">TLS</h2>
+      <p><code>serve_tls</code> 用 TLS 1.3 服务同一个应用。PEM 启动时读一次，私钥与证书不配对就在此时报错。</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"over tls"</span>, more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve_tls(
+    app,
+    certificate_file=<span class="st">"src/certs/cert.pem"</span>, <span class="cm">// 先叶证书，再中间证书</span>
+    private_key_file=<span class="st">"src/certs/key.pem"</span>,  <span class="cm">// PKCS#8、SEC1 或 PKCS#1</span>
+    port=<span class="ty">12000</span>,
+  )
+}</pre>
+      </figure>
+
+      <p>握手时 ALPN 给出 <code>h2</code> 与 <code>http/1.1</code>，客户端挑一个：</p>
+
+      <figure class="term">
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录 — openssl s_client 对着这个监听器</figcaption>
+        <pre><span class="p">$</span> openssl s_client -connect 127.0.0.1:12000 -alpn h2,http/1.1
+Protocol: TLSv1.3
+Cipher is TLS_CHACHA20_POLY1305_SHA256
+ALPN protocol: h2</pre>
+      </figure>
+
+      <p>同端口、同证书、同应用：</p>
+
+      <figure class="term">
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录</figcaption>
+        <pre><span class="p">$</span> curl -k --http2 https://127.0.0.1:12000/
+<span class="ok">HTTP/2 200</span>
+content-type: text/plain
+server: mooncat
+alt-svc: h3=":12000"; ma=86400
+date: Mon, 02 Nov 2026 09:25:21 GMT
+
+<span class="o">2 GET / 0</span>
+
+<span class="p">$</span> curl -k --http1.1 https://127.0.0.1:12000/
+<span class="ok">HTTP/1.1 200 OK</span>
+content-type: text/plain
+server: mooncat
+alt-svc: h3=":12000"; ma=86400
+date: Mon, 02 Nov 2026 09:25:22 GMT
+content-length: 12
+
+<span class="o">1.1 GET / 0</span></pre>
+      </figure>
+
+      <p>同端口默认也答明文：首字节不是 TLS 记录按 HTTP/1.1 或 h2c 处理，<code>scheme</code> 为 <code>"http"</code>。<code>cleartext=false</code>（<code>--no-cleartext</code>）只说 TLS。</p>
+
+      <aside class="note">
+        <p><b>自己的 TLS。</b> <code>serve_tls_server</code> 收调用方建的 <code>@tls.Server</code>，用于别的套件或 ALPN 列表。</p>
+      </aside>
+    </section>
+
+    <section class="section" id="websocket">
+      <h2 class="bar">WebSocket</h2>
+      <p>握手完成前是一次普通请求；之后 scope 变成 <code>websocket</code>，同一对 receive/send 改说帧。<code>ws://</code> 与 <code>wss://</code> 共用一条路径。</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (scope, receive, send) =&gt; {
+    guard scope <span class="k">is</span> WebSocket(_) <span class="k">else</span> { <span class="k">return</span> }
+    <span class="k">for</span> ;; {
+      <span class="k">match</span> receive() {
+        WebSocketConnect =&gt;
+          send(@moonasgi.Event::WebSocketAccept(subprotocol=None, headers=[]))
+        WebSocketReceive(text=Some(text), ..) =&gt;
+          send(@moonasgi.Event::WebSocketSendText(text))
+        WebSocketReceive(bytes=Some(bytes), ..) =&gt;
+          send(@moonasgi.Event::WebSocketSendBytes(bytes))
+        WebSocketDisconnect(..) =&gt; <span class="k">break</span>
+        _ =&gt; ()
+      }
+    }
+  }
+  @mooncat.serve(app, port=<span class="ty">9001</span>)
+}</pre>
+      </figure>
+
+      <p>握手实录：</p>
+      <figure class="term">
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录 — curl 8.21 说 ws://</figcaption>
+        <pre><span class="p">$</span> curl -v ws://127.0.0.1:9001/
+&gt; GET / HTTP/1.1
+&gt; Host: 127.0.0.1:9001
+&gt; Upgrade: websocket
+&gt; Sec-WebSocket-Version: 13
+&gt; Sec-WebSocket-Key: D/NLFJQ2oY2kcWKtAc1kUg==
+&gt; Connection: Upgrade
+&lt; <span class="ok">HTTP/1.1 101 Switching Protocols</span>
+&lt; Upgrade: websocket
+&lt; Connection: Upgrade
+&lt; Sec-WebSocket-Accept: ujJCyRitqg7NDMxhzmBTEBtTRhI=</pre>
+      </figure>
+
+      <p>帧有校验：RSV 置位、保留操作码、未掩码帧、畸形控制帧都以 <code>1002</code> 断开；超过 <code>ws.max_size</code> 在读载荷前以 <code>1009</code> 拒绝；非法 UTF-8 以 <code>1007</code> 失败；关闭帧按规范回显。</p>
+
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th><code>Config.ws</code></th><th>默认</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td><code>max_size</code></td><td>16 MiB</td><td>能收下的最大消息</td></tr>
+            <tr><td><code>max_queue</code></td><td>32</td><td>等着应用的讯息；满了就停止读取，客户端被 TCP 挡住</td></tr>
+            <tr><td><code>ping_interval</code></td><td>20000 毫秒</td><td>保活 ping 的间隔；<code>None</code> 关掉</td></tr>
+            <tr><td><code>ping_timeout</code></td><td>20000 毫秒</td><td>对端没按时回 pong 就以 <code>1011</code> 关闭</td></tr>
+            <tr><td><code>deflate</code></td><td><code>true</code></td><td>客户端提出 <code>permessage-deflate</code> 时接受</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>ping 由服务器应答，不交给应用。升级前拒绝回 <code>403</code>。</p>
+    </section>
+
+    <section class="section" id="http2">
+      <h2 class="bar">HTTP/2 与 h2c</h2>
+      <p><code>serve</code> 与 <code>serve_tls</code> 已在同端口上说 HTTP/2：TLS 下由 ALPN 点名 <code>h2</code>，明文下看前言。应用不用改。</p>
+
+      <figure class="term">
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录 — 同一个应用，无 TLS，无升级</figcaption>
+        <pre><span class="p">$</span> curl --http2-prior-knowledge http://127.0.0.1:12000/
+<span class="ok">HTTP/2 200</span>
+content-type: text/plain; charset=utf-8
+server: mooncat
+date: Mon, 02 Nov 2026 10:11:38 GMT
+
+<span class="o">hello from mooncat</span></pre>
+      </figure>
+
+      <p><code>serve_h2c</code> 只说 HTTP/2，不嗅探、不回落：</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"h2 only"</span>, more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve_h2c(app, host=<span class="st">"127.0.0.1"</span>, port=<span class="ty">12000</span>)
+}</pre>
+      </figure>
+
+      <p>每条流一个任务，慢处理器只拖住自己。请求体随索取而到，窗口按这个节奏还回。</p>
+
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th><code>Config.h2</code></th><th>默认</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td><code>max_streams</code></td><td>100</td><td>并发流数；多出来的以 <code>REFUSED_STREAM</code> 拒掉</td></tr>
+            <tr><td><code>max_header_list</code></td><td>64 KiB</td><td>一个头块允许的字段</td></tr>
+            <tr><td><code>max_frame</code></td><td>16 KiB</td><td>服务器愿意发的最大帧</td></tr>
+            <tr><td><code>window</code></td><td>1 MiB</td><td>单条流的流控窗口</td></tr>
+            <tr><td><code>connection_window</code></td><td>1 MiB</td><td>整条连接的流控窗口</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>限额按流算：超过 <code>limit_concurrency</code> 回 <code>503</code>，每条流计入 <code>limit_max_requests</code>，<code>timeout_keep_alive</code> 内无流则发 <code>GOAWAY</code>。客户端的 <code>RST_STREAM</code> 变成 <code>http.disconnect</code>。响应前出错回 <code>500</code>，之后用 <code>INTERNAL_ERROR</code> 重置。</p>
+    </section>
+
+    <section class="section" id="http3">
+      <h2 class="bar">HTTP/3</h2>
+      <p>HTTP/3 在 UDP 上，端口号与 TCP 相同。<code>@quic.serve_config</code> 收同一应用、同一份 <code>Config</code> 与证书：</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (scope, receive, send) =&gt; {
+    guard scope <span class="k">is</span> Http(http) <span class="k">else</span> { <span class="k">return</span> }
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    <span class="k">let</span> line = <span class="st">"\{http.http_version} \{http.http_method} \{http.path}\n"</span>
+    send(@moonasgi.Event::HttpResponseBody(body=@utf8.encode(line), more_body=<span class="k">false</span>))
+  }
+  @quic.serve_config(app, @mooncat.Config::new(port=<span class="ty">12000</span>), {
+    certificate_file: <span class="st">"src/certs/cert.pem"</span>,
+    private_key_file: <span class="st">"src/certs/key.pem"</span>,
+  })
+}</pre>
+      </figure>
+
+      <p>此后每个响应带 <code>alt-svc</code>，客户端由此知道 UDP 端口：</p>
+
+      <figure class="term">
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录 — 一个 QUIC 客户端对着同一个端口</figcaption>
+        <pre><span class="p">$</span> python h3trace.py   # 一个 HTTP/3 客户端，ALPN 为 h3
+<span class="ok">:status     200</span>
+content-type text/plain
+server      mooncat
+alt-svc     h3=":12000"; ma=86400
+date        Mon, 02 Nov 2026 09:25:39 GMT
+
+<span class="o">3 GET / 0</span></pre>
+      </figure>
+
+      <p>应用给 <code>http_version</code> 答的是 <code>"3"</code>。每条流一个任务，响应按客户端已确认的部分推进。</p>
+
+      <aside class="note">
+        <p><b>单进程。</b> UDP 端口还不能在 worker 间共享，<code>--http3</code> 配多个 <code>--workers</code> 会被拒。停机发 <code>GOAWAY</code>，已接下的流在 <code>timeout_graceful_shutdown</code> 内跑完。</p>
+      </aside>
+    </section>
+
+    <section class="section" id="lifespan">
+      <h2 class="bar">lifespan</h2>
+      <p>应用在监听前与退出前各被调用一次，都在 <code>Lifespan</code> scope 下。连接池在这里开关。<code>Config.lifespan</code> 决定严格程度：</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>模式</th><th>行为</th></tr></thead>
+          <tbody>
+            <tr><td><code>Auto</code></td><td>照跑；在 lifespan scope 上失败的应用照样服务</td></tr>
+            <tr><td><code>On</code></td><td>照跑；在它上面失败，服务器就不启动</td></tr>
+            <tr><td><code>Off</code></td><td>完全不跑</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let mut</span> pool = <span class="st">""</span>
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (scope, receive, send) =&gt; {
+    <span class="k">match</span> scope {
+      Lifespan(_) =&gt;
+        <span class="k">for</span> ;; {
+          <span class="k">match</span> receive() {
+            LifespanStartup =&gt; {
+              pool = <span class="st">"connected"</span>
+              send(@moonasgi.Event::LifespanStartupComplete)
+            }
+            LifespanShutdown =&gt; {
+              pool = <span class="st">"closed"</span>
+              send(@moonasgi.Event::LifespanShutdownComplete)
+              <span class="k">break</span>
+            }
+            _ =&gt; ()
+          }
+        }
+      _ =&gt; {
+        send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+        send(@moonasgi.Event::HttpResponseBody(body=@utf8.encode(pool), more_body=<span class="k">false</span>))
+      }
+    }
+  }
+  @mooncat.serve_config(app, @mooncat.Config::new(port=<span class="ty">12000</span>, lifespan=On))
+}</pre>
+      </figure>
+
+      <p>startup 放进 <code>state</code> 的东西以浅拷贝进入每个 scope。服务任务被取消时 shutdown 照样跑。</p>
+
+      <aside class="note">
+        <p><b>顺序。</b> 要求停机时在飞的请求先做完，客户端仍拿到 <code>200</code>；之后跑 lifespan shutdown，最后关监听器。</p>
+      </aside>
+    </section>
+
+    <section class="section" id="workers">
+      <h2 class="bar">多 worker</h2>
+      <p><code>workers</code> 把程序跑若干份，共享一个端口。被启动的进程自己不服务，只监督。</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"ok"</span>, more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve_config(app, @mooncat.Config::new(port=<span class="ty">12000</span>, workers=<span class="ty">4</span>))
+}</pre>
+      </figure>
+
+      <p>每个 worker 自己绑定端口、跑 lifespan，内核分摊连接。死掉的被替换，<code>limit_max_requests</code> 也这样退休。起不来的 worker 让监督进程以退出码 3 结束。停监督进程即停全部，各自按 <code>timeout_graceful_shutdown</code> 排空。</p>
+      <p>仅 Linux：只有它的内核在绑到同一端口的套接字间分摊连接。别的系统会拒绝该设置。缺省时由 <code>WEB_CONCURRENCY</code> 决定。</p>
+    </section>
+
+    <section class="section" id="proxy">
+      <h2 class="bar">代理头</h2>
+      <p>负载均衡后面，对端地址是均衡器的。<code>proxy_headers</code> 让服务器相信 <code>X-Forwarded-For</code>、<code>X-Forwarded-Proto</code>、<code>Forwarded</code>，但只对 <code>forwarded_allow_ips</code> 里的对端。</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (scope, receive, send) =&gt; {
+    guard scope <span class="k">is</span> Http(http) <span class="k">else</span> { <span class="k">return</span> }
+    <span class="k">let</span> who = <span class="k">match</span> http.client {
+      Some((host, _port)) =&gt; <span class="st">"\{http.scheme} from \{host}"</span>
+      None =&gt; <span class="st">"nowhere"</span>
+    }
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=@utf8.encode(who), more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve_config(app, @mooncat.Config::new(
+    port=<span class="ty">12000</span>,
+    proxy_headers=<span class="k">true</span>,
+    forwarded_allow_ips=[<span class="st">"127.0.0.1"</span>, <span class="st">"10.0.0.0"</span>],
+  ))
+}</pre>
+      </figure>
+
+      <p><code>*</code> 表示相信所有对端，仅在套接字不可外达时安全。<code>proxy_rewrite</code> 是同一判断的函数形式。</p>
+    </section>
+
+    <section class="section" id="extensions">
+      <h2 class="bar">扩展</h2>
+      <p>HTTP scope 声明支持的扩展，三代一致：</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>扩展</th><th>服务器做什么</th></tr></thead>
+          <tbody>
+            <tr><td><code>http.response.early_hint</code></td><td>答案之前先发 <code>103 Early Hints</code>，每个链接一个 <code>link</code> 字段</td></tr>
+            <tr><td><code>http.response.trailers</code></td><td>以 <code>trailers=true</code> 开始的响应改用 chunked，尾字段在最后一块里；HTTP/2 上是收尾的 HEADERS 帧</td></tr>
+            <tr><td><code>tls</code></td><td>TLS 连接上：<code>tls_version</code>、<code>cipher_suite</code>，以及服务器证书的 PEM</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseEarlyHint(links=[<span class="st">"&lt;/style.css&gt;; rel=preload; as=style"</span>]))
+    send(@moonasgi.Event::HttpResponseStart(
+      status=<span class="ty">200</span>,
+      headers=[(<span class="st">"content-type"</span>, <span class="st">"text/plain"</span>)],
+      trailers=<span class="k">true</span>,
+    ))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"body first"</span>, more_body=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseTrailers(headers=[(<span class="st">"x-checksum"</span>, <span class="st">"42"</span>)], more_trailers=<span class="k">false</span>))
+  }
+  @mooncat.serve(app, port=<span class="ty">12000</span>)
+}</pre>
+      </figure>
+      <p>HTTP/1.0 客户端两者都收不到。</p>
+    </section>
+
+    <section class="section" id="targets">
+      <h2 class="bar">目标平台</h2>
+      <p>有异步套接字即可服务：native 与 wasm，测试两边都跑。js 与 wasm-gc 上只有配置、lifespan、代理三个包，服务包为空。QUIC 只在 native。</p>
+      <nav class="pager" aria-label="Previous and next page">
+        <a href="./index.html">← 首页</a>
+        <a href="./api.html">API 参考 →</a>
+      </div>
+    </section>
+
+  </article>
+</main>
+
+<footer id="footer">
+  <div class="wrap">
+    <span>mooncat — Apache-2.0。API 页面由源码树生成。</span>
+  </div>
+</footer>
+
+<button class="to-top" id="to-top" type="button" aria-label="回到顶部" hidden>
+  <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 3.5 3.5 8l1.06 1.06L7.25 6.4V13h1.5V6.4l2.69 2.66L12.5 8 8 3.5Z"/></svg>
+</button>
+
+<script src="../assets/search-index.js"></script>
+<script src="../assets/site.js"></script>
+</body>
+</html>

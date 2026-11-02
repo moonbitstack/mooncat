@@ -54,7 +54,7 @@ def from_html(path):
     page = path.read_text(encoding="utf-8")
     found = []
     for match in re.finditer(
-        r'<div class="code">\s*<div class="cap">(.*?)</div>\s*<pre>(.*?)</pre>',
+        r'<figure class="code">\s*<figcaption>(.*?)</figcaption>\s*<pre>(.*?)</pre>',
         page,
         re.S,
     ):
@@ -82,8 +82,9 @@ def wrap(code):
 
 def main():
     snippets = []
-    for page in sorted((ROOT / "docs").glob("*.html")):
-        snippets += [(page.name, caption, code) for caption, code in from_html(page)]
+    for page in sorted((ROOT / "docs").glob("**/*.html")):
+        where = str(page.relative_to(ROOT / "docs")).replace("\\", "/")
+        snippets += [(where, caption, code) for caption, code in from_html(page)]
     snippets += [("README.md", caption, code) for caption, code in from_readme(ROOT / "README.md")]
 
     if not snippets:

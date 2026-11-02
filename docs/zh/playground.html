@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh" data-root="..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>演示 — mooncat</title>
+<meta name="description" content="挑一个客户端，跟着这条连接走：TCP 还是 UDP，TLS 握手，ALPN 的答案，头几个字节，以及最后由哪条循环服务。">
+<link rel="icon" href="../assets/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header id="header">
+  <div class="wrap">
+    <div class="head">
+      <a class="brand" href="./index.html">
+        <img id="logo" src="../assets/icon-alt-light.png" data-light="../assets/icon-alt-light.png" data-dark="../assets/icon-alt.png" data-alt-light="../assets/icon-light.png" data-alt-dark="../assets/icon.png" data-alt-alt="mooncat" alt="MoonCat" width="54" height="49">
+        <span class="name">
+          <b>mooncat</b>
+          <span>MoonBit 的 ASGI 3.0 服务器</span>
+        </span>
+      </a>
+      <div class="head-tools">
+        <span class="lang" aria-label="语言">
+          <a href="./playground.html" aria-current="true" lang="zh">中文</a>
+          <a href="../playground.html" hreflang="en">EN</a>
+        </span>
+        <a href="https://github.com/moonbitstack/mooncat" title="源码在 GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        </a>
+        <button id="theme" type="button" aria-label="切换主题">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 1Zm0 11a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 12Zm7-4a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 15 8ZM4 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 4 8Zm9.02-4.02a.75.75 0 0 1 0 1.06l-1.06 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0ZM5.1 10.9a.75.75 0 0 1 0 1.06L4.04 13.02a.75.75 0 0 1-1.06-1.06L4.04 10.9a.75.75 0 0 1 1.06 0Zm7.92 2.12a.75.75 0 0 1-1.06 0L10.9 11.96a.75.75 0 0 1 1.06-1.06l1.06 1.06a.75.75 0 0 1 0 1.06ZM5.1 5.1a.75.75 0 0 1-1.06 0L2.98 4.04a.75.75 0 0 1 1.06-1.06L5.1 4.04a.75.75 0 0 1 0 1.06ZM8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm0 1.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <nav class="tabs" aria-label="页面">
+    <div class="wrap">
+      <a href="./index.html">首页</a>
+      <a href="./guide.html">指南</a>
+      <a href="./api.html">API 参考</a>
+      <a href="./playground.html" aria-current="page">演示</a>
+    </div>
+  </nav>
+</header>
+
+<main id="middle">
+  <aside id="side">
+  <form class="search" id="search-form" role="search">
+    <label class="sr-only" for="q">搜索文档</label>
+    <input id="q" type="search" placeholder="搜索…" autocomplete="off">
+    <button type="submit">GO</button>
+    <ul class="hits" hidden></ul>
+  </form>
+  <section class="grp">
+    <h2>mooncat</h2>
+    <ul>
+      <li><a href="./index.html">首页</a></li>
+      <li><a href="./playground.html" aria-current="page">演示</a></li>
+    </ul>
+  </section>
+  <section class="grp">
+    <h2>文档</h2>
+    <ul>
+      <li><a href="./guide.html">指南</a></li>
+      <li><a href="./api.html">API 参考</a></li>
+    </ul>
+  </section>
+  <section class="grp">
+    <h2>下载</h2>
+    <ul>
+      <li><a href="https://mooncakes.io/docs/moonbitstack/mooncat">mooncakes</a></li>
+    </ul>
+  </section>
+  <section class="grp">
+    <h2>问题？</h2>
+    <ul>
+      <li><a href="https://github.com/moonbitstack/mooncat/issues">议题</a></li>
+    </ul>
+  </section>
+  </aside>
+
+  <article class="content">
+
+    <h1>一条连接是怎么被答掉的</h1>
+    <p class="lede">一个端口，六种进法。挑一个客户端，看它怎么落到某条循环。轨迹是客户端收到的原文。</p>
+
+    <div class="pick" id="pick" role="group" aria-label="选择一个客户端"></div>
+
+    <div class="trace-head" id="command-line"></div>
+
+    <ol class="steps" id="steps"></ol>
+
+    <h2 class="bar" id="trace-bar">回来的东西<span class="aside" id="trace-where"></span></h2>
+    <figure class="term" id="trace-box">
+      <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录</figcaption>
+      <pre id="trace"></pre>
+    </figure>
+    <p id="trace-note" class="pkg-desc"></p>
+
+    <aside class="note">
+      <p><b>来源。</b> <code>scripts/docs/record_traces.py</code> 对 <code>src/examples/07-http3</code> 与 <code>05-websocket-echo</code> 实跑录制，日期即录制时间。正文里的 <code>1.1</code>、<code>2</code>、<code>3</code> 是应用自己答的 <code>http_version</code>。</p>
+    </aside>
+
+    <nav class="pager" aria-label="Previous and next page">
+      <a href="./guide.html">← 指南</a>
+      <a href="./api.html">API 参考 →</a>
+    </div>
+  </article>
+</main>
+
+<footer id="footer">
+  <div class="wrap">
+    <span>mooncat — Apache-2.0。API 页面由源码树生成。</span>
+  </div>
+</footer>
+
+<button class="to-top" id="to-top" type="button" aria-label="回到顶部" hidden>
+  <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 3.5 3.5 8l1.06 1.06L7.25 6.4V13h1.5V6.4l2.69 2.66L12.5 8 8 3.5Z"/></svg>
+</button>
+
+<script src="../assets/negotiation.js"></script>
+<script src="../assets/search-index.js"></script>
+<script src="../assets/site.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var traces = window.TRACES || [];
+  if (!traces.length) return;
+
+  var served = {
+    "h1": "serve · HTTP/1.1",
+    "h2c": "serve · 前言判定 HTTP/2",
+    "tls-h2": "serve_tls · ALPN 定为 HTTP/2",
+    "tls-h1": "serve_tls · ALPN 定为 HTTP/1.1",
+    "ws": "serve · WebSocket",
+    "h3": "quic · HTTP/3"
+  };
+
+  var steps = {
+    clear: [
+      ["TCP 连接", "监听器接住，交给一个独立任务。"],
+      ["第一个字节", "不是 0x16，不是握手，按明文服务。"],
+      ["请求行", "<code>GET / HTTP/1.1</code>，头被解析，请求体留在套接字上等应用来要。"],
+      ["三件东西", "scope、<code>receive</code>、<code>send</code>。"]
+    ],
+    h2c: [
+      ["TCP 连接", "监听器接住，交给一个独立任务。"],
+      ["前言", "头几个字节是 <code>PRI * HTTP/2.0</code>，只读到第一个不同处。"],
+      ["HTTP/2 循环", "交换 SETTINGS，解出头块，请求成为一条流。"],
+      ["三件东西", "每条流一个 scope；请求体随索取而到。"]
+    ],
+    tls: [
+      ["TCP 连接", "监听器接住，交给一个独立任务。"],
+      ["握手", "第一个字节是 0x16，跑 TLS 1.3，受 <code>timeout_handshake</code> 约束。"],
+      ["ALPN", "服务器给出 <code>h2</code> 与 <code>http/1.1</code>，客户端答一个。"],
+      ["对上的循环", "连接变成 HTTP/2 或 HTTP/1.1，<code>scheme</code> 为 <code>https</code>。"],
+      ["三件东西", "同样的 scope，外加 TLS 扩展。"]
+    ],
+    ws: [
+      ["TCP 连接", "监听器接住，交给一个独立任务。"],
+      ["升级请求", "普通 HTTP/1.1 请求，带 <code>Upgrade: websocket</code> 与 key。"],
+      ["101", "应答由 key 算出并发回，连接不再说 HTTP。"],
+      ["三件东西", "<code>websocket</code> scope：connect、accept、receive、send、close。"]
+    ],
+    udp: [
+      ["UDP 数据报", "没有连接可接，数据报循环按连接 ID 分发。"],
+      ["QUIC 握手", "QUIC 里的 TLS 1.3，ALPN 为 <code>h3</code>。"],
+      ["HTTP/3 循环", "每条流一个任务，额度随读取而还。"],
+      ["三件东西", "<code>http_version</code> 为 <code>3</code> 的 scope。"]
+    ]
+  };
+
+  var pick = document.getElementById("pick");
+  var list = document.getElementById("steps");
+  var pre = document.getElementById("trace");
+  var note = document.getElementById("trace-note");
+  var cmd = document.getElementById("command-line");
+  var where = document.getElementById("trace-where");
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  var timers = [];
+
+  function clearTimers() {
+    timers.forEach(clearTimeout);
+    timers = [];
+  }
+
+  function render(trace, button) {
+    clearTimers();
+    pick.querySelectorAll("button").forEach(function (b) {
+      b.setAttribute("aria-pressed", b === button ? "true" : "false");
+    });
+
+    var plan = steps[trace.kind] || steps.clear;
+    list.innerHTML = "";
+    plan.forEach(function (pair, i) {
+      var row = document.createElement("li");
+      row.className = "step";
+      row.innerHTML =
+        '<span class="n">' + String(i + 1).padStart(2, "0") + "</span>" +
+        "<div><h4>" + pair[0] + "</h4><p>" + pair[1] + "</p></div>";
+      list.appendChild(row);
+    });
+
+    cmd.innerHTML = "<span>$</span> <code>" + trace.command + "</code>";
+    pre.textContent = trace.trace;
+    note.textContent = trace.note;
+    where.textContent = served[trace.id] || "";
+
+    var rows = list.querySelectorAll(".step");
+    if (reduce.matches) {
+      rows.forEach(function (r) { r.classList.add("on"); });
+      return;
+    }
+    rows.forEach(function (row, i) {
+      timers.push(setTimeout(function () { row.classList.add("on"); }, 160 + i * 260));
+    });
+  }
+
+  traces.forEach(function (trace, i) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = trace.label;
+    button.addEventListener("click", function () { render(trace, button); });
+    pick.appendChild(button);
+    if (i === 0) render(trace, button);
+  });
+})();
+</script>
+</body>
+</html>

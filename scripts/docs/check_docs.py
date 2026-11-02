@@ -28,7 +28,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 DOCS = ROOT / "docs"
 SRC = ROOT / "src"
 
-PAGES = ["index.html", "guide.html", "api.html", "playground.html"]
+PAGES = {
+    "en": ["index.html", "guide.html", "api.html", "playground.html"],
+    "zh": ["zh/index.html", "zh/guide.html", "zh/api.html", "zh/playground.html"],
+}
 FALLBACK = "not selector(::-webkit-scrollbar)"
 FAILED = []
 
@@ -65,7 +68,7 @@ def interfaces():
 
 
 def check_api(items):
-    documented = dict(PACKAGES)
+    documented = {name: desc for name, desc, _zh in PACKAGES}
     for package in documented:
         if package not in items:
             fail("gen_api.py names %s, which has no interface" % package)
@@ -74,9 +77,17 @@ def check_api(items):
             fail("%s is a package the reference neither documents nor skips" % package)
     items = {k: v for k, v in items.items() if k in documented}
 
-    page = DOCS / "api.html"
+    listed = 0
+    for page in (DOCS / "api.html", DOCS / "zh" / "api.html"):
+        listed = check_api_page(page, items, documented) or listed
+    total = sum(len(v) for v in items.values())
+    print("  api: %d packages, %d public items, %d listed per page"
+          % (len(items), total, listed))
+
+
+def check_api_page(page, items, documented):
     if not page.exists():
-        fail("docs/api.html is missing - run scripts/docs/gen_api.py")
+        fail("%s is missing - run scripts/docs/gen_api.py" % page.relative_to(ROOT))
         return
     raw = page.read_text(encoding="utf-8")
     listed = set(normalise(item) for item in re.findall(r'data-item="([^"]+)"', raw))
@@ -109,8 +120,7 @@ def check_api(items):
     for item in sorted(listed - known):
         fail("the API page lists something no package declares: %s" % item[:90])
 
-    print("  api: %d packages, %d public items, %d listed in the page"
-          % (len(items), sum(len(v) for v in items.values()), len(listed)))
+    return len(listed)
 
 
 def tabs(page):
@@ -123,29 +133,36 @@ def tabs(page):
 
 
 def check_pages():
-    reference = None
     seen = 0
-    for name in PAGES:
-        page = DOCS / name
-        if not page.exists():
-            fail("docs/%s is missing" % name)
-            continue
-        seen += 1
-        text = page.read_text(encoding="utf-8")
-        found = tabs(page)
-        if not found:
-            fail("%s has no page navigation" % name)
-        elif reference is None:
-            reference = (name, found)
-        elif found != reference[1]:
-            fail("%s navigates differently from %s" % (name, reference[0]))
-        for needle, complaint in (('rel="icon"', "no favicon"),
-                                  ("github.com/moonbitstack/mooncat", "no link back to the repository"),
-                                  ("<title>", "no title")):
-            if needle not in text:
-                fail("%s has %s" % (name, complaint))
-    if reference:
-        print("  pages: %d, the same %d navigation links on each" % (seen, len(reference[1])))
+    for lang, names in PAGES.items():
+        reference = None
+        other = "zh" if lang == "en" else "en"
+        for name in names:
+            page = DOCS / name
+            if not page.exists():
+                fail("docs/%s is missing" % name)
+                continue
+            seen += 1
+            text = page.read_text(encoding="utf-8")
+            found = tabs(page)
+            if not found:
+                fail("%s has no page navigation" % name)
+            elif reference is None:
+                reference = (name, found)
+            elif found != reference[1]:
+                fail("%s navigates differently from %s" % (name, reference[0]))
+            for needle, complaint in (('rel="icon"', "no favicon"),
+                                      ('id="search-form"', "no search box"),
+                                      ("github.com/moonbitstack/mooncat", "no link back to the repository"),
+                                      ('class="lang"', "no language switch"),
+                                      ("<title>", "no title")):
+                if needle not in text:
+                    fail("%s has %s" % (name, complaint))
+            switch = re.search(r'<span class="lang".*?</span>', text, re.S)
+            if switch and ("%s/" % other if other == "zh" else "../") not in switch.group(0):
+                fail("%s does not link to the %s pages" % (name, other))
+    if seen:
+        print("  pages: %d across two languages" % seen)
 
 
 def at_rule_blocks(text):
@@ -160,6 +177,28 @@ def at_rule_blocks(text):
                 depth -= 1
             i += 1
         yield match.group(1), match.end(), i
+
+
+def check_search():
+    index = DOCS / "assets" / "search-index.js"
+    if not index.exists():
+        fail("docs/assets/search-index.js is missing - run scripts/docs/gen_search.py")
+        return
+    text = index.read_text(encoding="utf-8")
+    found = re.search(r"window\.SEARCH = (\[.*?\]);", text, re.S)
+    if not found:
+        fail("the search index is not parseable")
+        return
+    import json
+
+    entries = json.loads(found.group(1))
+    pages = set(e["url"].split("#")[0] for e in entries)
+    for lang, names in PAGES.items():
+        for name in names:
+            want = name if lang == "en" else name.replace("zh/", "")
+            if want not in pages:
+                fail("the search index has nothing for %s" % name)
+    print("  search: %d sections over %d pages" % (len(entries), len(pages)))
 
 
 def check_scrollbars():
@@ -186,6 +225,7 @@ def main():
     items = interfaces()
     check_api(items)
     check_pages()
+    check_search()
     check_scrollbars()
     if FAILED:
         print("%d problem(s)" % len(FAILED))

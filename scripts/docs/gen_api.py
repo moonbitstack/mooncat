@@ -25,20 +25,35 @@ OUT = ROOT / "docs" / "api.html"
 # the page is generated.
 PACKAGES = [
     ("moonbitstack/mooncat",
-     "The entry points, re-exported: what a program that serves one application needs, and nothing it does not."),
+     "The entry points, re-exported: what a program that serves one application needs, and nothing it does not.",
+     "入口函数的重导出：服务一个应用需要的东西，不多一样。"),
     ("moonbitstack/mooncat/config",
-     "The configuration record, the access and error log, and the HTTP date every response can carry."),
+     "The configuration record, the access and error log, and the HTTP date every response can carry.",
+     "配置记录、访问与错误日志，以及每个响应可以带的 HTTP 日期。"),
     ("moonbitstack/mooncat/lifespan",
-     "The lifespan protocol: an application invoked once before the listener binds and once on the way out."),
+     "The lifespan protocol: an application invoked once before the listener binds and once on the way out.",
+     "lifespan 协议：应用在监听前被调用一次，退出前再一次。"),
     ("moonbitstack/mooncat/proxy",
-     "The client and scheme a trusted proxy reports, and the decision to believe it."),
+     "The client and scheme a trusted proxy reports, and the decision to believe it.",
+     "受信代理报告的客户端与 scheme，以及要不要相信它。"),
     ("moonbitstack/mooncat/serve",
-     "The accept loop, HTTP/1.1, HTTP/2, WebSocket, TLS, workers and the graceful shutdown."),
+     "The accept loop, HTTP/1.1, HTTP/2, WebSocket, TLS, workers and the graceful shutdown.",
+     "接受循环、HTTP/1.1、HTTP/2、WebSocket、TLS、多 worker 与优雅停机。"),
     ("moonbitstack/mooncat/cli",
-     "The command line as a set of flags, and run(app) as a whole server program."),
+     "The command line as a set of flags, and run(app) as a whole server program.",
+     "命令行参数，以及把 run(app) 当作完整的服务器程序。"),
     ("moonbitstack/mooncat/quic",
-     "HTTP/3: the UDP socket, the datagram loop that routes by connection ID, and the request streams."),
+     "HTTP/3: the UDP socket, the datagram loop that routes by connection ID, and the request streams.",
+     "HTTP/3：UDP 套接字、按连接 ID 分发的数据报循环，以及请求流。"),
 ]
+
+SECTIONS_ZH = {
+    "Values": "值",
+    "Errors": "错误",
+    "Types and methods": "类型与方法",
+    "Type aliases": "类型别名",
+    "Traits": "Trait",
+}
 
 KIND = {
     "fn": "fn",
@@ -262,7 +277,7 @@ def reexport_target(sig):
     if not match:
         return None
     alias, name = match.group(1), match.group(2)
-    for pkg, _ in PACKAGES:
+    for pkg, *_ in PACKAGES:
         if pkg.rsplit("/", 1)[-1] == alias or pkg.rsplit("/", 2)[-2:] == [alias]:
             return pkg, name
     return None
@@ -322,82 +337,156 @@ def render_item(pkg, item, docs, out):
     out.append("</div></details>")
 
 
-TABS = """<nav class="tabs" aria-label="Pages">
-    <div class="wrap">
-      <a href="./index.html">Home</a>
-      <a href="./guide.html">Guide</a>
-      <a href="./api.html" aria-current="page">API reference</a>
-      <a href="./playground.html">Playground</a>
-      <a class="gh" href="https://github.com/moonbitstack/mooncat">GitHub</a>
-    </div>
-  </nav>"""
+LANG = {
+    "en": {
+        "dir": "",
+        "file": "docs/api.html",
+        "title": "API reference — mooncat",
+        "desc": "Every public type, function, constant and method of mooncat, "
+                "generated from the package interfaces.",
+        "h1": "API reference",
+        "lede": "Every public item of every package, in the order the compiler lists them. "
+                "Generated from the package interfaces by <code>scripts/docs/gen_api.py</code>; "
+                "the prose is the <code>///</code> comment beside each declaration.",
+        "tabs": [("index.html", "Home"), ("guide.html", "Guide"), ("api.html", "API reference"),
+                 ("playground.html", "Playground")],
+        "packages": "Packages",
+        "mooncat": ("mooncat", [("index.html", "Home"), ("playground.html", "Playground")]),
+        "documentation": ("Documentation", [("guide.html", "Guide"), ("api.html", "API reference")]),
+        "download": ("Download", [("https://mooncakes.io/docs/moonbitstack/mooncat", "mooncakes")]),
+        "problems": ("Problems?", [("https://github.com/moonbitstack/mooncat/issues", "Issues")]),
+        "involved": ("Get involved", [("https://github.com/moonbitstack/mooncat", "Source code")]),
+        "items": "%d items",
+        "count": "%d public items across %d packages.",
+        "prev": "← Playground",
+        "next": "Home →",
+        "search": "Search the documentation",
+        "placeholder": "Search...",
+        "footer": "mooncat — Apache-2.0. The API page is generated from the source tree.",
+    },
+    "zh": {
+        "dir": "zh/",
+        "file": "docs/zh/api.html",
+        "title": "API 参考 — mooncat",
+        "desc": "mooncat 的全部公开类型、函数、常量与方法，由包接口生成。",
+        "h1": "API 参考",
+        "lede": "每个包的全部公开项，顺序照编译器的列法。由 <code>scripts/docs/gen_api.py</code> "
+                "从包接口生成；说明文字来自声明旁的 <code>///</code> 注释。",
+        "tabs": [("index.html", "首页"), ("guide.html", "指南"), ("api.html", "API 参考"),
+                 ("playground.html", "演示")],
+        "packages": "包",
+        "mooncat": ("mooncat", [("index.html", "首页"), ("playground.html", "演示")]),
+        "documentation": ("文档", [("guide.html", "指南"), ("api.html", "API 参考")]),
+        "download": ("下载", [("https://mooncakes.io/docs/moonbitstack/mooncat", "mooncakes")]),
+        "problems": ("问题？", [("https://github.com/moonbitstack/mooncat/issues", "议题")]),
+        "involved": ("参与", [("https://github.com/moonbitstack/mooncat", "源代码")]),
+        "items": "%d 项",
+        "count": "共 %d 个公开项，分属 %d 个包。",
+        "prev": "← 演示",
+        "next": "首页 →",
+        "search": "搜索文档",
+        "placeholder": "搜索…",
+        "footer": "mooncat — Apache-2.0。API 页面由源码树生成。",
+    },
+}
+
+
+def tabs_html(labels):
+    out = ['  <nav class="tabs" aria-label="Pages">', '    <div class="wrap">']
+    for href, text in labels["tabs"]:
+        current = ' aria-current="page"' if href == "api.html" else ""
+        out.append('      <a href="./%s"%s>%s</a>' % (href, current, text))
+    out.append("    </div>")
+    out.append("  </nav>")
+    return "\n".join(out)
+
+
+def group(title, links, current=None):
+    out = ['  <div class="grp">', "    <h2>%s</h2>" % title, "    <ul>"]
+    for href, text in links:
+        mark = ' aria-current="page"' if href == current else ""
+        out.append('      <li><a href="%s"%s>%s</a></li>' % (href, mark, text))
+    out += ["    </ul>", "  </div>"]
+    return "\n".join(out)
+
+
+def write_page(lang, found):
+    labels = LANG[lang]
+    index = read_text(ROOT / "docs" / labels["dir"] / "index.html")
+    head = index.split('<main id="middle">')[0]
+    head = re.sub(r"<title>.*?</title>", "<title>%s</title>" % labels["title"], head, flags=re.S)
+    head = re.sub(r'<meta name="description" content="[^"]*">',
+                  '<meta name="description" content="%s">' % labels["desc"], head, count=1)
+    head = re.sub(r'  <nav class="tabs".*?</nav>', tabs_html(labels), head, count=1, flags=re.S)
+
+    body = ['<main id="middle">', '<aside id="side">']
+    body.append('  <form class="search" id="search-form" role="search">')
+    body.append('    <label class="sr-only" for="q">%s</label>' % labels["search"])
+    body.append('    <input id="q" type="search" placeholder="%s" autocomplete="off">'
+                % labels["placeholder"])
+    body.append('    <button type="submit">GO</button>')
+    body.append('    <ul class="hits" hidden></ul>')
+    body.append("  </form>")
+    body.append(group(labels["mooncat"][0], labels["mooncat"][1]))
+    body.append("  <div class=\"grp\">")
+    body.append("    <h2>%s</h2>" % labels["packages"])
+    body.append("    <ul>")
+    for name, _desc, _desc_zh, sections, _docs in found:
+        count = sum(len(v) for v in sections.values())
+        body.append('      <li><a href="#%s">%s (%d)</a></li>'
+                    % (name.replace("/", "-"), name.replace("moonbitstack/", ""), count))
+    body.append("    </ul>")
+    body.append("  </div>")
+    body.append(group(labels["documentation"][0], labels["documentation"][1], current="api.html"))
+    body.append(group(labels["download"][0], labels["download"][1]))
+    body.append(group(labels["problems"][0], labels["problems"][1]))
+    body.append(group(labels["involved"][0], labels["involved"][1]))
+    body.append("</aside>")
+
+    body.append('<article class="content">')
+    body.append("<h1>%s</h1>" % labels["h1"])
+    body.append('<p class="lede">%s</p>' % labels["lede"])
+
+    total = 0
+    for name, desc, desc_zh, sections, docs in found:
+        count = sum(len(v) for v in sections.values())
+        total += count
+        body.append('<section class="section pkg" id="%s">' % name.replace("/", "-"))
+        body.append('<h2 class="bar">%s<span class="aside">%s</span></h2>'
+                    % (name.replace("moonbitstack/", ""), labels["items"] % count))
+        body.append('<p class="pkg-desc">%s</p>' % (desc_zh if lang == "zh" else desc))
+        for section, items in sections.items():
+            if not items:
+                continue
+            title = SECTIONS_ZH.get(section, section) if lang == "zh" else section
+            body.append('<h3 class="bar">%s</h3>' % html.escape(title))
+            for item in items:
+                render_item(name, item, docs, body)
+        body.append("</section>")
+
+    body.append('<p class="api-count">%s</p>' % (labels["count"] % (total, len(found))))
+    body.append('<div class="pager"><a href="./playground.html">%s</a>'
+                '<a href="./index.html">%s</a></div>' % (labels["prev"], labels["next"]))
+    body.append("</article></main>")
+
+    tail = index.split("</main>", 1)[1]
+    out = pathlib.Path(ROOT / labels["file"])
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(head + "\n".join(body) + tail, encoding="utf-8", newline="\n")
+    print("wrote %s (%d public items, %d packages)" % (out.relative_to(ROOT), total, len(found)))
 
 
 def main():
     found = []
-    for name, desc in PACKAGES:
+    for name, desc, desc_zh in PACKAGES:
         path = package_dir(name)
         mbti = path / "pkg.generated.mbti"
         if not mbti.exists():
             print("no interface for %s — run moon info" % name, file=sys.stderr)
             return 1
-        found.append((name, desc, parse_interface(mbti), doc_comments(path)))
-
-    index = read_text(ROOT / "docs" / "index.html")
-    head = index.split('<main id="middle">')[0]
-    head = re.sub(r"<title>.*?</title>", "<title>API reference — mooncat</title>", head, flags=re.S)
-    head = re.sub(r'<meta name="description" content="[^"]*">',
-                  '<meta name="description" content="Every public type, function, constant and method of '
-                  'mooncat, generated from the package interfaces.">', head, count=1)
-    head = re.sub(r'<nav class="tabs".*?</nav>', TABS, head, flags=re.S)
-
-    total = 0
-    body = ['<main id="middle">']
-    body.append('<aside id="side"><div class="grp"><h2>Packages</h2><ul>')
-    for name, desc, sections, docs in found:
-        count = sum(len(v) for v in sections.values())
-        body.append('<li><a href="#%s">%s (%d)</a></li>'
-                    % (name.replace("/", "-"), name.replace("moonbitstack/", ""), count))
-    body.append('</ul></div>')
-    body.append('<div class="grp"><h2>mooncat</h2><ul>'
-                '<li><a href="./index.html">Home</a></li>'
-                '<li><a href="./playground.html">Playground</a></li>'
-                '<li><a href="./api.html">API reference</a></li>'
-                '</ul></div>')
-    body.append('<div class="grp"><h2>Elsewhere</h2><ul>'
-                '<li><a href="https://github.com/moonbitstack/mooncat">GitHub</a></li>'
-                '<li><a href="https://moonbitstack.github.io/mooncat/">Docs</a></li>'
-                '</ul></div></aside>')
-
-    body.append('<div class="content">')
-    body.append('<h1>API reference</h1>')
-    body.append('<p class="lede">Every public item of every package, in the order the compiler lists them. '
-                'Generated from the package interfaces by <code>scripts/docs/gen_api.py</code>; the prose is the '
-                '<code>///</code> comment beside each declaration.</p>')
-
-    for name, desc, sections, docs in found:
-        count = sum(len(v) for v in sections.values())
-        total += count
-        short = name.replace("moonbitstack/", "")
-        body.append('<section class="section pkg" id="%s">' % name.replace("/", "-"))
-        body.append('<h2 class="bar">%s<span class="aside">%d items</span></h2>' % (short, count))
-        body.append('<p class="pkg-desc">%s</p>' % desc)
-        for section, items in sections.items():
-            if not items:
-                continue
-            body.append('<h3 class="bar">%s</h3>' % html.escape(section))
-            for item in items:
-                render_item(name, item, docs, body)
-        body.append('</section>')
-
-    body.append('<p class="api-count">%d public items across %d packages.</p>' % (total, len(found)))
-    body.append('<div class="pager"><a href="./playground.html">← Playground</a><a href="./index.html">Home →</a></div>')
-    body.append('</div></main>')
-
-    footer_tail = index.split("</main>", 1)[1]
-    page = head + "\n".join(body) + footer_tail
-    OUT.write_text(page, encoding="utf-8", newline="\n")
-    print("wrote %s (%d public items in %d packages)" % (OUT.relative_to(ROOT), total, len(found)))
+        found.append((name, desc, desc_zh, parse_interface(mbti), doc_comments(path)))
+    for lang in LANG:
+        write_page(lang, found)
     return 0
 
 
