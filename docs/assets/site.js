@@ -267,10 +267,10 @@
   }
 
   /* ---- the mark --------------------------------------------------------
-     Four cuts of the mark: daylight and night, in three spellings — `mooncat`
-     for the English pages, `MoonCat` for the Chinese ones, and `Mooncat` for
-     the visit that comes in one time in ten. The night cuts are the navy
-     tiles; the day cuts are the same art on nothing at all. */
+     The logo is spelled `mooncat` on the English pages and `MoonCat` on the
+     Chinese ones, and `Mooncat` on one visit in ten. Each spelling has a day
+     cut and a night cut, chosen by the theme rather than by the system, so a
+     reader who picks night by hand gets the night cut. */
 
   var marks = document.querySelectorAll("img[data-dark]");
   if (marks.length) {

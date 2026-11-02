@@ -1,7 +1,7 @@
 <div align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/icon.png">
-  <img src="docs/assets/logo-wide.png" alt="mooncat" width="420">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo/wide-dark.png">
+  <img src="docs/assets/logo/wide-light.png" alt="mooncat" width="420">
 </picture>
 
 **An ASGI 3.0 server for MoonBit.**

@@ -461,6 +461,11 @@ def write_page(lang, found):
     body.append("</nav>")
 
     body.append('<article class="content">')
+    shown = "zh" if lang == "zh" else "en"
+    up = "../" if lang == "zh" else ""
+    body.append('<img class="corner" src="{0}assets/logo/{1}-light.png" data-light="{0}assets/logo/{1}-light.png" '
+                'data-dark="{0}assets/logo/{1}-dark.png" data-egg-light="{0}assets/logo/egg-light.png" '
+                'data-egg-dark="{0}assets/logo/egg-dark.png" alt="" width="150" height="114">'.format(up, shown))
     body.append("<h1>%s</h1>" % labels["h1"])
     body.append('<p class="lede">%s</p>' % labels["lede"])
 
