@@ -846,6 +846,11 @@ html[lang="zh"] .card p { letter-spacing: 0.01em; }
 .facts li {
   flex: 1 1 300px;
   min-width: 0;
+  /* The tiles in a row share the tallest one's height; without this the text
+     sits at the top of the taller ones and the tile looks bottom-heavy. */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   text-align: center;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -998,7 +1003,8 @@ html[lang="zh"] .card p { letter-spacing: 0.01em; }
 #footer {
   border-top: 1px solid var(--line);
   margin-top: 20px;
-  padding: 20px 0 30px;
+  /* Even above and below: 20 over 30 read as text that had slipped down. */
+  padding: 22px 0;
   background: var(--band);
   color: var(--muted);
   font-size: 0.84rem;
