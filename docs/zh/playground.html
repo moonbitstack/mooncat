@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>演示 — mooncat</title>
 <meta name="description" content="挑一个客户端，跟着这条连接走：TCP 还是 UDP，TLS 握手，ALPN 的答案，头几个字节，以及最后由哪条循环服务。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f5ff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f0e1e" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://moonbitstack.github.io/mooncat/zh/playground.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="mooncat">
+<meta property="og:title" content="演示 — mooncat">
+<meta property="og:description" content="挑一个客户端，跟着一条连接走完 mooncat 的几道门。">
+<meta property="og:url" content="https://moonbitstack.github.io/mooncat/zh/playground.html">
+<meta property="og:image" content="https://moonbitstack.github.io/mooncat/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="演示 — mooncat">
+<meta name="twitter:description" content="挑一个客户端，跟着一条连接走完 mooncat 的几道门。">
+<meta name="twitter:image" content="https://moonbitstack.github.io/mooncat/assets/og.png">
 <link rel="icon" href="../assets/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,6 +29,9 @@
 <link rel="stylesheet" href="../assets/site.css">
 </head>
 <body>
+
+<a class="skip" href="#middle">跳到正文</a>
+<div class="progress" aria-hidden="true"><i></i></div>
 
 <header id="header">
   <div class="wrap">
@@ -35,7 +55,7 @@
   </div>
 </header>
 
-<main id="middle">
+<main id="middle" tabindex="-1">
   <nav id="side" aria-label="文档导航">
   <form class="search" id="search-form" role="search">
     <label class="sr-only" for="q">搜索文档</label>
@@ -216,6 +236,21 @@
     button.addEventListener("click", function () { render(trace, button); });
     pick.appendChild(button);
     if (i === 0) render(trace, button);
+  });
+
+  // 左右方向键在客户端之间移动，这是用键盘走到这里的人第一个会试的键。
+  pick.addEventListener("keydown", function (ev) {
+    var keys = { ArrowRight: 1, ArrowLeft: -1, Home: -99, End: 99 };
+    if (!(ev.key in keys)) return;
+    var buttons = Array.prototype.slice.call(pick.querySelectorAll("button"));
+    var at = buttons.indexOf(document.activeElement);
+    if (at < 0) return;
+    ev.preventDefault();
+    var step = keys[ev.key];
+    var next = step === -99 ? 0 : step === 99 ? buttons.length - 1
+      : (at + step + buttons.length) % buttons.length;
+    buttons[next].focus();
+    buttons[next].click();
   });
 })();
 </script>

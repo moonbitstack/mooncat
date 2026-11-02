@@ -405,17 +405,38 @@ def group(title, links, current=None):
 def write_page(lang, found):
     labels = LANG[lang]
     index = read_text(ROOT / "docs" / labels["dir"] / "index.html")
-    head = index.split('<main id="middle">')[0]
+    # Everything above the body of the page: split on the tag, whatever
+    # attributes it has grown, or the whole home page would be taken for the
+    # chrome and copied into the reference.
+    head = re.split(r'<main id="middle"[^>]*>', index)[0]
     head = re.sub(r"<title>.*?</title>", "<title>%s</title>" % labels["title"], head, flags=re.S)
     head = re.sub(r'<meta name="description" content="[^"]*">',
                   '<meta name="description" content="%s">' % labels["desc"], head, count=1)
+
+    # The cards and the canonical link were written for the home page; this is
+    # a page of its own, so they have to say so.
+    url = "https://moonbitstack.github.io/mooncat/" + labels["dir"].replace("zh/", "zh/") + "api.html"
+    head = re.sub(r'<link rel="canonical" href="[^"]*">',
+                  '<link rel="canonical" href="%s">' % url, head, count=1)
+    head = re.sub(r'<meta property="og:url" content="[^"]*">',
+                  '<meta property="og:url" content="%s">' % url, head, count=1)
+    head = re.sub(r'(<meta property="og:title" content=")[^"]*(">)',
+                  r'\g<1>%s\g<2>' % labels["title"].replace('"', "&quot;"), head, count=1)
+    head = re.sub(r'(<meta property="og:description" content=")[^"]*(">)',
+                  r'\g<1>%s\g<2>' % labels["desc"].replace('"', "&quot;"), head, count=1)
+    head = re.sub(r'(<meta property="og:locale" content=")[^"]*(">)',
+                  r'\g<1>%s\g<2>' % ("zh_CN" if lang == "zh" else "en"), head, count=1)
+    head = re.sub(r'(<meta name="twitter:title" content=")[^"]*(">)',
+                  r'\g<1>%s\g<2>' % labels["title"].replace('"', "&quot;"), head, count=1)
+    head = re.sub(r'(<meta name="twitter:description" content=")[^"]*(">)',
+                  r'\g<1>%s\g<2>' % labels["desc"].replace('"', "&quot;"), head, count=1)
     # the head is lifted from the home page; the switch has to point here
     head = re.sub(r'<a class="lang"[^>]*>[^<]*</a>',
                   '<a class="lang" href="%s" hreflang="%s" title="%s">%s</a>'
                   % (labels["lang_href"], "zh" if lang == "en" else "en",
                      labels["lang_title"], labels["lang_label"]), head, count=1)
 
-    body = ['<main id="middle">',
+    body = ['<main id="middle" tabindex="-1">',
             '<nav id="side" aria-label="%s">' % labels["rail"]]
     body.append('  <form class="search" id="search-form" role="search">')
     body.append('    <label class="sr-only" for="q">%s</label>' % labels["search"])

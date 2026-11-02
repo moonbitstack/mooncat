@@ -90,6 +90,17 @@ def check_api_page(page, items, documented):
         fail("%s is missing - run scripts/docs/gen_api.py" % page.relative_to(ROOT))
         return
     raw = page.read_text(encoding="utf-8")
+
+    # The page is built from the home page's chrome. When that split went
+    # wrong the whole home page ended up above the reference and nothing else
+    # noticed, so the shape is checked first.
+    for told, want in (('<main', 1), ('<article class="content">', 1), ('class="hero"', 0),
+                       ('class="search"', 1)):
+        got = raw.count(told)
+        if got != want:
+            fail("%s has %d of %s, expected %d"
+                 % (page.relative_to(ROOT), got, told, want))
+
     listed = set(normalise(item) for item in re.findall(r'data-item="([^"]+)"', raw))
 
     # Each package against its own section: a name that appears in two packages —
@@ -188,6 +199,19 @@ def check_pages():
                 fail("%s orders its header controls wrongly: language, theme, repository" % name)
     if seen:
         print("  pages: %d across two languages, no tab strip, rail reaches all four" % seen)
+
+    # The page a wrong address lands on: same chrome, a way home in both
+    # languages, and no fourth page pretending to be real.
+    gone = DOCS / "404.html"
+    if not gone.exists():
+        fail("docs/404.html is missing")
+        return
+    text = gone.read_text(encoding="utf-8")
+    for needle, complaint in (('href="./index.html"', "no way home"),
+                              ('href="./zh/index.html"', "no way to the Chinese pages"),
+                              ("<title>", "no title")):
+        if needle not in text:
+            fail("404.html has %s" % complaint)
 
 
 def at_rule_blocks(text):

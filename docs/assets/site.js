@@ -53,8 +53,16 @@
 
   /* ---- copy buttons -------------------------------------------------- */
 
+  // A live region, so a screen reader hears the copy as well as seeing it.
+  var said = document.createElement("p");
+  said.className = "sr-only";
+  said.setAttribute("role", "status");
+  said.setAttribute("aria-live", "polite");
+  document.body.appendChild(said);
+
   function copy(text, btn) {
     var done = function () {
+      said.textContent = LANG === "zh" ? "已复制到剪贴板" : "Copied to the clipboard";
       var old = btn.textContent;
       btn.textContent = LANG === "zh" ? "已复制" : "copied";
       btn.classList.add("done");
@@ -108,6 +116,33 @@
      The index is written by scripts/docs/gen_search.py from the pages
      themselves: one entry per heading, with the paragraph under it. */
 
+  /* The matched letters, marked; and the forty characters around the first
+     match, so a result says where the word actually is. */
+  function markMatch(el, text, q) {
+    var at = text.toLowerCase().indexOf(q);
+    if (at < 0) {
+      el.textContent = text;
+      return;
+    }
+    el.appendChild(document.createTextNode(text.slice(0, at)));
+    var mark = document.createElement("mark");
+    mark.textContent = text.slice(at, at + q.length);
+    el.appendChild(mark);
+    el.appendChild(document.createTextNode(text.slice(at + q.length)));
+  }
+
+  function excerpt(text, q) {
+    var at = text.toLowerCase().indexOf(q);
+    if (at < 0) at = 0;
+    var from = Math.max(0, at - 30);
+    var to = Math.min(text.length, at + q.length + 46);
+    var cut = text.slice(from, to).trim();
+    // start and end on a word, not in the middle of one
+    if (from > 0) cut = cut.slice(cut.indexOf(" ") + 1);
+    if (to < text.length) cut = cut.slice(0, cut.lastIndexOf(" "));
+    return (from > 0 ? "…" : "") + cut + (to < text.length ? "…" : "");
+  }
+
   var form = document.getElementById("search-form");
   var entries = (window.SEARCH || []).filter(function (e) {
     return e.lang === LANG;
@@ -155,11 +190,16 @@
         var a = document.createElement("a");
         a.href = BASE + "/" + hit.e.url;
         var b = document.createElement("b");
-        b.textContent = hit.e.heading;
+        markMatch(b, hit.e.heading, q);
         var s = document.createElement("span");
         s.textContent = hit.e.page;
         a.appendChild(b);
         a.appendChild(s);
+        if (hit.e.text) {
+          var line = document.createElement("em");
+          line.textContent = excerpt(hit.e.text, q);
+          a.appendChild(line);
+        }
         li.appendChild(a);
         panel.appendChild(li);
       });
@@ -277,4 +317,104 @@
     addEventListener("scroll", showTop, { passive: true });
     showTop();
   }
+
+  /* ---- how far down the page you are -----------------------------------
+     Two pixels at the top of the window, drawn only when the page scrolls. */
+
+  var track = document.querySelector(".progress");
+  if (track) {
+    var line = track.querySelector("i");
+    var tick = function () {
+      var doc = document.documentElement;
+      var room = doc.scrollHeight - doc.clientHeight;
+      track.hidden = room < 40;
+      line.style.transform = "scaleX(" + (room > 0 ? Math.min(1, window.scrollY / room) : 0) + ")";
+    };
+    addEventListener("scroll", tick, { passive: true });
+    addEventListener("resize", tick);
+    tick();
+  }
+
+  /* ---- a link on every heading -----------------------------------------
+     A section that has an id can be pointed at; its heading offers the link,
+     which is the only way a reader can copy one without the address bar. */
+
+  document.querySelectorAll("h2.bar, h3.bar").forEach(function (head) {
+    // A section's own title borrows the section's id; a subsection needs one
+    // of its own, or every heading in the package would point at the same
+    // place and the link would say nothing.
+    var id = head.id ||
+      (head.tagName === "H2" ? (head.parentNode && head.parentNode.id) : "") || "";
+    if (!id || head.querySelector(".anchor")) return;
+    var link = document.createElement("a");
+    link.className = "anchor";
+    link.href = "#" + id;
+    link.textContent = "#";
+    link.setAttribute("aria-label", LANG === "zh" ? "本节链接" : "Link to this section");
+    head.insertBefore(link, head.querySelector(".aside"));
+  });
+
+  /* ---- the section a link landed in ------------------------------------
+     Arriving at `#workers` from another page should show where you are. */
+
+  var flash = function () {
+    document.querySelectorAll(".section.arrived").forEach(function (s) {
+      s.classList.remove("arrived");
+    });
+    if (!location.hash) return;
+    var at = document.getElementById(location.hash.slice(1));
+    var section = at && at.closest(".section");
+    if (!section) return;
+    // restart the animation even when the same hash is picked twice
+    void section.offsetWidth;
+    section.classList.add("arrived");
+  };
+  addEventListener("hashchange", flash);
+  flash();
+
+  /* ---- a table that continues to the right -----------------------------
+     Wide tables scroll; without a shadow the cut looks like the end. */
+
+  var wraps = document.querySelectorAll(".tbl-wrap");
+  if (wraps.length) {
+    var markWide = function () {
+      wraps.forEach(function (w) {
+        w.classList.toggle("more", w.scrollWidth - w.clientWidth > 4);
+      });
+    };
+    markWide();
+    addEventListener("resize", markWide);
+  }
+
+  /* ---- / puts the cursor in the search box -----------------------------
+     The key every documentation site uses, and it never steals a keystroke
+     from a field the reader is already typing in. */
+
+  if (form && entries.length) {
+    addEventListener("keydown", function (ev) {
+      if (ev.key !== "/" || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+      var tag = (ev.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || ev.target.isContentEditable) return;
+      ev.preventDefault();
+      input.focus();
+      input.select();
+    });
+  }
+
+  /* ---- paper -----------------------------------------------------------
+     A folded entry in the reference is still part of the page: open them all
+     for the printer, and fold them back afterwards. */
+
+  addEventListener("beforeprint", function () {
+    document.querySelectorAll("details:not([open])").forEach(function (d) {
+      d.setAttribute("data-was-closed", "");
+      d.open = true;
+    });
+  });
+  addEventListener("afterprint", function () {
+    document.querySelectorAll("details[data-was-closed]").forEach(function (d) {
+      d.open = false;
+      d.removeAttribute("data-was-closed");
+    });
+  });
 })();

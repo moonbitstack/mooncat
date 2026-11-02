@@ -651,12 +651,26 @@ table.tbl {
   display: block;
   font-weight: 600;
   font-size: 0.84rem;
+  line-height: 1.35;
   color: var(--ink);
 }
 .hits li a span {
   display: block;
+  margin-top: 1px;
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.hits li a em {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 0.74rem;
+  line-height: 1.45;
   color: var(--muted);
 }
 .hits li a:hover,
@@ -1172,4 +1186,154 @@ section.pkg h3.bar { margin-top: 18px; }
   .tbl th { white-space: normal; }
   .diagram svg { min-width: 0; width: 100%; }
   #footer .wrap { justify-content: flex-start; }
+}
+
+/* ------------------------------------------------------------------ details
+   The small things: a way past the masthead for a keyboard, a line that says
+   how far down the page you are, a link on every heading, and a shadow that
+   says a table continues to the right. */
+
+.skip {
+  position: absolute;
+  left: 8px;
+  top: -60px;
+  z-index: 70;
+  padding: 8px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 0.86rem;
+  text-decoration: none;
+  transition: top 0.15s;
+}
+.skip:focus { top: 8px; text-decoration: none; }
+
+.progress {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 2px;
+  z-index: 60;
+  pointer-events: none;
+}
+.progress i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--accent), var(--lilac));
+}
+.progress[hidden] { display: none; }
+
+/* One ring for everything that can be reached with the tab key, and only for
+   the keyboard: a mouse click should not leave a box behind. */
+:where(a, button, input, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* A heading that can be linked to. Quiet until the pointer is on it. */
+.bar .anchor {
+  margin-left: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.86em;
+  font-weight: 400;
+  color: var(--lilac);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.bar:hover .anchor,
+.bar .anchor:focus-visible { opacity: 1; }
+.bar .anchor:hover { color: var(--accent); text-decoration: none; }
+
+/* The section a link landed in, said once without a sound. */
+@keyframes arrive {
+  from { background-color: var(--accent-soft); }
+  to { background-color: transparent; }
+}
+.section.arrived > h2.bar { animation: arrive 1.4s ease-out; }
+
+/* Tables that continue to the right say so. */
+.tbl-wrap.more {
+  box-shadow: inset -22px 0 18px -20px rgba(25, 25, 99, 0.55);
+}
+:root[data-theme="dark"] .tbl-wrap.more {
+  box-shadow: inset -22px 0 18px -20px rgba(0, 0, 0, 0.75);
+}
+
+.tbl tr:hover td { background: var(--accent-soft); }
+
+/* Copy: the button answers in place, and the panel says it too. */
+.copy.done { color: var(--ok); border-color: var(--ok); }
+
+/* Matched text in the search panel. */
+.hits mark {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  color: var(--ink);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* The page that is not there: the words on the left, the number ghosted on
+   the right, nothing drawn that a reader has to decode. */
+.gone-wrap {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  min-height: 46vh;
+}
+.gone-text { flex: 1 1 380px; min-width: 0; }
+.gone {
+  flex: none;
+  margin: 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 148px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  color: var(--bar);
+  user-select: none;
+}
+@media (width <= 760px) {
+  .gone { display: none; }
+  .gone-wrap { min-height: 0; }
+}
+
+/* A note that is a footnote to the section, not part of it. */
+.content .dim-note {
+  margin: 26px 0 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+/* Cards lift a hair, the way the buttons do. */
+.card { transition: border-color 0.14s, transform 0.14s, box-shadow 0.14s; }
+.card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -16px rgba(25, 25, 99, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+  .card:hover { transform: none; }
+  .skip { transition: none; }
+}
+
+/* Nothing that is navigation belongs on paper. */
+@media print {
+  #header, #side, #footer, .to-top, .progress, .skip, .pager, .search, .copy { display: none !important; }
+  #middle { display: block; max-width: none; padding: 0; }
+  .content { border: 0; padding: 0; }
+  body, :root[data-theme="dark"] body { background: #fff; color: #000; }
+  .bar, h2.bar, h3.bar, .tbl th { background: #eee !important; color: #000 !important; }
+  .code pre, .term, .term pre, .tbl-wrap { background: #fff; color: #000; border-color: #bbb; }
+  .term .p, .term .o, .term .c, .term .ok, .k, .ty, .st { color: #000 !important; }
+  .code pre { white-space: pre-wrap; }
+  a { color: #000; text-decoration: underline; }
+  .item, .section { break-inside: avoid; }
+  details.item > .body { display: block; }
 }
