@@ -178,8 +178,10 @@ differs is written.
 
 `@quic.serve_config` runs the TCP listener and the UDP one under the same
 lifespan, limits and shutdown, and advertises the UDP port on every response
-with `alt-svc`. The QUIC half is native only, and one process: a UDP port cannot
-yet be shared between workers.
+with `alt-svc`. The QUIC half is native only. Under `workers` the kernel shares
+the TCP port and the supervisor shares the UDP one: it holds the socket and passes
+each datagram to the worker whose number is in the connection id, so a connection
+stays with the worker that took it.
 
 ## Packages
 

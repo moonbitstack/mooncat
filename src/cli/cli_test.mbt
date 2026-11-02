@@ -281,7 +281,7 @@ test "the WebSocket flags reach the config, in seconds, with 0 for off" {
 }
 
 ///|
-test "--ssl-ciphers names TLS 1.3 suites, and --http3 needs a certificate" {
+test "--ssl-ciphers names TLS 1.3 suites, --http3 needs a certificate, and runs under workers" {
   let plan = @cli.parse([
     "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem", "--ssl-ciphers", "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256",
   ])
@@ -299,10 +299,9 @@ test "--ssl-ciphers names TLS 1.3 suites, and --http3 needs a certificate" {
   let older = @cli.parse(["--ssl-ciphers", "TLS_DHE_RSA_WITH_AES_256_CCM_8"])
   assert_eq(older.suites, None)
   assert_true(refusal(["--http3"]) is Some(@cli.Unsupported(..)))
-  assert_true(
-    refusal([
-      "--http3", "--workers", "2", "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem",
-    ])
-    is Some(@cli.Unsupported(..)),
-  )
+  let shared = @cli.parse([
+    "--http3", "--workers", "2", "--ssl-certfile", "c.pem", "--ssl-keyfile", "k.pem",
+  ])
+  assert_true(shared.http3)
+  assert_eq(shared.config.workers, 2)
 }

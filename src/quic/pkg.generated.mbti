@@ -26,12 +26,13 @@ pub async fn serve_site(async (@spec.Scope, async () -> @spec.Event, async (@spe
 
 // Types and methods
 pub struct Endpoint {
-  server : @socket.UdpServer
+  // private fields
 }
 pub async fn Endpoint::bind(String) -> Self
 pub fn Endpoint::close(Self) -> Unit
 pub fn Endpoint::local_addr(Self) -> @socket.Addr
 pub async fn Endpoint::recv_datagram(Self, max? : Int32) -> (Bytes, @socket.Addr)
+pub async fn Endpoint::relay(String, String, Int32, @socket.Addr) -> Self
 pub async fn Endpoint::send_datagram(Self, Bytes, @socket.Addr) -> Unit
 
 // Type aliases

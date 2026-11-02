@@ -543,7 +543,7 @@ date        Mon, 02 Nov 2026 09:25:39 GMT
       <p>The application answered <code>"3"</code> for <code>http_version</code>: it does not know or care which of the three it is being asked over. Each request stream runs in a task of its own, a body reaches the application as it asks for it, and a response is paced by what the client has acknowledged.</p>
 
       <aside class="note">
-        <p><b>One process.</b> HTTP/3 runs in a single process: a UDP port cannot yet be shared between workers, so <code>--http3</code> with <code>--workers</code> above 1 is refused. On shutdown clients are sent a <code>GOAWAY</code> and the streams already taken run out under <code>timeout_graceful_shutdown</code>.</p>
+        <p><b>Under workers.</b> With <code>--workers</code> above 1 the supervisor holds the UDP port and passes each datagram to the worker whose number is in its connection id, so a connection stays with the worker that took it. On shutdown clients are sent a <code>GOAWAY</code> and the streams already taken run out under <code>timeout_graceful_shutdown</code>.</p>
       </aside>
     </section>
 
@@ -615,6 +615,7 @@ date        Mon, 02 Nov 2026 09:25:39 GMT
       </figure>
 
       <p>Each worker binds the port itself and runs its own lifespan; the kernel spreads connections across them. A worker that dies is replaced, which is also how <code>limit_max_requests</code> retires one. A worker that cannot start ends the supervisor with exit code 3. Stopping the supervisor stops them all, each given <code>timeout_graceful_shutdown</code> to drain.</p>
+      <p>HTTP/3 is shared another way. <code>moonbitlang/async</code> opens a UDP socket in one step, so <code>SO_REUSEPORT</code> cannot be set on it; the supervisor holds the UDP port instead and passes datagrams to the workers over loopback. Each worker puts its number in the first byte of every connection id it issues, and the supervisor reads it from every datagram that follows; the id a client makes up for its first Initial is routed by the same byte, so a handshake never splits.</p>
       <p>This is Linux only: only there does the kernel balance connections across several sockets bound to one port, and the process model needs to hand a child a listening socket. On other systems the setting is refused rather than quietly honoured for one process. <code>WEB_CONCURRENCY</code> in the environment sets the number when the flag is absent.</p>
     </section>
 

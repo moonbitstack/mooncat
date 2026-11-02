@@ -42,6 +42,10 @@ pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async
 
 pub async fn serve_tls_server(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server) -> Unit
 
+pub async fn supervise(@config.Config, env? : Map[String, String]) -> Unit
+
+pub fn worker() -> Int32?
+
 // Errors
 
 // Types and methods

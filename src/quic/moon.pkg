@@ -21,6 +21,9 @@ import {
   "moonbitlang/async/socket",
   "moonbitlang/core/cmp",
   "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/string",
+  "moonbitstack/moonbase/base16",
 }
 
 // Used only by the whitebox tests, which exercise the frame, packet and
@@ -37,7 +40,6 @@ import {
   "moonbitstack/moontls/msg",
   "moonbitstack/mooncrypt/kex/x25519",
   "moonbitstack/mooncrypt/sign/ecdsa",
-  "moonbitstack/moonbase/base16",
 } for "wbtest"
 
 // The socket and the serving loop are native; on other targets the imports

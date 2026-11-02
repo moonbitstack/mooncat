@@ -78,9 +78,9 @@
       <li><a href="#moonbitstack-mooncat-config">mooncat/config (19)</a></li>
       <li><a href="#moonbitstack-mooncat-lifespan">mooncat/lifespan (6)</a></li>
       <li><a href="#moonbitstack-mooncat-proxy">mooncat/proxy (1)</a></li>
-      <li><a href="#moonbitstack-mooncat-serve">mooncat/serve (27)</a></li>
+      <li><a href="#moonbitstack-mooncat-serve">mooncat/serve (29)</a></li>
       <li><a href="#moonbitstack-mooncat-cli">mooncat/cli (10)</a></li>
-      <li><a href="#moonbitstack-mooncat-quic">mooncat/quic (11)</a></li>
+      <li><a href="#moonbitstack-mooncat-quic">mooncat/quic (12)</a></li>
     </ul>
   </div>
   <div class="grp">
@@ -154,7 +154,7 @@
 <details class="item" id="mooncat--serve_config" data-item="pub async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit</span></summary>
 <div class="body">
-<p>Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port: the TCP side tells clients about HTTP/3 with <code>alt-svc</code> (RFC 7838). One process only, since a UDP port cannot yet be shared across workers.</p>
+<p>Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port: the TCP side tells clients about HTTP/3 with <code>alt-svc</code> (RFC 7838).</p><p>With <code>workers</code> above 1 the TCP port is shared by the kernel, as for <code>serve_tls</code>, and the UDP port by this process: it holds the socket and passes each datagram to the worker whose number is in the connection id (see <code>route.mbt</code>).</p>
 </div></details>
 <details class="item" id="mooncat--serve_graceful" data-item="pub async fn serve_graceful(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, handle? : @serve.ShutdownHandle) -&gt; Unit">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_graceful(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, handle? : @serve.ShutdownHandle) -&gt; Unit</span></summary>
@@ -390,7 +390,7 @@ access : Bool</pre>
 </div></details>
 </section>
 <section class="section pkg" id="moonbitstack-mooncat-serve">
-<h2 class="bar">mooncat/serve<span class="aside">27 项</span></h2>
+<h2 class="bar">mooncat/serve<span class="aside">29 项</span></h2>
 <p class="pkg-desc">接受循环、HTTP/1.1、HTTP/2、WebSocket、TLS、多 worker 与优雅停机。</p>
 <h3 class="bar">值</h3>
 <details class="item" id="serve--alpn" data-item="pub let alpn : Array[String]">
@@ -462,6 +462,16 @@ access : Bool</pre>
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls_server(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @tls.Server) -&gt; Unit</span></summary>
 <div class="body">
 <p>Serve over HTTPS with a TLS configuration built by the caller: the suites, the groups, the ALPN list and the certificates are all <code>server</code>&#x27;s. <code>serve_tls_config</code> is this with the configuration read from PEM files.</p>
+</div></details>
+<details class="item" id="serve--supervise" data-item="pub async fn supervise(@config.Config, env? : Map[String, String]) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn supervise(@config.Config, env? : Map[String, String]) -&gt; Unit</span></summary>
+<div class="body">
+<p>Run <code>config.workers</code> workers until this process is stopped, replacing any that die. Stopping this process stops them, each given <code>graceful_timeout</code> to drain. <code>env</code> is added to every worker&#x27;s environment, beside the variable that tells it its number.</p>
+</div></details>
+<details class="item" id="serve--worker" data-item="pub fn worker() -&gt; Int32?">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn worker() -&gt; Int32?</span></summary>
+<div class="body">
+<p>This process&#x27;s worker number when a supervisor started it, <code>None</code> in a process the user started.</p>
 </div></details>
 <h3 class="bar">类型与方法</h3>
 <details class="item" id="serve--ShutdownHandle" data-item="pub struct ShutdownHandle">
@@ -591,7 +601,7 @@ done : @aqueue.Queue[Unit]</pre>
 </div></details>
 </section>
 <section class="section pkg" id="moonbitstack-mooncat-quic">
-<h2 class="bar">mooncat/quic<span class="aside">11 项</span></h2>
+<h2 class="bar">mooncat/quic<span class="aside">12 项</span></h2>
 <p class="pkg-desc">HTTP/3：UDP 套接字、按连接 ID 分发的数据报循环，以及请求流。</p>
 <h3 class="bar">值</h3>
 <details class="item" id="quic--now" data-item="pub fn now() -&gt; Int64">
@@ -607,7 +617,7 @@ done : @aqueue.Queue[Unit]</pre>
 <details class="item" id="quic--serve_config" data-item="pub async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -&gt; Unit">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -&gt; Unit</span></summary>
 <div class="body">
-<p>Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port: the TCP side tells clients about HTTP/3 with <code>alt-svc</code> (RFC 7838). One process only, since a UDP port cannot yet be shared across workers.</p>
+<p>Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port: the TCP side tells clients about HTTP/3 with <code>alt-svc</code> (RFC 7838).</p><p>With <code>workers</code> above 1 the TCP port is shared by the kernel, as for <code>serve_tls</code>, and the UDP port by this process: it holds the socket and passes each datagram to the worker whose number is in the connection id (see <code>route.mbt</code>).</p>
 </div></details>
 <details class="item" id="quic--serve_endpoint" data-item="pub async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -&gt; Unit">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -&gt; Unit</span></summary>
@@ -623,8 +633,7 @@ done : @aqueue.Queue[Unit]</pre>
 <details class="item" id="quic--Endpoint" data-item="pub struct Endpoint">
 <summary><span class="caret"></span><span class="kind">struct</span><span class="sig">struct Endpoint</span></summary>
 <div class="body">
-<p>A QUIC UDP endpoint: a bound datagram socket.</p>
-<pre class="fields">server : @socket.UdpServer</pre>
+<p>A QUIC endpoint: where datagrams come from and go to.</p>
 </div></details>
 <details class="item" id="quic--Endpoint-bind" data-item="pub async fn Endpoint::bind(String) -&gt; Self">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn Endpoint::bind(String) -&gt; Self</span></summary>
@@ -634,17 +643,22 @@ done : @aqueue.Queue[Unit]</pre>
 <details class="item" id="quic--Endpoint-close" data-item="pub fn Endpoint::close(Self) -&gt; Unit">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Endpoint::close(Self) -&gt; Unit</span></summary>
 <div class="body">
-<p>Close the endpoint&#x27;s socket.</p>
+<p>Close the endpoint&#x27;s socket or link.</p>
 </div></details>
 <details class="item" id="quic--Endpoint-local_addr" data-item="pub fn Endpoint::local_addr(Self) -&gt; @socket.Addr">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Endpoint::local_addr(Self) -&gt; @socket.Addr</span></summary>
 <div class="body">
-<p>The address the endpoint is bound to (the concrete port when bound to port 0).</p>
+<p>The address the endpoint serves (the concrete port when bound to port 0).</p>
 </div></details>
 <details class="item" id="quic--Endpoint-recv_datagram" data-item="pub async fn Endpoint::recv_datagram(Self, max? : Int32) -&gt; (Bytes, @socket.Addr)">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn Endpoint::recv_datagram(Self, max? : Int32) -&gt; (Bytes, @socket.Addr)</span></summary>
 <div class="body">
 <p>Receive the next datagram and its sender&#x27;s address, copying up to <code>max</code> bytes.</p>
+</div></details>
+<details class="item" id="quic--Endpoint-relay" data-item="pub async fn Endpoint::relay(String, String, Int32, @socket.Addr) -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn Endpoint::relay(String, String, Int32, @socket.Addr) -&gt; Self</span></summary>
+<div class="body">
+<p>A worker&#x27;s endpoint: datagrams for <code>serving</code> arrive over the supervisor&#x27;s link at <code>relay</code>, which this opens with <code>token</code> and the worker&#x27;s number.</p>
 </div></details>
 <details class="item" id="quic--Endpoint-send_datagram" data-item="pub async fn Endpoint::send_datagram(Self, Bytes, @socket.Addr) -&gt; Unit">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn Endpoint::send_datagram(Self, Bytes, @socket.Addr) -&gt; Unit</span></summary>
@@ -652,7 +666,7 @@ done : @aqueue.Queue[Unit]</pre>
 <p>Send <code>data</code> as a single datagram to <code>to</code>.</p>
 </div></details>
 </section>
-<p class="api-count">共 99 个公开项，分属 7 个包。</p>
+<p class="api-count">共 102 个公开项，分属 7 个包。</p>
 <div class="pager"><a href="./playground.html">← 演示</a><a href="./index.html">首页 →</a></div>
 </article></main>
 

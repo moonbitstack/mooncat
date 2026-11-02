@@ -4,7 +4,9 @@
 ///     moon run src/examples/08-workers --target native -- --workers 4
 ///     curl http://127.0.0.1:12000
 ///
-/// Each answer names the worker that gave it. The process that was started serves nothing: it
+/// Each answer names the worker that gave it. With `--http3 --ssl-certfile src/certs/cert.pem
+/// --ssl-keyfile src/certs/key.pem` the same workers answer HTTP/3 as well, through the supervisor,
+/// which `scripts/checks/check_workers_http3.py` drives. The process that was started serves nothing: it
 /// runs this program four more times, replaces a worker that dies, and stops them all when it is
 /// stopped. `scripts/checks/check_workers.sh` drives exactly that. With `WORKERS_FAIL` in the environment
 /// the application refuses to start, and under `--lifespan on` the supervisor gives up with exit

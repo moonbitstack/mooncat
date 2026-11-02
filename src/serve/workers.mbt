@@ -35,6 +35,15 @@ fn is_worker() -> Bool {
 }
 
 ///|
+/// This process's worker number when a supervisor started it, `None` in a process the user started.
+pub fn worker() -> Int32? {
+  match @env.get_env_var(worker_var) {
+    Some(text) => Some(@string.parse_int(text)) catch { _ => None }
+    None => None
+  }
+}
+
+///|
 /// A worker that failed before it listened tells the supervisor so through its exit code.
 fn leave_failed(config : @config.Config, e : Error) -> Unit {
   config.logger.log(@moonlog.error, "Worker failed to start: \{e}")
@@ -43,8 +52,12 @@ fn leave_failed(config : @config.Config, e : Error) -> Unit {
 
 ///|
 /// Run `config.workers` workers until this process is stopped, replacing any that die. Stopping
-/// this process stops them, each given `graceful_timeout` to drain.
-async fn supervise(config : @config.Config) -> Unit {
+/// this process stops them, each given `graceful_timeout` to drain. `env` is added to every
+/// worker's environment, beside the variable that tells it its number.
+pub async fn supervise(
+  config : @config.Config,
+  env? : Map[String, String],
+) -> Unit {
   guard @async.platform is Linux else {
     fail(
       "workers above 1 need the kernel to share a port between processes, which only Linux does",
@@ -57,7 +70,7 @@ async fn supervise(config : @config.Config) -> Unit {
   let args = @env.args()[1:].to_owned()
   @async.with_task_group(g => {
     for i in 0..<config.workers {
-      g.spawn_bg(() => keep_worker(i, args, config))
+      g.spawn_bg(() => keep_worker(i, args, config, env.unwrap_or(Map([]))))
     }
   }) catch {
     e => {
@@ -71,12 +84,20 @@ async fn supervise(config : @config.Config) -> Unit {
 }
 
 ///|
+fn numbered(env : Map[String, String], index : Int32) -> Map[String, String] {
+  let all = env.copy()
+  all[worker_var] = index.to_string()
+  all
+}
+
+///|
 /// One worker's place: run it, and run another when it ends, which is also how
 /// `limit_max_requests` recycles a worker.
 async fn keep_worker(
   index : Int32,
   args : Array[String],
   config : @config.Config,
+  env : Map[String, String],
 ) -> Unit {
   let stop = @process.graceful_cancel(
     timeout=config.graceful_timeout.unwrap_or(0) + stop_margin,
@@ -85,7 +106,7 @@ async fn keep_worker(
     let code = @process.run(
       "/proc/self/exe",
       args,
-      extra_env=Map([(worker_var, index.to_string())]),
+      extra_env=numbered(env, index),
       cancel_handler=stop,
     )
     if code == startup_failure {

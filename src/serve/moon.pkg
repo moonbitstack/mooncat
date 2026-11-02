@@ -36,6 +36,7 @@ import {
   "moonbitlang/core/deque",
   "moonbitlang/core/cmp",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 warnings = "-29"

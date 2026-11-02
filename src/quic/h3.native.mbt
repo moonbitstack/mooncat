@@ -541,9 +541,13 @@ pub async fn serve_site(
   transport~ : @conn.Config = @conn.Config::default(),
   tick_ms~ : Int32 = 20,
 ) -> Unit {
+  let cid = match @serve.worker() {
+    Some(index) => Some(issued_by(index, entropy))
+    None => None
+  }
   let h3 : H3 = {
-    ep: Endpoint::bind(site.bound().to_string()),
-    server: @conn.Endpoint::server(transport, tls, rand=entropy),
+    ep: worker_endpoint(site.bound()),
+    server: @conn.Endpoint::server(transport, tls, rand=entropy, cid?),
     site,
     app,
     clients: Map([]),
@@ -592,8 +596,11 @@ fn entropy(n : Int32) -> Bytes {
 
 ///|
 /// Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port:
-/// the TCP side tells clients about HTTP/3 with `alt-svc` (RFC 7838). One process only, since a UDP
-/// port cannot yet be shared across workers.
+/// the TCP side tells clients about HTTP/3 with `alt-svc` (RFC 7838).
+///
+/// With `workers` above 1 the TCP port is shared by the kernel, as for `serve_tls`, and the UDP port
+/// by this process: it holds the socket and passes each datagram to the worker whose number is in
+/// the connection id (see `route.mbt`).
 pub async fn serve_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
@@ -601,7 +608,9 @@ pub async fn serve_config(
   suites? : Array[@record.Suite],
   suites12? : Array[@record.Suite12],
 ) -> Unit {
-  guard config.workers <= 1 else { fail("HTTP/3 runs in one process") }
+  if config.workers > 1 && @serve.worker() is None {
+    return supervise_with_relay(config)
+  }
   let headers = config.server_headers.copy()
   headers["alt-svc"] = "h3=\":\{config.port}\"; ma=86400"
   let tcp = cert.load(suites?, suites12?)

@@ -543,7 +543,7 @@ date        Mon, 02 Nov 2026 09:25:39 GMT
       <p>应用给 <code>http_version</code> 答的是 <code>"3"</code>。每条流一个任务，响应按客户端已确认的部分推进。</p>
 
       <aside class="note">
-        <p><b>单进程。</b> UDP 端口还不能在 worker 间共享，<code>--http3</code> 配多个 <code>--workers</code> 会被拒。停机发 <code>GOAWAY</code>，已接下的流在 <code>timeout_graceful_shutdown</code> 内跑完。</p>
+        <p><b>多 worker。</b> <code>--workers</code> 大于 1 时，UDP 端口由监督进程持有，按连接 ID 里的 worker 编号把每个数据报交给对应的 worker，一条连接始终留在接下它的 worker。停机发 <code>GOAWAY</code>，已接下的流在 <code>timeout_graceful_shutdown</code> 内跑完。</p>
       </aside>
     </section>
 
@@ -615,6 +615,7 @@ date        Mon, 02 Nov 2026 09:25:39 GMT
       </figure>
 
       <p>每个 worker 自己绑定端口、跑 lifespan，内核分摊连接。死掉的被替换，<code>limit_max_requests</code> 也这样退休。起不来的 worker 让监督进程以退出码 3 结束。停监督进程即停全部，各自按 <code>timeout_graceful_shutdown</code> 排空。</p>
+      <p>HTTP/3 换一种方式共享。<code>moonbitlang/async</code> 打开 UDP 套接字是一步完成的，设不上 <code>SO_REUSEPORT</code>，所以 UDP 端口由监督进程持有，经本机回环把数据报交给各 worker。每个 worker 把自己的编号写进它发放的每个连接 ID 的首字节，监督进程从此后的每个数据报里读出它；客户端为首个 Initial 自选的 ID 按同一字节分派，握手不会被拆开。</p>
       <p>仅 Linux：只有它的内核在绑到同一端口的套接字间分摊连接。别的系统会拒绝该设置。缺省时由 <code>WEB_CONCURRENCY</code> 决定。</p>
     </section>
 

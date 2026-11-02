@@ -14,6 +14,16 @@ fn leave_failed(_config : @config.Config, _e : Error) -> Unit {
 }
 
 ///|
-fn supervise(_config : @config.Config) -> Unit raise {
+pub fn worker() -> Int32? {
+  None
+}
+
+///|
+pub async fn supervise(
+  _config : @config.Config,
+  env? : Map[String, String],
+) -> Unit {
+  ignore(env)
+  @async.pause()
   fail("workers above 1 need native processes")
 }

@@ -80,6 +80,12 @@ jobs:
           "$RUNNER_TEMP/aioquic/bin/pip" install --quiet aioquic
           "$RUNNER_TEMP/aioquic/bin/python" scripts/http3/check_http3.py
 
+      - name: HTTP/3 under workers, with real processes
+        if: runner.os == 'Linux'
+        run: |
+          moon build src/examples/08-workers --target native
+          "$RUNNER_TEMP/aioquic/bin/python" scripts/checks/check_workers_http3.py
+
       - name: lint (fmt is clean)
         run: |
           moon fmt && git -c core.autocrlf=false diff --ignore-cr-at-eol --exit-code

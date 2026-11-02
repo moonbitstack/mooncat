@@ -246,12 +246,6 @@ pub fn parse(
   if http3 && tls is None {
     raise Unsupported(flag="--http3", why="QUIC needs --ssl-certfile")
   }
-  if http3 && config.workers > 1 {
-    raise Unsupported(
-      flag="--http3",
-      why="a UDP port cannot be shared across workers yet",
-    )
-  }
   let (suites, suites12) = match reading(got, "ssl-ciphers") {
     Some(text) => cipher_list(text)
     None => (None, None)

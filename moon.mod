@@ -30,7 +30,7 @@ import {
   "moonbitstack/mooncred@0.6.7",
   "moonbitstack/moonlog@0.1.4",
   "moonbitstack/moontls@0.9.12",
-  "moonbitstack/moonquic@0.3.8",
+  "moonbitstack/moonquic@0.3.9",
   "moonbitstack/moonnet@0.1.8",
   "moonbitstack/moonhttp@0.15.4",
   "moonbitstack/moonurl@0.2.3",

@@ -1,28 +1,50 @@
-// Binding the QUIC datagram transport to moonbitlang/async's UDP socket (RFC 9000 §5): a
-// QUIC endpoint is a UDP socket that receives and sends whole datagrams, each carrying one
-// or more QUIC packets. This wraps `@socket.UdpServer` — which can both receive from and
-// send to arbitrary peers, exactly the connectionless model QUIC needs — behind the two
-// operations the connection loop drives: pull the next datagram (with its sender's address)
-// and push a datagram to a peer. The packet protection, handshake, and HTTP/3 codecs run on
-// the bytes these move; this is the seam where they meet a real socket.
+// Binding the QUIC datagram transport to moonbitlang/async (RFC 9000 §5): a QUIC endpoint receives
+// and sends whole datagrams, each carrying one or more QUIC packets. An endpoint is either a UDP
+// socket of its own or, in a worker, a link to the supervisor that holds the socket; the
+// connection loop sees the same two operations either way.
 
 ///|
-/// A QUIC UDP endpoint: a bound datagram socket.
+/// A QUIC endpoint: where datagrams come from and go to.
 pub struct Endpoint {
-  server : @socket.UdpServer
+  priv link : Link
+  priv serving : @socket.Addr
+  // One writer at a time: the receive loop and the timer loop both flush, and a descriptor takes
+  // one write at a time.
+  priv writing : @async.Mutex
+}
+
+///|
+priv enum Link {
+  Socket(@socket.UdpServer)
+  Relay(@socket.Tcp)
 }
 
 ///|
 /// Bind an endpoint to `addr` (e.g. `"0.0.0.0:443"`, or `"127.0.0.1:0"` for an OS-assigned
 /// port). The bound address is available from `local_addr`.
 pub async fn Endpoint::bind(addr : String) -> Endpoint {
-  { server: @socket.UdpServer::UdpServer(@socket.Addr::parse(addr)), }
+  let server = @socket.UdpServer::UdpServer(@socket.Addr::parse(addr))
+  { link: Socket(server), serving: server.addr, writing: @async.Mutex(), }
 }
 
 ///|
-/// The address the endpoint is bound to (the concrete port when bound to port 0).
+/// A worker's endpoint: datagrams for `serving` arrive over the supervisor's link at `relay`, which
+/// this opens with `token` and the worker's number.
+pub async fn Endpoint::relay(
+  relay : String,
+  token : String,
+  index : Int32,
+  serving : @socket.Addr,
+) -> Endpoint {
+  let conn = @socket.Tcp::connect(@socket.Addr::parse(relay))
+  conn.write(relay_hello(token, index))
+  { link: Relay(conn), serving, writing: @async.Mutex(), }
+}
+
+///|
+/// The address the endpoint serves (the concrete port when bound to port 0).
 pub fn Endpoint::local_addr(self : Endpoint) -> @socket.Addr {
-  self.server.addr
+  self.serving
 }
 
 ///|
@@ -31,13 +53,17 @@ pub async fn Endpoint::recv_datagram(
   self : Endpoint,
   max~ : Int32 = 2048,
 ) -> (Bytes, @socket.Addr) {
-  let buf = FixedArray::make(max, b'\x00')
-  let (n, from) = self.server.recvfrom(buf)
-  let out = Buffer()
-  for i = 0; i < n; i = i + 1 {
-    out.write_byte(buf[i])
+  match self.link {
+    Socket(server) => {
+      let buf = FixedArray::make(max, b'\x00')
+      let (n, from) = server.recvfrom(buf)
+      (Bytes::makei(n, i => buf[i]), from)
+    }
+    Relay(conn) => {
+      let (peer, datagram) = read_relayed(conn)
+      (datagram, @socket.Addr::parse(peer))
+    }
   }
-  (out.to_bytes(), from)
 }
 
 ///|
@@ -47,11 +73,29 @@ pub async fn Endpoint::send_datagram(
   data : Bytes,
   to : @socket.Addr,
 ) -> Unit {
-  self.server.sendto(data, to)
+  self.writing.acquire()
+  defer self.writing.release()
+  match self.link {
+    Socket(server) => server.sendto(data, to)
+    Relay(conn) => conn.write(relay_frame(to.to_string(), data[:]))
+  }
 }
 
 ///|
-/// Close the endpoint's socket.
+/// Close the endpoint's socket or link.
 pub fn Endpoint::close(self : Endpoint) -> Unit {
-  self.server.close()
+  match self.link {
+    Socket(server) => server.close()
+    Relay(conn) => conn.close()
+  }
+}
+
+///|
+/// The next frame on a relay link: the peer's address and the datagram.
+async fn read_relayed(conn : @socket.Tcp) -> (String, Bytes) {
+  let size = conn.read_exactly(1)[0].to_int()
+  let peer = @utf8.decode_lossy(conn.read_exactly(size)[:])
+  let length = conn.read_exactly(2)
+  let n = (length[0].to_int() << 8) | length[1].to_int()
+  (peer, conn.read_exactly(n))
 }
