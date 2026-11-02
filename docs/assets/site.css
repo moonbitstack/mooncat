@@ -425,8 +425,10 @@ h3.bar .aside {
 }
 h3.bar { font-size: 1.02rem; background: var(--band-2); }
 
-.content p { margin: 0 0 12px; max-width: 74ch; }
-.content ul, .content ol { margin: 0 0 14px; padding-left: 22px; max-width: 74ch; }
+/* The column is the measure. A cap narrower than the column leaves a
+   stripe of nothing down the right side, which reads as a mistake. */
+.content p { margin: 0 0 12px; }
+.content ul, .content ol { margin: 0 0 14px; padding-left: 22px; }
 .content li { margin: 3px 0; }
 .content li::marker { color: var(--accent); }
 
@@ -816,9 +818,11 @@ html[lang="zh"] .card p { letter-spacing: 0.01em; }
 .facts {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
   margin: 0 0 26px;
   padding: 0;
+  max-width: none;
   list-style: none;
 }
 .facts li {
@@ -1008,7 +1012,7 @@ html[lang="zh"] .card p { letter-spacing: 0.01em; }
   flex-wrap: wrap;
 }
 .api-head h1 { margin-right: 6px; }
-.pkg-desc { color: var(--muted); max-width: 74ch; margin: 0 0 14px; }
+.pkg-desc { color: var(--muted); margin: 0 0 14px; }
 
 .item {
   border: 1px solid var(--line);
