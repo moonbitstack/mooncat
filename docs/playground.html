@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Playground — mooncat</title>
-<meta name="description" content="Pick a client and follow the connection: TCP or UDP, the TLS handshake, the ALPN answer, the first bytes, and the loop that serves it.">
+<meta name="description" content="One recorded request at a time: the bytes a client put on the socket on the left, the scope and every receive and send the application saw on the right.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f7f5ff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f0e1e" media="(prefers-color-scheme: dark)">
@@ -12,7 +12,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="mooncat">
 <meta property="og:title" content="Playground — mooncat">
-<meta property="og:description" content="Pick a client and follow one connection through mooncat, step by step.">
+<meta property="og:description" content="Both sides of a request: the socket and the application, recorded from one running mooncat.">
 <meta property="og:url" content="https://moonbitstack.github.io/mooncat/playground.html">
 <meta property="og:image" content="https://moonbitstack.github.io/mooncat/assets/og.png">
 <meta property="og:image:width" content="1200">
@@ -20,7 +20,7 @@
 <meta property="og:locale" content="en">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Playground — mooncat">
-<meta name="twitter:description" content="Pick a client and follow one connection through mooncat, step by step.">
+<meta name="twitter:description" content="Both sides of a request: the socket and the application, recorded from one running mooncat.">
 <meta name="twitter:image" content="https://moonbitstack.github.io/mooncat/assets/og.png">
 <link rel="icon" href="assets/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -96,30 +96,28 @@
 
     <img class="corner" src="assets/logo/en-light.png" data-light="assets/logo/en-light.png" data-dark="assets/logo/en-dark.png" data-egg-light="assets/logo/egg-light.png" data-egg-dark="assets/logo/egg-dark.png" alt="" width="150" height="114">
 
-    <h1>How a connection is answered</h1>
-    <p class="lede">One port, one application, six ways in. Pick a client and follow it: the socket, the handshake or the preface, the first bytes that decide, and the loop that ends up serving it. Every trace is what the client actually received.</p>
+    <h1>Both sides of a request</h1>
+    <p class="lede">On the left, what a client put on the socket and what came back. On the right, what the application was handed: the scope, every <code>receive</code>, every <code>send</code>. mooncat is the part in between. Both columns come from one running server.</p>
 
-    <div class="pick" id="pick" role="group" aria-label="Choose a client"></div>
+    <div class="pick" id="pick" role="group" aria-label="Choose a request"></div>
+    <p class="trace-head" id="command-line"></p>
 
-    <div class="trace-head" id="command-line"></div>
-
-    <ol class="steps" id="steps"></ol>
-
-    <h2 class="bar" id="trace-bar">What came back<span class="aside" id="trace-where"></span></h2>
-    <figure class="term" id="trace-box">
-      <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded</figcaption>
-      <pre id="trace"></pre>
-    </figure>
-    <p id="trace-note" class="pkg-desc"></p>
+    <div class="sides" id="sides">
+      <div class="sides-head"><span></span><span>On the wire</span><span>In the application</span></div>
+    </div>
+    <div class="sides-foot">
+      <p id="trace-note" class="pkg-desc"></p>
+      <button type="button" class="btn ghost" id="replay">Replay</button>
+    </div>
 
     <aside class="note">
-      <p><b>Where these come from.</b> <code>scripts/docs/record_traces.py</code> ran each client against the HTTP/3 example (<code>src/examples/07-http3</code>) and the WebSocket echo example (<code>src/examples/05-websocket-echo</code>), and wrote down what came back. The dates are the dates of that recording. Nothing here is a mock: the application answers with <code>http_version</code>, which is why the body of each trace reads <code>1.1</code>, <code>2</code> or <code>3</code>.</p>
+      <p><b>Where these come from.</b> <code>scripts/docs/record_traces.py</code> starts <code>src/examples/11-event-log</code>, whose application is wrapped in a middleware that writes one line for every message it sees. The script talks to that server over plain sockets, <code>h2</code> and <code>aioquic</code>, writes down every byte it sends and reads, and lines the two up. The two clocks are matched by what has to come first: nothing reaches the application before the client sends it.</p>
     </aside>
 
     <nav class="pager" aria-label="Previous and next page">
       <a href="./guide.html">← Guide</a>
       <a href="./api.html">API reference →</a>
-    </div>
+    </nav>
   </article>
 </main>
 
@@ -133,130 +131,9 @@
   <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 3.5 3.5 8l1.06 1.06L7.25 6.4V13h1.5V6.4l2.69 2.66L12.5 8 8 3.5Z"/></svg>
 </button>
 
-<script src="assets/negotiation.js"></script>
 <script src="assets/search-index.js"></script>
 <script src="assets/site.js"></script>
-<script>
-(function () {
-  "use strict";
-
-  var traces = window.TRACES || [];
-  if (!traces.length) return;
-
-  var served = {
-    "h1": "serve · HTTP/1.1",
-    "h2c": "serve · HTTP/2 by preface",
-    "tls-h2": "serve_tls · HTTP/2 by ALPN",
-    "tls-h1": "serve_tls · HTTP/1.1 by ALPN",
-    "ws": "serve · WebSocket",
-    "h3": "quic · HTTP/3"
-  };
-
-  var steps = {
-    clear: [
-      ["TCP connect", "The listener accepts and gives the connection a task of its own."],
-      ["first byte", "It is not 0x16, so this is not a handshake: the connection is served in the clear."],
-      ["request line", "<code>GET / HTTP/1.1</code> — the head is parsed, the body is left on the socket until the application asks for it."],
-      ["the sphere handed over", "A scope describing the request, a <code>receive</code> for the body and a <code>send</code> for the answer."]
-    ],
-    h2c: [
-      ["TCP connect", "The listener accepts and gives the connection a task of its own."],
-      ["preface", "The first bytes are <code>PRI * HTTP/2.0</code>, the client preface — read only as far as the first byte that differs."],
-      ["HTTP/2 loop", "SETTINGS are exchanged, the head is decoded, and the request becomes a stream with a task of its own."],
-      ["the sphere handed over", "One scope per stream; the body arrives as the application takes it, and the window comes back at that pace."]
-    ],
-    tls: [
-      ["TCP connect", "The listener accepts and gives the connection a task of its own."],
-      ["handshake", "The first byte is 0x16: a TLS record. TLS 1.3 runs, under <code>timeout_handshake</code>."],
-      ["ALPN", "The server offers <code>h2</code> and <code>http/1.1</code>; the client answers with one of them."],
-      ["the loop that matched", "The connection becomes an HTTP/2 connection or an HTTP/1.1 one, with <code>scheme</code> <code>https</code>."],
-      ["the sphere handed over", "The same scope an unencrypted request would have produced, plus the TLS extension."]
-    ],
-    ws: [
-      ["TCP connect", "The listener accepts and gives the connection a task of its own."],
-      ["upgrade request", "An ordinary HTTP/1.1 request with <code>Upgrade: websocket</code> and a key."],
-      ["101", "The accept is computed from the key and sent; the connection stops being HTTP."],
-      ["the sphere handed over", "A <code>websocket</code> scope: connect, accept, receive, send, close — over the same socket."]
-    ],
-    udp: [
-      ["UDP datagram", "No connection to accept: the datagram loop routes by connection ID, at the same port number as TCP."],
-      ["QUIC handshake", "TLS 1.3 inside QUIC, ALPN <code>h3</code>."],
-      ["HTTP/3 loop", "One task per request stream; the credit comes back as the application reads."],
-      ["the sphere handed over", "A scope whose <code>http_version</code> is <code>3</code>. Nothing else about it is new."]
-    ]
-  };
-
-  var pick = document.getElementById("pick");
-  var list = document.getElementById("steps");
-  var pre = document.getElementById("trace");
-  var note = document.getElementById("trace-note");
-  var cmd = document.getElementById("command-line");
-  var where = document.getElementById("trace-where");
-  var reduce = matchMedia("(prefers-reduced-motion: reduce)");
-  var timers = [];
-
-  function clearTimers() {
-    timers.forEach(clearTimeout);
-    timers = [];
-  }
-
-  function render(trace, button) {
-    clearTimers();
-    pick.querySelectorAll("button").forEach(function (b) {
-      b.setAttribute("aria-pressed", b === button ? "true" : "false");
-    });
-
-    var plan = steps[trace.kind] || steps.clear;
-    list.innerHTML = "";
-    plan.forEach(function (pair, i) {
-      var row = document.createElement("li");
-      row.className = "step";
-      row.innerHTML =
-        '<span class="n">' + String(i + 1).padStart(2, "0") + "</span>" +
-        "<div><h4>" + pair[0] + "</h4><p>" + pair[1] + "</p></div>";
-      list.appendChild(row);
-    });
-
-    cmd.innerHTML = "<span>$</span> <code>" + trace.command + "</code>";
-    pre.textContent = trace.trace;
-    note.textContent = trace.note;
-    where.textContent = served[trace.id] || "";
-
-    var rows = list.querySelectorAll(".step");
-    if (reduce.matches) {
-      rows.forEach(function (r) { r.classList.add("on"); });
-      return;
-    }
-    rows.forEach(function (row, i) {
-      timers.push(setTimeout(function () { row.classList.add("on"); }, 160 + i * 260));
-    });
-  }
-
-  traces.forEach(function (trace, i) {
-    var button = document.createElement("button");
-    button.type = "button";
-    button.textContent = trace.label;
-    button.addEventListener("click", function () { render(trace, button); });
-    pick.appendChild(button);
-    if (i === 0) render(trace, button);
-  });
-
-  // Left and right walk the row of clients; the arrow keys are what a reader
-  // who got here with the tab key will try first.
-  pick.addEventListener("keydown", function (ev) {
-    var keys = { ArrowRight: 1, ArrowLeft: -1, Home: -99, End: 99 };
-    if (!(ev.key in keys)) return;
-    var buttons = Array.prototype.slice.call(pick.querySelectorAll("button"));
-    var at = buttons.indexOf(document.activeElement);
-    if (at < 0) return;
-    ev.preventDefault();
-    var step = keys[ev.key];
-    var next = step === -99 ? 0 : step === 99 ? buttons.length - 1
-      : (at + step + buttons.length) % buttons.length;
-    buttons[next].focus();
-    buttons[next].click();
-  });
-})();
-</script>
+<script src="assets/traces.js"></script>
+<script src="assets/sides.js"></script>
 </body>
 </html>

@@ -194,7 +194,7 @@ window.SEARCH = [
   "lang": "en",
   "page": "Playground",
   "url": "playground.html",
-  "heading": "How a connection is answered",
+  "heading": "Both sides of a request",
   "text": ""
  },
  {
@@ -390,7 +390,7 @@ window.SEARCH = [
   "lang": "zh",
   "page": "演示",
   "url": "zh/playground.html",
-  "heading": "一条连接是怎么被答掉的",
+  "heading": "一次请求的两面",
   "text": ""
  }
 ];

@@ -204,6 +204,8 @@ moon run src/examples/09-tour --target native
 
 `01-hello` serves one route on port 12000. `09-tour` starts real servers, drives
 them with real clients and prints what came back, then stops.
+`11-event-log` wraps an application in a middleware that prints every ASGI message
+it sees, one JSON line each; the playground is recorded from it.
 
 ## Targets
 

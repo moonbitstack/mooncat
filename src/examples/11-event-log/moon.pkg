@@ -1,0 +1,21 @@
+// The application the playground is recorded from: `moon run src/examples/11-event-log --target native`.
+pkgtype(kind: "executable")
+
+import {
+  "moonbitstack/mooncat",
+  "moonbitstack/mooncat/quic",
+  "moonbitstack/moonasgi",
+  "moonbitlang/async",
+  "moonbitlang/async/stdio",
+  "moonbitlang/core/bench",
+  "moonbitlang/core/encoding/utf8",
+}
+
+warnings = "-29"
+
+options(
+  targets: {
+    "main.mbt": [ "native" ],
+    "elsewhere.mbt": [ "js", "wasm", "wasm-gc" ],
+  },
+)
