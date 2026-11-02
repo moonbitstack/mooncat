@@ -227,29 +227,26 @@
   }
 
   /* ---- the mark --------------------------------------------------------
-     There is a cut for daylight and one for the dark theme, and a cut for each
-     language. About one visit in ten the other language turns up, and the page
-     never says so. */
+     Four cuts of the mark: daylight and night, in three spellings — `mooncat`
+     for the English pages, `MoonCat` for the Chinese ones, and `Mooncat` for
+     the visit that comes in one time in ten. The night cuts are the navy
+     tiles; the day cuts are the same art on nothing at all. */
 
   var marks = document.querySelectorAll("img[data-dark]");
   if (marks.length) {
     var swapped = Math.random() < 0.1;
     var syncLogo = function () {
       var theme = root.getAttribute("data-theme") || system();
-      var key = "data-" + (swapped ? "alt-" : "") + theme;
+      var key = "data-" + (swapped ? "egg-" : "") + theme;
       marks.forEach(function (img) {
         var src = img.getAttribute(key);
         if (src && img.getAttribute("src") !== src) {
           img.src = src;
         }
-        if (swapped && img.hasAttribute("data-alt-alt")) {
-          img.alt = img.getAttribute("data-alt-alt");
-        }
       });
-      // The word beside the mark says what the mark says: `mooncat` under one
-      // cut, `MoonCat` under the other.
+      // The word beside the mark says what the mark says.
       document.querySelectorAll("[data-word]").forEach(function (word) {
-        var said = word.getAttribute(swapped ? "data-alt-word" : "data-word");
+        var said = word.getAttribute(swapped ? "data-egg-word" : "data-word");
         if (said && word.textContent !== said) {
           word.textContent = said;
         }

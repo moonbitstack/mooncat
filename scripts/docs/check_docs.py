@@ -204,6 +204,25 @@ def at_rule_blocks(text):
         yield match.group(1), match.end(), i
 
 
+def check_assets():
+    """Every file a page points at is a file: the marks come in six cuts and a
+    typo in one of them is a broken image nobody notices until a visitor does."""
+    seen = 0
+    for page in sorted(DOCS.rglob("*.html")):
+        if page.name.startswith("_"):
+            continue
+        text = page.read_text(encoding="utf-8")
+        for path in re.findall(
+                r'(?:src|href|data-[a-z-]+)="([^"#?:]+\.(?:png|js|css|ico|svg))"', text):
+            if path.startswith(("http", "//")):
+                continue
+            seen += 1
+            if not (page.parent / path).resolve().exists():
+                fail("%s points at %s, which is not there"
+                     % (page.relative_to(DOCS).as_posix(), path))
+    print("  assets: %d references, all present" % seen)
+
+
 def check_search():
     index = DOCS / "assets" / "search-index.js"
     if not index.exists():
@@ -250,6 +269,7 @@ def main():
     items = interfaces()
     check_api(items)
     check_pages()
+    check_assets()
     check_search()
     check_scrollbars()
     if FAILED:
