@@ -314,7 +314,14 @@ input[type="search"]::-ms-clear { display: none; }
   text-decoration: none;
 }
 .head-tools svg { width: 16px; height: 16px; display: block; }
-.head-tools .gh { padding: 0 9px; }
+
+/* Three controls of one size: a square each, so the row reads as a set rather
+   than as three boxes that almost match. */
+.head-tools a,
+.head-tools button {
+  width: 36px;
+  padding: 0;
+}
 
 /* ------------------------------------------------------------------ layout */
 
@@ -697,7 +704,6 @@ table.tbl {
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.76rem;
   letter-spacing: 0.06em;
-  padding: 0 9px;
 }
 
 /* --------------------------------------------------------------- Chinese */
