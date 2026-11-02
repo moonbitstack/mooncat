@@ -174,6 +174,8 @@ def check_pages():
                                       ('id="search-form"', "no search box"),
                                       ("github.com/moonbitstack/mooncat", "no link back to the repository"),
                                       ('class="lang"', "no language switch"),
+                                      ('class="i-sun"', "no sun in the theme button"),
+                                      ('class="i-moon"', "no moon in the theme button"),
                                       ("<title>", "no title")):
                 if needle not in text:
                     fail("%s has %s" % (name, complaint))
