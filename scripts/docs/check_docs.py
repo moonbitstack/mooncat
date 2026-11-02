@@ -79,18 +79,27 @@ def check_api(items):
         fail("docs/api.html is missing - run scripts/docs/gen_api.py")
         return
     raw = page.read_text(encoding="utf-8")
-    text = normalise(raw)
     listed = set(normalise(item) for item in re.findall(r'data-item="([^"]+)"', raw))
+
+    # Each package against its own section: a name that appears in two packages —
+    # `port` is in both the root and `config` — must be in both places, not once.
+    sections = {}
+    for key, body in re.findall(r'<section class="section pkg" id="([^"]+)">(.*?)</section>',
+                                raw, re.S):
+        sections[key] = normalise(body)
 
     missing = 0
     for package, signatures in items.items():
+        key = package.replace("/", "-")
+        body = sections.get(key)
+        if body is None:
+            fail("%s has no section on the API page" % package.replace("moonbitstack/", ""))
+            continue
         for signature in signatures:
-            if signature not in text:
+            if signature not in body:
                 missing += 1
                 if missing <= 10:
-                    fail("%s: not on the API page: %s" % (package, signature[:90]))
-        if 'id="%s"' % package.replace("/", "-") not in raw:
-            fail("%s has no section on the API page" % package.replace("moonbitstack/", ""))
+                    fail("%s: not in its section: %s" % (package, signature[:90]))
     if missing > 10:
         fail("... and %d more items missing" % (missing - 10))
 
