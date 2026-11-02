@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playground — mooncat</title>
+<meta name="description" content="Pick a client and follow the connection: TCP or UDP, the TLS handshake, the ALPN answer, the first bytes, and the loop that serves it.">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header id="header">
+  <div class="wrap">
+    <div class="head">
+      <a class="brand" href="./index.html">
+        <img id="logo" src="assets/icon.png" data-alt="assets/icon-alt.png" alt="mooncat" width="54" height="49">
+        <span class="name">
+          <b>mooncat</b>
+          <span>An ASGI 3.0 server for MoonBit</span>
+        </span>
+      </a>
+      <div class="head-tools">
+        <a href="https://github.com/moonbitstack/mooncat" title="Source on GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        </a>
+        <button id="theme" type="button" aria-label="Switch theme">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 1Zm0 11a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 12Zm7-4a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 15 8ZM4 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 4 8Zm9.02-4.02a.75.75 0 0 1 0 1.06l-1.06 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0ZM5.1 10.9a.75.75 0 0 1 0 1.06L4.04 13.02a.75.75 0 0 1-1.06-1.06L4.04 10.9a.75.75 0 0 1 1.06 0Zm7.92 2.12a.75.75 0 0 1-1.06 0L10.9 11.96a.75.75 0 0 1 1.06-1.06l1.06 1.06a.75.75 0 0 1 0 1.06ZM5.1 5.1a.75.75 0 0 1-1.06 0L2.98 4.04a.75.75 0 0 1 1.06-1.06L5.1 4.04a.75.75 0 0 1 0 1.06ZM8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm0 1.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <nav class="tabs" aria-label="Pages">
+    <div class="wrap">
+      <a href="./index.html">Home</a>
+      <a href="./guide.html">Guide</a>
+      <a href="./api.html">API reference</a>
+      <a href="./playground.html" aria-current="page">Playground</a>
+      <a class="gh" href="https://github.com/moonbitstack/mooncat">GitHub</a>
+    </div>
+  </nav>
+</header>
+
+<main id="middle">
+  <aside id="side">
+    <div class="grp">
+      <h2>mooncat</h2>
+      <ul>
+        <li><a href="./index.html">Home</a></li>
+        <li><a href="./playground.html" aria-current="page">Playground</a></li>
+        <li><a href="./api.html">API reference</a></li>
+      </ul>
+    </div>
+    <div class="grp">
+      <h2>Guide</h2>
+      <ul>
+        <li><a href="./guide.html#first">Your first server</a></li>
+        <li><a href="./guide.html#config">Configuration</a></li>
+        <li><a href="./guide.html#cli">Command line</a></li>
+        <li><a href="./guide.html#tls">TLS</a></li>
+        <li><a href="./guide.html#websocket">WebSocket</a></li>
+        <li><a href="./guide.html#http2">HTTP/2 and h2c</a></li>
+        <li><a href="./guide.html#http3">HTTP/3</a></li>
+        <li><a href="./guide.html#lifespan">Lifespan</a></li>
+        <li><a href="./guide.html#workers">Workers</a></li>
+        <li><a href="./guide.html#proxy">Proxy headers</a></li>
+        <li><a href="./guide.html#extensions">Extensions</a></li>
+      </ul>
+    </div>
+    <div class="grp">
+      <h2>Elsewhere</h2>
+      <ul>
+        <li><a href="https://github.com/moonbitstack/mooncat">GitHub</a></li>
+        <li><a href="https://github.com/moonbitstack/mooncat/issues">Issues</a></li>
+        <li><a href="https://mooncakes.io/docs/moonbitstack/mooncat">mooncakes</a></li>
+      </ul>
+    </div>
+  </aside>
+
+  <div class="content">
+
+    <h1>How a connection is answered</h1>
+    <p class="lede">One port, one application, six ways in. Pick a client and follow it: the socket, the handshake or the preface, the first bytes that decide, and the loop that ends up serving it. Every trace is what the client actually received.</p>
+
+    <div class="pick" id="pick" role="group" aria-label="Choose a client"></div>
+
+    <div class="trace-head" id="command-line"></div>
+
+    <div class="steps" id="steps"></div>
+
+    <h2 class="bar" id="trace-bar">What came back<span class="aside" id="trace-where"></span></h2>
+    <div class="term" id="trace-box">
+      <div class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded</div>
+      <pre id="trace"></pre>
+    </div>
+    <p id="trace-note" class="pkg-desc"></p>
+
+    <div class="note">
+      <p><b>Where these come from.</b> <code>scripts/docs/record_traces.py</code> ran each client against the HTTP/3 example (<code>src/examples/07-http3</code>) and the WebSocket echo example (<code>src/examples/05-websocket-echo</code>), and wrote down what came back. The dates are the dates of that recording. Nothing here is a mock: the application answers with <code>http_version</code>, which is why the body of each trace reads <code>1.1</code>, <code>2</code> or <code>3</code>.</p>
+    </div>
+
+    <div class="pager">
+      <a href="./guide.html">← Guide</a>
+      <a href="./api.html">API reference →</a>
+    </div>
+  </div>
+</main>
+
+<footer id="footer">
+  <div class="wrap">
+    <span>mooncat — Apache-2.0. The API page is generated from the source tree.</span>
+    <span class="links">
+      <a href="./guide.html">Guide</a>
+      <a href="./api.html">API</a>
+      <a href="./playground.html">Playground</a>
+      <a href="https://github.com/moonbitstack/mooncat">GitHub</a>
+    </span>
+  </div>
+</footer>
+
+<script src="assets/negotiation.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var traces = window.TRACES || [];
+  if (!traces.length) return;
+
+  var served = {
+    "h1": "serve · HTTP/1.1",
+    "h2c": "serve · HTTP/2 by preface",
+    "tls-h2": "serve_tls · HTTP/2 by ALPN",
+    "tls-h1": "serve_tls · HTTP/1.1 by ALPN",
+    "ws": "serve · WebSocket",
+    "h3": "quic · HTTP/3"
+  };
+
+  var steps = {
+    clear: [
+      ["TCP connect", "The listener accepts and gives the connection a task of its own."],
+      ["first byte", "It is not 0x16, so this is not a handshake: the connection is served in the clear."],
+      ["request line", "<code>GET / HTTP/1.1</code> — the head is parsed, the body is left on the socket until the application asks for it."],
+      ["the sphere handed over", "A scope describing the request, a <code>receive</code> for the body and a <code>send</code> for the answer."]
+    ],
+    h2c: [
+      ["TCP connect", "The listener accepts and gives the connection a task of its own."],
+      ["preface", "The first bytes are <code>PRI * HTTP/2.0</code>, the client preface — read only as far as the first byte that differs."],
+      ["HTTP/2 loop", "SETTINGS are exchanged, the head is decoded, and the request becomes a stream with a task of its own."],
+      ["the sphere handed over", "One scope per stream; the body arrives as the application takes it, and the window comes back at that pace."]
+    ],
+    tls: [
+      ["TCP connect", "The listener accepts and gives the connection a task of its own."],
+      ["handshake", "The first byte is 0x16: a TLS record. TLS 1.3 runs, under <code>timeout_handshake</code>."],
+      ["ALPN", "The server offers <code>h2</code> and <code>http/1.1</code>; the client answers with one of them."],
+      ["the loop that matched", "The connection becomes an HTTP/2 connection or an HTTP/1.1 one, with <code>scheme</code> <code>https</code>."],
+      ["the sphere handed over", "The same scope an unencrypted request would have produced, plus the TLS extension."]
+    ],
+    ws: [
+      ["TCP connect", "The listener accepts and gives the connection a task of its own."],
+      ["upgrade request", "An ordinary HTTP/1.1 request with <code>Upgrade: websocket</code> and a key."],
+      ["101", "The accept is computed from the key and sent; the connection stops being HTTP."],
+      ["the sphere handed over", "A <code>websocket</code> scope: connect, accept, receive, send, close — over the same socket."]
+    ],
+    udp: [
+      ["UDP datagram", "No connection to accept: the datagram loop routes by connection ID, at the same port number as TCP."],
+      ["QUIC handshake", "TLS 1.3 inside QUIC, ALPN <code>h3</code>."],
+      ["HTTP/3 loop", "One task per request stream; the credit comes back as the application reads."],
+      ["the sphere handed over", "A scope whose <code>http_version</code> is <code>3</code>. Nothing else about it is new."]
+    ]
+  };
+
+  var pick = document.getElementById("pick");
+  var list = document.getElementById("steps");
+  var pre = document.getElementById("trace");
+  var note = document.getElementById("trace-note");
+  var cmd = document.getElementById("command-line");
+  var where = document.getElementById("trace-where");
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  var timers = [];
+
+  function clearTimers() {
+    timers.forEach(clearTimeout);
+    timers = [];
+  }
+
+  function render(trace, button) {
+    clearTimers();
+    pick.querySelectorAll("button").forEach(function (b) {
+      b.setAttribute("aria-pressed", b === button ? "true" : "false");
+    });
+
+    var plan = steps[trace.kind] || steps.clear;
+    list.innerHTML = "";
+    plan.forEach(function (pair, i) {
+      var row = document.createElement("div");
+      row.className = "step";
+      row.innerHTML =
+        '<span class="n">' + String(i + 1).padStart(2, "0") + "</span>" +
+        "<div><h4>" + pair[0] + "</h4><p>" + pair[1] + "</p></div>";
+      list.appendChild(row);
+    });
+
+    cmd.innerHTML = "<span>$</span> <code>" + trace.command + "</code>";
+    pre.textContent = trace.trace;
+    note.textContent = trace.note;
+    where.textContent = served[trace.id] || "";
+
+    var rows = list.querySelectorAll(".step");
+    if (reduce.matches) {
+      rows.forEach(function (r) { r.classList.add("on"); });
+      return;
+    }
+    rows.forEach(function (row, i) {
+      timers.push(setTimeout(function () { row.classList.add("on"); }, 160 + i * 260));
+    });
+  }
+
+  traces.forEach(function (trace, i) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = trace.label;
+    button.addEventListener("click", function () { render(trace, button); });
+    pick.appendChild(button);
+    if (i === 0) render(trace, button);
+  });
+})();
+</script>
+</body>
+</html>

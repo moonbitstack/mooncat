@@ -76,6 +76,8 @@ pub(all) struct H2Config {
 }
 
 ///|
+/// A `H2Config` with every field at its default: 100 concurrent streams, a 64 KiB field block,
+/// 16 KiB frames, and 1 MiB of flow-control window on a stream and on the connection.
 pub fn H2Config::new(
   max_streams~ : Int32 = 100,
   max_header_list~ : Int32 = 1 << 16,

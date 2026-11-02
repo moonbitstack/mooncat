@@ -15,6 +15,8 @@ pub struct Site {
 }
 
 ///|
+/// The configuration the server was started with, which is what the second listener needs to
+/// agree with the first about limits and timeouts.
 pub fn Site::config(self : Site) -> @config.Config {
   self.config
 }

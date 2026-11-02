@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guide — mooncat</title>
+<meta name="description" content="From one application to TLS, WebSocket, HTTP/2, HTTP/3, lifespan, workers and proxy headers.">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header id="header">
+  <div class="wrap">
+    <div class="head">
+      <a class="brand" href="./index.html">
+        <img id="logo" src="assets/icon.png" data-alt="assets/icon-alt.png" alt="mooncat" width="54" height="49">
+        <span class="name">
+          <b>mooncat</b>
+          <span>An ASGI 3.0 server for MoonBit</span>
+        </span>
+      </a>
+      <div class="head-tools">
+        <a href="https://github.com/moonbitstack/mooncat" title="Source on GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        </a>
+        <button id="theme" type="button" aria-label="Switch theme">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 1Zm0 11a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 12Zm7-4a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 15 8ZM4 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 4 8Zm9.02-4.02a.75.75 0 0 1 0 1.06l-1.06 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0ZM5.1 10.9a.75.75 0 0 1 0 1.06L4.04 13.02a.75.75 0 0 1-1.06-1.06L4.04 10.9a.75.75 0 0 1 1.06 0Zm7.92 2.12a.75.75 0 0 1-1.06 0L10.9 11.96a.75.75 0 0 1 1.06-1.06l1.06 1.06a.75.75 0 0 1 0 1.06ZM5.1 5.1a.75.75 0 0 1-1.06 0L2.98 4.04a.75.75 0 0 1 1.06-1.06L5.1 4.04a.75.75 0 0 1 0 1.06ZM8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm0 1.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <nav class="tabs" aria-label="Pages">
+    <div class="wrap">
+      <a href="./index.html">Home</a>
+      <a href="./guide.html" aria-current="page">Guide</a>
+      <a href="./api.html">API reference</a>
+      <a href="./playground.html">Playground</a>
+      <a class="gh" href="https://github.com/moonbitstack/mooncat">GitHub</a>
+    </div>
+  </nav>
+</header>
+
+<main id="middle">
+  <aside id="side">
+    <div class="grp">
+      <h2>mooncat</h2>
+      <ul>
+        <li><a href="./index.html">Home</a></li>
+        <li><a href="./playground.html">Playground</a></li>
+        <li><a href="./api.html">API reference</a></li>
+      </ul>
+    </div>
+    <div class="grp">
+      <h2>Guide</h2>
+      <ul>
+        <li><a href="#first" class="on">Your first server</a></li>
+        <li class="sub"><a href="#scope">The scope</a></li>
+        <li class="sub"><a href="#body">Streaming a body</a></li>
+        <li><a href="#config">Configuration</a></li>
+        <li><a href="#cli">Command line</a></li>
+        <li><a href="#tls">TLS</a></li>
+        <li><a href="#websocket">WebSocket</a></li>
+        <li><a href="#http2">HTTP/2 and h2c</a></li>
+        <li><a href="#http3">HTTP/3</a></li>
+        <li><a href="#lifespan">Lifespan</a></li>
+        <li><a href="#workers">Workers</a></li>
+        <li><a href="#proxy">Proxy headers</a></li>
+        <li><a href="#extensions">Extensions</a></li>
+        <li><a href="#targets">Targets</a></li>
+      </ul>
+    </div>
+    <div class="grp">
+      <h2>Elsewhere</h2>
+      <ul>
+        <li><a href="https://github.com/moonbitstack/mooncat">GitHub</a></li>
+        <li><a href="https://github.com/moonbitstack/mooncat/issues">Issues</a></li>
+        <li><a href="https://mooncakes.io/docs/moonbitstack/mooncat">mooncakes</a></li>
+      </ul>
+    </div>
+  </aside>
+
+  <div class="content">
+
+    <h1>The guide</h1>
+    <p class="lede">One application, then one thing at a time: the configuration, the command line, TLS, WebSocket, HTTP/2, HTTP/3, the lifespan protocol, workers and proxy headers. Every block below compiles, and every terminal is what the run printed.</p>
+
+    <section class="section" id="first">
+      <h2 class="bar">Your first server</h2>
+
+      <p>Add the packages. An application needs the interface package as well as the server:</p>
+      <div class="code">
+        <div class="cap">shell</div>
+        <pre>moon add moonbitstack/mooncat
+moon add moonbitstack/moonasgi</pre>
+      </div>
+
+      <p>An ASGI application is an async function of three arguments: the scope of one request, a way to read the request body, and a way to write the response. The simplest one answers with a status, a header and a body:</p>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(
+      @moonasgi.Event::HttpResponseStart(
+        status=<span class="ty">200</span>,
+        headers=[(<span class="st">"content-type"</span>, <span class="st">"text/plain; charset=utf-8"</span>)],
+        trailers=<span class="k">false</span>,
+      ),
+    )
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"hello from mooncat\n"</span>, more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve(app, host=<span class="st">"127.0.0.1"</span>, port=<span class="ty">12000</span>)
+}</pre>
+      </div>
+
+      <p><code>serve</code> binds the socket and stays in the accept loop until the task is cancelled. Run it and ask it something:</p>
+
+      <div class="code">
+        <div class="cap">shell</div>
+        <pre>moon run src/main --target native
+curl -i http://127.0.0.1:12000/</pre>
+      </div>
+
+      <div class="term">
+        <div class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded</div>
+        <pre><span class="p">$</span> curl --noproxy '*' -i http://127.0.0.1:12000/
+<span class="ok">HTTP/1.1 200 OK</span>
+content-type: text/plain; charset=utf-8
+server: mooncat
+date: Mon, 02 Nov 2026 09:24:29 GMT
+content-length: 29
+
+<span class="o">hello from mooncat</span></pre>
+      </div>
+
+      <p><code>server</code> and <code>date</code> are added by the server to every response, and both can be turned off. <code>content-length</code> is worked out from the body when the response is a single piece; a response in several pieces is chunked instead.</p>
+
+      <h3 class="bar" id="scope">The scope</h3>
+      <p>Each request arrives as a scope, which is where the application finds what it was asked. The fields below are the same on HTTP/1.1, HTTP/2 and HTTP/3 — the versions differ in how the bytes travel, not in what the application is told.</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Field</th><th>On an HTTP request</th><th>On a WebSocket</th></tr></thead>
+          <tbody>
+            <tr><td><code>http_method</code></td><td><code>"GET"</code>, <code>"POST"</code>, …</td><td class="no">—</td></tr>
+            <tr><td><code>path</code> · <code>raw_path</code></td><td>percent-decoded, and the bytes as they came</td><td class="no">—</td></tr>
+            <tr><td><code>query_string</code></td><td>bytes, without the <code>?</code></td><td class="no">—</td></tr>
+            <tr><td><code>headers</code></td><td>lower-cased names, repeated fields kept</td><td><code>headers</code> of the upgrade</td></tr>
+            <tr><td><code>scheme</code></td><td><code>"http"</code> or <code>"https"</code>, after proxy headers</td><td><code>"ws"</code> or <code>"wss"</code></td></tr>
+            <tr><td><code>client</code> · <code>server</code></td><td>the peer and the listener, as <code>(host, port)</code></td><td>the same</td></tr>
+            <tr><td><code>http_version</code></td><td><code>"1.0"</code>, <code>"1.1"</code>, <code>"2"</code>, <code>"3"</code></td><td><code>"1.1"</code></td></tr>
+            <tr><td><code>root_path</code></td><td>what something in front stripped</td><td>the same</td></tr>
+            <tr><td><code>state</code></td><td>a shallow copy of what startup stored</td><td>the same copy</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="bar" id="body">Streaming a body</h3>
+      <p>A request body is not held whole. Each <code>receive()</code> gives the piece that has arrived and says whether more is coming, so an upload of any size passes through in one window's worth of memory:</p>
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (scope, receive, send) =&gt; {
+    guard scope <span class="k">is</span> Http(http) <span class="k">else</span> { <span class="k">return</span> }
+    <span class="k">let mut</span> size = <span class="ty">0</span>
+    <span class="k">for</span> ;; {
+      guard receive() <span class="k">is</span> HttpRequest(body~, more_body~) <span class="k">else</span> { <span class="k">return</span> }
+      size = size + body.length()
+      <span class="k">if</span> !more_body { <span class="k">break</span> }
+    }
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    <span class="k">let</span> line = <span class="st">"\{http.http_method} \{http.path}: \{size} bytes\n"</span>
+    send(@moonasgi.Event::HttpResponseBody(body=@utf8.encode(line), more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve(app, port=<span class="ty">12000</span>)
+}</pre>
+      </div>
+      <p>Answering before the body is read is allowed, and common: the rest of the body is then drained or the connection is closed rather than being mistaken for the next request. Once the body has been delivered, a further <code>receive()</code> waits for the response to finish or the client to leave before it says <code>http.disconnect</code> — a streamed response that watches for the client going away is not cut short.</p>
+    </section>
+
+    <section class="section" id="config">
+      <h2 class="bar">Configuration</h2>
+      <p><code>serve_config</code> takes a <code>Config</code> record instead of the three arguments <code>serve</code> unpacks. Every field has a default, so only what differs from it is written:</p>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"ok"</span>, more_body=<span class="k">false</span>))
+  }
+  <span class="k">let</span> config = @mooncat.Config::new(
+    host=<span class="st">"127.0.0.1"</span>,
+    port=<span class="ty">12000</span>,
+    limit_concurrency=<span class="ty">64</span>,
+    limit_max_requests=<span class="ty">1000</span>,
+    timeout_keep_alive=<span class="ty">5000</span>,
+    server_headers=Map([(<span class="st">"server"</span>, <span class="st">"mooncat"</span>), (<span class="st">"x-app"</span>, <span class="st">"demo"</span>)]),
+  )
+  @mooncat.serve_config(app, config)
+}</pre>
+      </div>
+
+      <h3 class="bar">The fields that matter</h3>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Field</th><th>Default</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>host</code> · <code>port</code></td><td><code>"127.0.0.1"</code> · <code>12000</code></td><td>where the listener binds</td></tr>
+            <tr><td><code>backlog</code></td><td><code>2048</code></td><td>the listen queue; recorded, not applied — the socket layer calls <code>listen</code> itself</td></tr>
+            <tr><td><code>dual_stack</code></td><td><code>false</code></td><td>one IPv6 socket that also accepts IPv4</td></tr>
+            <tr><td><code>max_connections</code></td><td>none</td><td>above this, a client waits at the socket</td></tr>
+            <tr><td><code>limit_concurrency</code></td><td>none</td><td>above this, the request is answered <code>503</code></td></tr>
+            <tr><td><code>limit_max_requests</code></td><td>none</td><td>the server retires once it has served this many</td></tr>
+            <tr><td><code>timeout_keep_alive</code></td><td><code>5000</code> ms</td><td>an idle keep-alive connection is closed after this</td></tr>
+            <tr><td><code>timeout_handshake</code></td><td><code>60000</code> ms</td><td>a TLS handshake that has not finished by then is dropped</td></tr>
+            <tr><td><code>timeout_graceful</code>…</td><td>none</td><td><code>graceful_timeout</code>: how long a drain may take</td></tr>
+            <tr><td><code>max_head_size</code></td><td><code>16384</code></td><td>a request head past this is answered <code>431</code></td></tr>
+            <tr><td><code>server_headers</code></td><td><code>{"server": "mooncat"}</code></td><td>added to every response; empty to send none</td></tr>
+            <tr><td><code>date_header</code></td><td><code>true</code></td><td>stamp a <code>date</code> on every response</td></tr>
+            <tr><td><code>root_path</code></td><td><code>""</code></td><td>the prefix something in front has stripped</td></tr>
+            <tr><td><code>lifespan</code></td><td><code>Auto</code></td><td><code>Auto</code>, <code>On</code> or <code>Off</code></td></tr>
+            <tr><td><code>cleartext</code></td><td><code>true</code></td><td>on a TLS port, also serve connections that do not start with a handshake</td></tr>
+            <tr><td><code>workers</code></td><td><code>1</code></td><td>processes on one port; see below</td></tr>
+            <tr><td><code>ws</code> · <code>h2</code></td><td>see below</td><td>the two protocol-specific groups</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <p><b>Two ways to say the same thing.</b> <code>Config::new(..)</code> builds a record; a field can also be replaced on an existing one — <code>{ ..config, port: 9000 }</code> — which is how a program adjusts what the command line produced.</p>
+      </div>
+    </section>
+
+    <section class="section" id="cli">
+      <h2 class="bar">Command line</h2>
+      <p><code>@cli.run(app)</code> is a whole server program: it reads the process arguments, builds the configuration, and serves. Nothing else is needed in <code>main</code>.</p>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"served from the command line"</span>, more_body=<span class="k">false</span>))
+  }
+  @cli.run(app)
+}</pre>
+      </div>
+
+      <div class="code">
+        <div class="cap">shell</div>
+        <pre>moon run src/main --target native -- --port 9000 --log-level debug
+moon run src/main --target native -- --help</pre>
+      </div>
+
+      <p>Every flag is optional and has the same meaning it has in a Python server of the same shape:</p>
+
+      <div class="term">
+        <div class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded — the --help of a program that calls run(app)</div>
+        <pre><span class="p">$</span> ./app --help
+Usage: mooncat [options]
+
+Serve an ASGI application over HTTP/1.1, HTTP/2, HTTPS or HTTP/3.
+
+Options:
+  -h, --help                                                       Show help information.
+  -V, --version                                                    Show version information.
+  <span class="c">--[no-]date-header</span>                                               stamp a Date header on every response
+  <span class="c">--[no-]server-header</span>                                             stamp a Server header
+  <span class="c">--[no-]proxy-headers</span>                                             believe X-Forwarded-* from the allowed peers
+  <span class="c">--[no-]access-log</span>                                                log one line per request
+  <span class="c">--[no-]reuse-addr</span>                                                set SO_REUSEADDR on the listener
+  --dual-stack                                                     accept IPv4 and IPv6 on one socket
+  <span class="c">--[no-]cleartext</span>                                                 serve the clear beside TLS on the TLS port
+  --h2c                                                            speak HTTP/2 in the clear instead of HTTP/1.1
+  --http3                                                          serve HTTP/3 on UDP beside HTTPS, on the same port
+  --host <span class="dim">&lt;host&gt;</span>                                                    address to bind [env: MOONCAT_HOST]
+  --port <span class="dim">&lt;port&gt;</span>                                                    port to bind [env: MOONCAT_PORT]
+  --workers <span class="dim">&lt;workers&gt;</span>                                              processes to serve from (Linux) [env: WEB_CONCURRENCY]
+  --limit-concurrency <span class="dim">&lt;limit-concurrency&gt;</span>                          refuse with 503 above this many in flight
+  --limit-max-requests <span class="dim">&lt;limit-max-requests&gt;</span>                        stop serving after this many requests
+  --timeout-keep-alive <span class="dim">&lt;timeout-keep-alive&gt;</span>                        seconds an idle keep-alive connection is held
+  --forwarded-allow-ips <span class="dim">&lt;forwarded-allow-ips&gt;</span>                      comma-separated peers whose forwarded headers count
+  --lifespan <span class="dim">&lt;lifespan&gt;</span>                                            auto, on or off
+  --ssl-certfile <span class="dim">&lt;ssl-certfile&gt;</span>                                    PEM certificate; serves HTTPS
+  --ssl-keyfile <span class="dim">&lt;ssl-keyfile&gt;</span>                                      PEM private key; serves HTTPS
+  --ssl-ciphers <span class="dim">&lt;ssl-ciphers&gt;</span>                                      TLS 1.3 and 1.2 suites to accept by IANA name, colon-separated, best first</pre>
+      </div>
+
+      <p>A flag the transport cannot honour is answered with the reason, not with "unexpected argument". Silently ignoring it would be worse: the program would start and behave as if the option had been read.</p>
+
+      <div class="term">
+        <div class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded</div>
+        <pre><span class="p">$</span> ./app --uds /tmp/app.sock
+<span class="o">mooncat: --uds: the async transport binds TCP only</span></pre>
+      </div>
+
+      <p>Reading the arguments without serving is <code>@cli.parse(argv)</code>, which returns the plan — a <code>Config</code>, whether to wrap it in TLS, whether to speak h2c — and opens nothing:</p>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">fn</span> main {
+  <span class="k">let</span> plan = @cli.parse(@env.args()[<span class="ty">1</span>:]) <span class="k">catch</span> {
+    err =&gt; {
+      println(<span class="st">"\{err}"</span>)
+      <span class="k">return</span>
+    }
+  }
+  println(<span class="st">"bind   \{plan.config.bind()}"</span>)
+  println(<span class="st">"h2c    \{plan.h2c}"</span>)
+  println(<span class="st">"http3  \{plan.http3}"</span>)
+}</pre>
+      </div>
+    </section>
+
+    <section class="section" id="tls">
+      <h2 class="bar">TLS</h2>
+      <p><code>serve_tls</code> serves the same application over TLS 1.3. The certificate and the key are PEM files, read once at startup; a key that is not the certificate's is refused there rather than at the first handshake.</p>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"over tls"</span>, more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve_tls(
+    app,
+    certificate_file=<span class="st">"src/certs/cert.pem"</span>, <span class="cm">// the leaf first, then any intermediates</span>
+    private_key_file=<span class="st">"src/certs/key.pem"</span>,  <span class="cm">// PKCS#8, SEC1 or PKCS#1</span>
+    port=<span class="ty">12000</span>,
+  )
+}</pre>
+      </div>
+
+      <p>The listener offers <code>h2</code> and <code>http/1.1</code> by ALPN in the same handshake, so the client picks the version and the server follows it:</p>
+
+      <div class="term">
+        <div class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded — openssl s_client against the listener</div>
+        <pre><span class="p">$</span> openssl s_client -connect 127.0.0.1:12000 -alpn h2,http/1.1
+Protocol: TLSv1.3
+Cipher is TLS_CHACHA20_POLY1305_SHA256
+ALPN protocol: h2</pre>
+      </div>
+
+      <p>Both versions come back from the same port, the same certificate and the same application:</p>
+
+      <div class="term">
+        <div class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded</div>
+        <pre><span class="p">$</span> curl -k --http2 https://127.0.0.1:12000/
+<span class="ok">HTTP/2 200</span>
+content-type: text/plain
+server: mooncat
+alt-svc: h3=":12000"; ma=86400
+date: Mon, 02 Nov 2026 09:25:21 GMT
+
+<span class="o">2 GET / 0</span>
+
+<span class="p">$</span> curl -k --http1.1 https://127.0.0.1:12000/
+<span class="ok">HTTP/1.1 200 OK</span>
+content-type: text/plain
+server: mooncat
+alt-svc: h3=":12000"; ma=86400
+date: Mon, 02 Nov 2026 09:25:22 GMT
+content-length: 12
+
+<span class="o">1.1 GET / 0</span></pre>
+      </div>
+
+      <p>The same port answers the clear as well, by default: a connection whose first byte is not a TLS record is served HTTP/1.1 or h2c with <code>scheme</code> <code>"http"</code>. <code>cleartext=false</code> — <code>--no-cleartext</code> on the command line — makes the port TLS only.</p>
+
+      <div class="note">
+        <p><b>Your own TLS server.</b> <code>serve_tls_server</code> takes a <code>@tls.Server</code> the caller has built, for other suites, groups or ALPN lists. <code>TlsCert::load</code> builds the one <code>serve_tls</code> uses.</p>
+      </div>
+    </section>
+
+    <section class="section" id="websocket">
+      <h2 class="bar">WebSocket</h2>
+      <p>An upgrade is a request like any other until the handshake completes; then the scope is a <code>websocket</code> scope and the same receive/send pair speaks frames. <code>ws://</code> and <code>wss://</code> share one path.</p>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (scope, receive, send) =&gt; {
+    guard scope <span class="k">is</span> WebSocket(_) <span class="k">else</span> { <span class="k">return</span> }
+    <span class="k">for</span> ;; {
+      <span class="k">match</span> receive() {
+        WebSocketConnect =&gt;
+          send(@moonasgi.Event::WebSocketAccept(subprotocol=None, headers=[]))
+        WebSocketReceive(text=Some(text), ..) =&gt;
+          send(@moonasgi.Event::WebSocketSendText(text))
+        WebSocketReceive(bytes=Some(bytes), ..) =&gt;
+          send(@moonasgi.Event::WebSocketSendBytes(bytes))
+        WebSocketDisconnect(..) =&gt; <span class="k">break</span>
+        _ =&gt; ()
+      }
+    }
+  }
+  @mooncat.serve(app, port=<span class="ty">9001</span>)
+}</pre>
+      </div>
+
+      <p>The handshake, recorded against that server:</p>
+      <div class="term">
+        <div class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded — curl 8.21 speaking ws://</div>
+        <pre><span class="p">$</span> curl -v ws://127.0.0.1:9001/
+&gt; GET / HTTP/1.1
+&gt; Host: 127.0.0.1:9001
+&gt; Upgrade: websocket
+&gt; Sec-WebSocket-Version: 13
+&gt; Sec-WebSocket-Key: D/NLFJQ2oY2kcWKtAc1kUg==
+&gt; Connection: Upgrade
+&lt; <span class="ok">HTTP/1.1 101 Switching Protocols</span>
+&lt; Upgrade: websocket
+&lt; Connection: Upgrade
+&lt; Sec-WebSocket-Accept: ujJCyRitqg7NDMxhzmBTEBtTRhI=</pre>
+      </div>
+
+      <p>The framing is enforced rather than trusted: a set RSV bit, a reserved opcode, an unmasked client frame or a malformed control frame fails the connection with <code>1002</code>; a message past <code>ws.max_size</code> is refused with <code>1009</code> before the payload is read; invalid UTF-8 in a text message fails it with <code>1007</code>; a peer close is echoed as the specification asks.</p>
+
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th><code>Config.ws</code></th><th>Default</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>max_size</code></td><td>16 MiB</td><td>the largest message accepted</td></tr>
+            <tr><td><code>max_queue</code></td><td>32</td><td>messages waiting for the application; full stops the read, so the client is held back by TCP</td></tr>
+            <tr><td><code>ping_interval</code></td><td>20000 ms</td><td>a keepalive ping goes out this often; <code>None</code> turns it off</td></tr>
+            <tr><td><code>ping_timeout</code></td><td>20000 ms</td><td>a peer that misses it is closed with <code>1011</code></td></tr>
+            <tr><td><code>deflate</code></td><td><code>true</code></td><td>accept <code>permessage-deflate</code> when the client offers it</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Pings are answered and not passed to the application. Rejecting the upgrade before <code>WebSocketAccept</code> answers <code>403</code>.</p>
+    </section>
+
+    <section class="section" id="http2">
+      <h2 class="bar">HTTP/2 and h2c</h2>
+      <p><code>serve</code> and <code>serve_tls</code> already speak HTTP/2 beside HTTP/1.1 on the same port: under TLS the client names <code>h2</code> in ALPN; in the clear a connection that opens with the HTTP/2 preface is served HTTP/2, which is what <code>--http2-prior-knowledge</code> sends. Nothing in the application changes.</p>
+
+      <div class="term">
+        <div class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded — the same application, no TLS, no upgrade</div>
+        <pre><span class="p">$</span> curl --http2-prior-knowledge http://127.0.0.1:12000/
+<span class="ok">HTTP/2 200</span>
+content-type: text/plain; charset=utf-8
+server: mooncat
+date: Mon, 02 Nov 2026 09:24:29 GMT
+
+<span class="o">hello from mooncat</span></pre>
+      </div>
+
+      <p><code>serve_h2c</code> is a listener that speaks HTTP/2 and nothing else — no sniffing, no HTTP/1.1 fallback:</p>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"h2 only"</span>, more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve_h2c(app, host=<span class="st">"127.0.0.1"</span>, port=<span class="ty">12000</span>)
+}</pre>
+      </div>
+
+      <p>Each stream runs the application in a task of its own, so a slow handler holds up only its own stream. A request body arrives as the application asks for it, and a stream's window comes back at that pace, so a client cannot run further ahead than one window.</p>
+
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th><code>Config.h2</code></th><th>Default</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>max_streams</code></td><td>100</td><td>concurrent streams; more are refused with <code>REFUSED_STREAM</code></td></tr>
+            <tr><td><code>max_header_list</code></td><td>64 KiB</td><td>fields allowed in one head</td></tr>
+            <tr><td><code>max_frame</code></td><td>16 KiB</td><td>the largest frame the server will send</td></tr>
+            <tr><td><code>window</code></td><td>1 MiB</td><td>flow-control window of one stream</td></tr>
+            <tr><td><code>connection_window</code></td><td>1 MiB</td><td>flow-control window of the connection</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The limits that apply to HTTP/1.1 apply per stream: past <code>limit_concurrency</code> a stream is answered <code>503</code>, every stream counts toward <code>limit_max_requests</code>, and a connection with no stream open for <code>timeout_keep_alive</code> is sent a <code>GOAWAY</code>. A client's <code>RST_STREAM</code> reaches the application as <code>http.disconnect</code>. A failure before the response starts is a <code>500</code>; after it, the stream is reset with <code>INTERNAL_ERROR</code>.</p>
+    </section>
+
+    <section class="section" id="http3">
+      <h2 class="bar">HTTP/3</h2>
+      <p>HTTP/3 is the UDP half, at the same port number as the TCP listener. <code>@quic.serve_config</code> takes the same application and the same <code>Config</code>, plus the certificate, and runs both halves under one lifespan and one shutdown:</p>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (scope, receive, send) =&gt; {
+    guard scope <span class="k">is</span> Http(http) <span class="k">else</span> { <span class="k">return</span> }
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    <span class="k">let</span> line = <span class="st">"\{http.http_version} \{http.http_method} \{http.path}\n"</span>
+    send(@moonasgi.Event::HttpResponseBody(body=@utf8.encode(line), more_body=<span class="k">false</span>))
+  }
+  @quic.serve_config(app, @mooncat.Config::new(port=<span class="ty">12000</span>), {
+    certificate_file: <span class="st">"src/certs/cert.pem"</span>,
+    private_key_file: <span class="st">"src/certs/key.pem"</span>,
+  })
+}</pre>
+      </div>
+
+      <p>Every HTTP/1.1 and HTTP/2 response then carries <code>alt-svc</code>, which is how a client learns the UDP port exists. A client that already knows asks for it directly:</p>
+
+      <div class="term">
+        <div class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded — a QUIC client against the same port</div>
+        <pre><span class="p">$</span> python h3trace.py   # an HTTP/3 client, ALPN h3
+<span class="ok">:status     200</span>
+content-type text/plain
+server      mooncat
+alt-svc     h3=":12000"; ma=86400
+date        Mon, 02 Nov 2026 09:25:39 GMT
+
+<span class="o">3 GET / 0</span></pre>
+      </div>
+
+      <p>The application answered <code>"3"</code> for <code>http_version</code>: it does not know or care which of the three it is being asked over. Each request stream runs in a task of its own, a body reaches the application as it asks for it, and a response is paced by what the client has acknowledged.</p>
+
+      <div class="note">
+        <p><b>One process.</b> HTTP/3 runs in a single process: a UDP port cannot yet be shared between workers, so <code>--http3</code> with <code>--workers</code> above 1 is refused. On shutdown clients are sent a <code>GOAWAY</code> and the streams already taken run out under <code>timeout_graceful_shutdown</code>.</p>
+      </div>
+    </section>
+
+    <section class="section" id="lifespan">
+      <h2 class="bar">Lifespan</h2>
+      <p>The application is invoked once before the listener binds, under a <code>Lifespan</code> scope, and once more on the way out. That is where a connection pool is opened and closed. <code>Config.lifespan</code> decides how strictly this is enforced:</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Mode</th><th>Behaviour</th></tr></thead>
+          <tbody>
+            <tr><td><code>Auto</code></td><td>run it; an application that fails on the lifespan scope is served anyway</td></tr>
+            <tr><td><code>On</code></td><td>run it; an application that fails on it stops the server from starting</td></tr>
+            <tr><td><code>Off</code></td><td>do not run it at all</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let mut</span> pool = <span class="st">""</span>
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (scope, receive, send) =&gt; {
+    <span class="k">match</span> scope {
+      Lifespan(_) =&gt;
+        <span class="k">for</span> ;; {
+          <span class="k">match</span> receive() {
+            LifespanStartup =&gt; {
+              pool = <span class="st">"connected"</span>
+              send(@moonasgi.Event::LifespanStartupComplete)
+            }
+            LifespanShutdown =&gt; {
+              pool = <span class="st">"closed"</span>
+              send(@moonasgi.Event::LifespanShutdownComplete)
+              <span class="k">break</span>
+            }
+            _ =&gt; ()
+          }
+        }
+      _ =&gt; {
+        send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+        send(@moonasgi.Event::HttpResponseBody(body=@utf8.encode(pool), more_body=<span class="k">false</span>))
+      }
+    }
+  }
+  @mooncat.serve_config(app, @mooncat.Config::new(port=<span class="ty">12000</span>, lifespan=On))
+}</pre>
+      </div>
+
+      <p>Whatever startup puts into the scope's <code>state</code> reaches every HTTP and WebSocket scope as a shallow copy, so a shared pool is reachable without a global. Shutdown runs even when the serving task is cancelled, which is what a signal sends.</p>
+
+      <div class="note">
+        <p><b>Order, and how it is kept.</b> A request still in flight when shutdown is asked for is allowed to finish — the client still sees its <code>200</code> — before lifespan shutdown runs, and the listener closes only afterwards.</p>
+      </div>
+    </section>
+
+    <section class="section" id="workers">
+      <h2 class="bar">Workers</h2>
+      <p><code>workers</code> runs the program several times and shares the port between the copies. The process that was started serves nothing itself: it supervises.</p>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"ok"</span>, more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve_config(app, @mooncat.Config::new(port=<span class="ty">12000</span>, workers=<span class="ty">4</span>))
+}</pre>
+      </div>
+
+      <p>Each worker binds the port itself and runs its own lifespan; the kernel spreads connections across them. A worker that dies is replaced, which is also how <code>limit_max_requests</code> retires one. A worker that cannot start ends the supervisor with exit code 3. Stopping the supervisor stops them all, each given <code>timeout_graceful_shutdown</code> to drain.</p>
+      <p>This is Linux only: only there does the kernel balance connections across several sockets bound to one port, and the process model needs to hand a child a listening socket. On other systems the setting is refused rather than quietly honoured for one process. <code>WEB_CONCURRENCY</code> in the environment sets the number when the flag is absent.</p>
+    </section>
+
+    <section class="section" id="proxy">
+      <h2 class="bar">Proxy headers</h2>
+      <p>Behind a load balancer the peer address is the balancer's, and the scheme is whatever the balancer terminated. <code>proxy_headers</code> makes the server believe <code>X-Forwarded-For</code>, <code>X-Forwarded-Proto</code> and <code>Forwarded</code> — but only from the peers named in <code>forwarded_allow_ips</code>. A request from anywhere else is described by its own address, however it is labelled.</p>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (scope, receive, send) =&gt; {
+    guard scope <span class="k">is</span> Http(http) <span class="k">else</span> { <span class="k">return</span> }
+    <span class="k">let</span> who = <span class="k">match</span> http.client {
+      Some((host, _port)) =&gt; <span class="st">"\{http.scheme} from \{host}"</span>
+      None =&gt; <span class="st">"nowhere"</span>
+    }
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=@utf8.encode(who), more_body=<span class="k">false</span>))
+  }
+  @mooncat.serve_config(app, @mooncat.Config::new(
+    port=<span class="ty">12000</span>,
+    proxy_headers=<span class="k">true</span>,
+    forwarded_allow_ips=[<span class="st">"127.0.0.1"</span>, <span class="st">"10.0.0.0"</span>],
+  ))
+}</pre>
+      </div>
+
+      <p><code>*</code> in <code>forwarded_allow_ips</code> trusts every peer, which is only safe when the socket is not reachable from anywhere else. <code>proxy_rewrite</code> is the same decision as a function, for a program that wants it outside the server.</p>
+    </section>
+
+    <section class="section" id="extensions">
+      <h2 class="bar">Extensions</h2>
+      <p>An HTTP scope advertises the extensions the server honours, on all three versions:</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Extension</th><th>What the server does</th></tr></thead>
+          <tbody>
+            <tr><td><code>http.response.early_hint</code></td><td>a <code>103 Early Hints</code> goes out before the answer, one <code>link</code> field per link</td></tr>
+            <tr><td><code>http.response.trailers</code></td><td>a response started with <code>trailers=true</code> is chunked and its trailers ride in the last chunk; on HTTP/2 they are the closing HEADERS frame</td></tr>
+            <tr><td><code>tls</code></td><td>on a TLS connection: <code>tls_version</code>, <code>cipher_suite</code>, and the server's certificate as PEM</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="code">
+        <div class="cap">src/main.mbt</div>
+        <pre><span class="k">async fn</span> main {
+  <span class="k">let</span> app : @moonasgi.AsgiApp = (_scope, _receive, send) =&gt; {
+    send(@moonasgi.Event::HttpResponseEarlyHint(links=[<span class="st">"&lt;/style.css&gt;; rel=preload; as=style"</span>]))
+    send(@moonasgi.Event::HttpResponseStart(
+      status=<span class="ty">200</span>,
+      headers=[(<span class="st">"content-type"</span>, <span class="st">"text/plain"</span>)],
+      trailers=<span class="k">true</span>,
+    ))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"body first"</span>, more_body=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseTrailers(headers=[(<span class="st">"x-checksum"</span>, <span class="st">"42"</span>)], more_trailers=<span class="k">false</span>))
+  }
+  @mooncat.serve(app, port=<span class="ty">12000</span>)
+}</pre>
+      </div>
+      <p>A <code>103</code> is not sent to an HTTP/1.0 client, and trailers are not sent to one either: it has nowhere to put them.</p>
+    </section>
+
+    <section class="section" id="targets">
+      <h2 class="bar">Targets</h2>
+      <p>Serving runs wherever the async sockets are available: the native and wasm backends, and the test suite runs on both. On js and wasm-gc the configuration, lifespan and proxy packages build and the serving packages are empty, so a program that only parses a configuration still compiles there. The QUIC half is native only.</p>
+      <div class="pager">
+        <a href="./index.html">← Home</a>
+        <a href="./api.html">API reference →</a>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer id="footer">
+  <div class="wrap">
+    <span>mooncat — Apache-2.0. The API page is generated from the source tree.</span>
+    <span class="links">
+      <a href="./guide.html">Guide</a>
+      <a href="./api.html">API</a>
+      <a href="./playground.html">Playground</a>
+      <a href="https://github.com/moonbitstack/mooncat">GitHub</a>
+    </span>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+</body>
+</html>

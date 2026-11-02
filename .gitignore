@@ -5,3 +5,4 @@ _*
 target/
 
 examples/*/pkg.generated.mbti
+src/snippets-check/

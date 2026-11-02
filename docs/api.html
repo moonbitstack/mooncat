@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API reference — mooncat</title>
+<meta name="description" content="Every public type, function, constant and method of mooncat, generated from the package interfaces.">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header id="header">
+  <div class="wrap">
+    <div class="head">
+      <a class="brand" href="./index.html">
+        <img id="logo" src="assets/icon.png" data-alt="assets/icon-alt.png" alt="mooncat" width="54" height="49">
+        <span class="name">
+          <b>mooncat</b>
+          <span>An ASGI 3.0 server for MoonBit</span>
+        </span>
+      </a>
+      <div class="head-tools">
+        <a href="https://github.com/moonbitstack/mooncat" title="Source on GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        </a>
+        <button id="theme" type="button" aria-label="Switch theme">
+          <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 1Zm0 11a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5A.75.75 0 0 1 8 12Zm7-4a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 15 8ZM4 8a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5A.75.75 0 0 1 4 8Zm9.02-4.02a.75.75 0 0 1 0 1.06l-1.06 1.06a.75.75 0 1 1-1.06-1.06l1.06-1.06a.75.75 0 0 1 1.06 0ZM5.1 10.9a.75.75 0 0 1 0 1.06L4.04 13.02a.75.75 0 0 1-1.06-1.06L4.04 10.9a.75.75 0 0 1 1.06 0Zm7.92 2.12a.75.75 0 0 1-1.06 0L10.9 11.96a.75.75 0 0 1 1.06-1.06l1.06 1.06a.75.75 0 0 1 0 1.06ZM5.1 5.1a.75.75 0 0 1-1.06 0L2.98 4.04a.75.75 0 0 1 1.06-1.06L5.1 4.04a.75.75 0 0 1 0 1.06ZM8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm0 1.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <nav class="tabs" aria-label="Pages">
+    <div class="wrap">
+      <a href="./index.html">Home</a>
+      <a href="./guide.html">Guide</a>
+      <a href="./api.html" aria-current="page">API reference</a>
+      <a href="./playground.html">Playground</a>
+      <a class="gh" href="https://github.com/moonbitstack/mooncat">GitHub</a>
+    </div>
+  </nav>
+</header>
+
+<main id="middle">
+<aside id="side"><div class="grp"><h2>Packages</h2><ul>
+<li><a href="#moonbitstack-mooncat">mooncat (25)</a></li>
+<li><a href="#moonbitstack-mooncat-config">mooncat/config (19)</a></li>
+<li><a href="#moonbitstack-mooncat-lifespan">mooncat/lifespan (6)</a></li>
+<li><a href="#moonbitstack-mooncat-proxy">mooncat/proxy (1)</a></li>
+<li><a href="#moonbitstack-mooncat-serve">mooncat/serve (27)</a></li>
+<li><a href="#moonbitstack-mooncat-cli">mooncat/cli (10)</a></li>
+<li><a href="#moonbitstack-mooncat-quic">mooncat/quic (11)</a></li>
+</ul></div>
+<div class="grp"><h2>mooncat</h2><ul><li><a href="./index.html">Home</a></li><li><a href="./playground.html">Playground</a></li><li><a href="./api.html">API reference</a></li></ul></div>
+<div class="grp"><h2>Elsewhere</h2><ul><li><a href="https://github.com/moonbitstack/mooncat">GitHub</a></li><li><a href="https://moonbitstack.github.io/mooncat/">Docs</a></li></ul></div></aside>
+<div class="content">
+<h1>API reference</h1>
+<p class="lede">Every public item of every package, in the order the compiler lists them. Generated from the package interfaces by <code>scripts/docs/gen_api.py</code>; the prose is the <code>///</code> comment beside each declaration.</p>
+<section class="section pkg" id="moonbitstack-mooncat">
+<h2 class="bar">mooncat<span class="aside">25 items</span></h2>
+<p class="pkg-desc">The entry points, re-exported: what a program that serves one application needs, and nothing it does not.</p>
+<h3 class="bar">Values</h3>
+<details class="item" id="mooncat--http_date" data-item="pub fn http_date(Int64) -&gt; String">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn http_date(Int64) -&gt; String</span></summary>
+<div class="body">
+<p>Format a Unix-epoch millisecond count as an HTTP-date in the IMF-fixdate form RFC 7231 §7.1.1.1 makes mandatory for a <code>Date</code> header: <code>Sun, 06 Nov 1994 08:49:37 GMT</code>, always GMT, always fixed-width.</p><p>The calendar and the format are moondate&#x27;s; what is here is the millisecond clock mooncat reads, brought down to the whole second the header is written to.</p>
+</div></details>
+<details class="item" id="mooncat--http_date_now" data-item="pub fn http_date_now() -&gt; String">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn http_date_now() -&gt; String</span></summary>
+<div class="body">
+<p>The current instant as an HTTP-date, reformatted only when the epoch second has moved on.</p>
+</div></details>
+<details class="item" id="mooncat--port" data-item="pub let port : Int32">
+<summary><span class="caret"></span><span class="kind">let</span><span class="sig">let port : Int32</span></summary>
+<div class="body">
+<p>The default port for the TCP serving entry points.</p><p>HTTP/1.1, WebSocket upgrades and HTTP/2 share one listener, told apart by ALPN under TLS and by the HTTP/2 preface in the clear. <code>quic_serve</code> takes an explicit UDP address; it may use the same number because UDP and TCP have separate port spaces.</p>
+</div></details>
+<details class="item" id="mooncat--proxy_rewrite" data-item="pub fn proxy_rewrite(Map[String, String], (String, Int32)?, String, trusted~ : Array[String], websocket? : Bool) -&gt; ((String, Int32)?, String)">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn proxy_rewrite(Map[String, String], (String, Int32)?, String, trusted~ : Array[String], websocket? : Bool) -&gt; ((String, Int32)?, String)</span></summary>
+<div class="body">
+<p>Rewrite a request&#x27;s <code>client</code> and <code>scheme</code> from a trusted proxy&#x27;s forwarding headers (← uvicorn&#x27;s <code>ProxyHeadersMiddleware</code>).</p><p>Nothing is rewritten unless the peer itself is trusted: these headers are attacker-controlled, and believing them from an arbitrary client lets that client name any address it likes for a rate limiter, an allowlist or an audit log. Behind a proxy the peer is the proxy, which is why <code>forwarded_allow_ips</code> defaults to <code>127.0.0.1</code> and not to <code>*</code>.</p><p><code>X-Forwarded-For</code> yields the chain&#x27;s leftmost entry with port <code>0</code>, since a forwarded chain carries no port. <code>X-Forwarded-Proto</code> replaces the scheme, mapped to <code>wss</code>/<code>ws</code> for a WebSocket scope, whose scheme names differ from the <code>https</code>/<code>http</code> the header spells.</p>
+</div></details>
+<details class="item" id="mooncat--read_frame" data-item="pub async fn read_frame(&amp;@io.Reader, client? : Bool, limit? : Int32) -&gt; @ws.Frame">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn read_frame(&amp;@io.Reader, client? : Bool, limit? : Int32) -&gt; @ws.Frame</span></summary>
+<div class="body">
+<p>One frame off a stream (RFC 6455 §5.2).</p><p>The header is read in the order the format is laid out — two bytes, then the extended length, then the mask — and <code>@ws.check</code> runs on the header before the payload is read, so an enormous announced length is refused rather than allocated.</p><p><code>client</code> is the server&#x27;s position by default: a client&#x27;s frames must be masked (§5.1), so reading a server&#x27;s frames takes <code>client=false</code>. Raises <code>@ws.Refused</code> carrying the status the connection is then failed with, and passes the stream&#x27;s end through.</p>
+</div></details>
+<details class="item" id="mooncat--read_message" data-item="pub async fn read_message(&amp;@io.Reader, &amp;@io.Writer, limit? : Int32) -&gt; @ws.Message">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn read_message(&amp;@io.Reader, &amp;@io.Writer, limit? : Int32) -&gt; @ws.Message</span></summary>
+<div class="body">
+<p>One complete message off a stream, with the control frames between its fragments handled: a ping is answered on <code>writer</code>, a pong is dropped, and a close is echoed before the message comes back as that close.</p><p>This is the server&#x27;s receive path, so every frame must arrive masked. The reply frames go out unmasked because a server must not mask (§5.1).</p>
+</div></details>
+<details class="item" id="mooncat--reload_watch" data-item="pub async fn reload_watch(String, async () -&gt; Unit) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn reload_watch(String, async () -&gt; Unit) -&gt; Unit</span></summary>
+<div class="body">
+<p>Watch <code>path</code> for source changes and fire <code>on_reload</code> on each batch of events (← uvicorn&#x27;s <code>--reload</code> file watcher). Backed by <code>@fs.Watcher</code>, which debounces and reports child-file events, so a save to any file under <code>path</code> triggers one reload. <code>on_reload</code> is where a supervisor re-execs the server; wiring it to a <code>ShutdownHandle</code> turns a file save into a graceful restart. Loops until its task is cancelled, always closing the watcher.</p>
+</div></details>
+<details class="item" id="mooncat--serve" data-item="pub async fn serve(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve under a plan already parsed, for a program that wants to look at the plan — or change it — before the socket opens.</p>
+</div></details>
+<details class="item" id="mooncat--serve_config" data-item="pub async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port: the TCP side tells clients about HTTP/3 with <code>alt-svc</code> (RFC 7838). One process only, since a UDP port cannot yet be shared across workers.</p>
+</div></details>
+<details class="item" id="mooncat--serve_graceful" data-item="pub async fn serve_graceful(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, handle? : @serve.ShutdownHandle) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_graceful(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, handle? : @serve.ShutdownHandle) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi application with a uvicorn-style process model: a graceful shutdown path over a single acceptor that spawns a concurrent handler per connection.</p><p>The lifespan protocol runs startup before the listener binds and shutdown on the way out. A single acceptor task spawns one handler task per connection, so requests are served concurrently, each through mooncat&#x27;s HTTP/1.1 codec and, on an upgrade, its WebSocket bridge. <code>serve</code>, <code>serve_config</code> and <code>serve_tls_config</code> run this same loop; this entry point adds the handle.</p><p>Shutdown is triggered by <code>handle.shutdown()</code> / <code>handle.request_stop()</code>, by reaching <code>Config::limit_max_requests</code>, or by a signal the runtime turns into global cancellation (see the boundary note below). All three converge on one sequence, run under <code>protect_from_cancel</code> so a signal can&#x27;t abort it midway: stop accepting (cancel the acceptor), drain in-flight requests (bounded by <code>Config::graceful_timeout</code>), run the ASGI lifespan shutdown, then close the listener.</p><p>The acceptor honours the connection ceilings: <code>max_connections</code> gates accepting, so a full server leaves the next client in the listen queue rather than accepting it and sitting on it, and <code>allow_failure</code> decides whether one bad connection is contained or brings the server down. <code>limit_concurrency</code> is the other kind of ceiling — a request arriving past it is answered <code>503</code> rather than queued.</p><p>## Several workers</p><p>With <code>Config::workers</code> above 1 this process only supervises: see <code>supervise</code>. Each worker comes back through this same function, binds the port under <code>SO_REUSEPORT</code>, and serves as described here.</p><p>## Signal boundary</p><p>The only signal hook <code>moonbitlang/async</code> exposes is <code>@signal.set_global_cancellation_signals</code>, which cancels the whole task tree on SIGINT/SIGTERM. mooncat catches that cancellation and still runs lifespan shutdown and closes the listener under <code>protect_from_cancel</code>; but a signal also cancels the in-flight handler tasks, so drain-before-close is only fully honoured on the programmatic <code>ShutdownHandle</code> path. That matches uvicorn&#x27;s own escalation: a first signal drains, a second forces exit.</p>
+</div></details>
+<details class="item" id="mooncat--serve_h2c" data-item="pub async fn serve_h2c(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, host? : String, port? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_h2c(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, host? : String, port? : Int32) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi ASGI application over <b>HTTP/2 cleartext (h2c)</b> only — the prior-knowledge, no-TLS HTTP/2 profile (RFC 9113 §3.3). Convenience wrapper over <code>serve_h2c_config</code> that builds a <code>Config</code> from <code>host</code> / <code>port</code>. Blocks in the accept loop until the running task is cancelled.</p><p><code>serve</code> and <code>serve_tls</code> speak HTTP/2 as well, beside HTTP/1.1 on the same port; this entry point is for a listener that is to speak nothing else.</p>
+</div></details>
+<details class="item" id="mooncat--serve_h2c_config" data-item="pub async fn serve_h2c_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_h2c_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi ASGI application over h2c under an explicit <code>Config</code>: the same serving loop as <code>serve_config</code>, with its lifespan, limits, logging and graceful shutdown, on a listener that speaks HTTP/2 alone.</p>
+</div></details>
+<details class="item" id="mooncat--serve_tls" data-item="pub async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi ASGI application over native HTTP/1.1 <b>over TLS</b> (HTTPS, ← uvicorn&#x27;s <code>--ssl-certfile</code>/<code>--ssl-keyfile</code>). Convenience wrapper over <code>serve_tls_config</code> that builds the <code>Config</code> from <code>host</code>/<code>port</code>/<code>backlog</code> and the certificate paths.</p><p>Runs the full ASGI lifespan protocol around the accept loop (startup before the listener binds, shutdown on exit — even under cancellation), then, for every accepted connection, completes a TLS handshake and serves HTTP/2 when ALPN settles on <code>h2</code>, HTTP/1.1 otherwise.</p><p>A WebSocket upgrade on an HTTP/1.1 connection is served too (<code>wss://</code>): the 101, the subprotocol echo and the frames all travel over the encrypted stream.</p>
+</div></details>
+<details class="item" id="mooncat--serve_tls_beside" data-item="pub async fn serve_tls_beside(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @tls.Server, async (@serve.Site) -&gt; Unit) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls_beside(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @tls.Server, async (@serve.Site) -&gt; Unit) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve over HTTPS with another listener beside the TCP one, which runs from the moment the application has started until the requests in flight everywhere have drained.</p>
+</div></details>
+<details class="item" id="mooncat--serve_tls_config" data-item="pub async fn serve_tls_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @serve.TlsCert) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @serve.TlsCert) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi ASGI application over HTTPS under an explicit <code>Config</code> and <code>TlsCert</code>. Mirrors <code>serve_config</code>: lifespan startup is driven before the listener binds and shutdown on the way out (guarded by <code>protect_from_cancel</code> so it still runs when the serving task is cancelled), and each accepted connection completes a TLS handshake within <code>timeout_handshake</code> and then runs the same loop as a plain one.</p>
+</div></details>
+<details class="item" id="mooncat--serve_tls_server" data-item="pub async fn serve_tls_server(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @tls.Server) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls_server(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @tls.Server) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve over HTTPS with a TLS configuration built by the caller: the suites, the groups, the ALPN list and the certificates are all <code>server</code>&#x27;s. <code>serve_tls_config</code> is this with the configuration read from PEM files.</p>
+</div></details>
+<h3 class="bar">Type aliases</h3>
+<details class="item" id="mooncat--pub-using-config-type" data-item="pub using @config {type Config}">
+<summary><span class="caret"></span><span class="kind">alias</span><span class="sig">using @config {type Config}</span></summary>
+<div class="body">
+<p class="alias">Re-exported from <code>mooncat/config</code>; <a href="#config--Config">documented there</a>.</p>
+</div></details>
+<details class="item" id="mooncat--pub-using-lifespan-typ" data-item="pub using @lifespan {type Driver}">
+<summary><span class="caret"></span><span class="kind">alias</span><span class="sig">using @lifespan {type Driver}</span></summary>
+<div class="body">
+<p class="alias">Re-exported from <code>mooncat/lifespan</code>; <a href="#lifespan--Driver">documented there</a>.</p>
+</div></details>
+<details class="item" id="mooncat--pub-using-config-type" data-item="pub using @config {type H2Config}">
+<summary><span class="caret"></span><span class="kind">alias</span><span class="sig">using @config {type H2Config}</span></summary>
+<div class="body">
+<p class="alias">Re-exported from <code>mooncat/config</code>; <a href="#config--H2Config">documented there</a>.</p>
+</div></details>
+<details class="item" id="mooncat--pub-using-config-type" data-item="pub using @config {type Lifespan}">
+<summary><span class="caret"></span><span class="kind">alias</span><span class="sig">using @config {type Lifespan}</span></summary>
+<div class="body">
+<p class="alias">Re-exported from <code>mooncat/config</code>; <a href="#config--Lifespan">documented there</a>.</p>
+</div></details>
+<details class="item" id="mooncat--pub-using-lifespan-typ" data-item="pub using @lifespan {type LifespanError}">
+<summary><span class="caret"></span><span class="kind">alias</span><span class="sig">using @lifespan {type LifespanError}</span></summary>
+<div class="body">
+<p class="alias">Re-exported from <code>mooncat/lifespan</code>; <a href="#lifespan--LifespanError">documented there</a>.</p>
+</div></details>
+<details class="item" id="mooncat--pub-using-config-type" data-item="pub using @config {type Logger}">
+<summary><span class="caret"></span><span class="kind">alias</span><span class="sig">using @config {type Logger}</span></summary>
+<div class="body">
+<p class="alias">Re-exported from <code>mooncat/config</code>; <a href="#config--Logger">documented there</a>.</p>
+</div></details>
+<details class="item" id="mooncat--pub-using-serve-type-S" data-item="pub using @serve {type ShutdownHandle}">
+<summary><span class="caret"></span><span class="kind">alias</span><span class="sig">using @serve {type ShutdownHandle}</span></summary>
+<div class="body">
+<p class="alias">Re-exported from <code>mooncat/serve</code>; <a href="#serve--ShutdownHandle">documented there</a>.</p>
+</div></details>
+<details class="item" id="mooncat--pub-using-serve-type-T" data-item="pub using @serve {type TlsCert}">
+<summary><span class="caret"></span><span class="kind">alias</span><span class="sig">using @serve {type TlsCert}</span></summary>
+<div class="body">
+<p class="alias">Re-exported from <code>mooncat/serve</code>; <a href="#serve--TlsCert">documented there</a>.</p>
+</div></details>
+<details class="item" id="mooncat--pub-using-config-type" data-item="pub using @config {type WsConfig}">
+<summary><span class="caret"></span><span class="kind">alias</span><span class="sig">using @config {type WsConfig}</span></summary>
+<div class="body">
+<p class="alias">Re-exported from <code>mooncat/config</code>; <a href="#config--WsConfig">documented there</a>.</p>
+</div></details>
+</section>
+<section class="section pkg" id="moonbitstack-mooncat-config">
+<h2 class="bar">mooncat/config<span class="aside">19 items</span></h2>
+<p class="pkg-desc">The configuration record, the access and error log, and the HTTP date every response can carry.</p>
+<h3 class="bar">Values</h3>
+<details class="item" id="config--http_date" data-item="pub fn http_date(Int64) -&gt; String">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn http_date(Int64) -&gt; String</span></summary>
+<div class="body">
+<p>Format a Unix-epoch millisecond count as an HTTP-date in the IMF-fixdate form RFC 7231 §7.1.1.1 makes mandatory for a <code>Date</code> header: <code>Sun, 06 Nov 1994 08:49:37 GMT</code>, always GMT, always fixed-width.</p><p>The calendar and the format are moondate&#x27;s; what is here is the millisecond clock mooncat reads, brought down to the whole second the header is written to.</p>
+</div></details>
+<details class="item" id="config--http_date_now" data-item="pub fn http_date_now() -&gt; String">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn http_date_now() -&gt; String</span></summary>
+<div class="body">
+<p>The current instant as an HTTP-date, reformatted only when the epoch second has moved on.</p>
+</div></details>
+<details class="item" id="config--port" data-item="pub let port : Int32">
+<summary><span class="caret"></span><span class="kind">let</span><span class="sig">let port : Int32</span></summary>
+<div class="body">
+<p>The default port for the TCP serving entry points.</p><p>HTTP/1.1, WebSocket upgrades and HTTP/2 share one listener, told apart by ALPN under TLS and by the HTTP/2 preface in the clear. <code>quic_serve</code> takes an explicit UDP address; it may use the same number because UDP and TCP have separate port spaces.</p>
+</div></details>
+<details class="item" id="config--reason" data-item="pub fn reason(Int32) -&gt; String">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn reason(Int32) -&gt; String</span></summary>
+<div class="body">
+<p>The reason phrase an access line pairs with a status. Lives here rather than beside the native server because the access line is written on every backend.</p>
+</div></details>
+<details class="item" id="config--ws_max_queue" data-item="pub let ws_max_queue : Int32">
+<summary><span class="caret"></span><span class="kind">let</span><span class="sig">let ws_max_queue : Int32</span></summary>
+<div class="body">
+<p>How many received messages wait for the application (uvicorn&#x27;s <code>--ws-max-queue</code>).</p>
+</div></details>
+<details class="item" id="config--ws_ping" data-item="pub let ws_ping : Int32">
+<summary><span class="caret"></span><span class="kind">let</span><span class="sig">let ws_ping : Int32</span></summary>
+<div class="body">
+<p>The milliseconds between pings, and the wait for a pong (uvicorn&#x27;s 20 seconds each).</p>
+</div></details>
+<h3 class="bar">Types and methods</h3>
+<details class="item" id="config--Config-bind" data-item="pub fn Config::bind(Self) -&gt; String">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Config::bind(Self) -&gt; String</span></summary>
+<div class="body">
+<p>The <code>host:port</code> string used to resolve the listen address.</p>
+</div></details>
+<details class="item" id="config--Config-new" data-item="pub fn Config::new(host? : String, port? : Int32, backlog? : Int32, dual_stack? : Bool, reuse_addr? : Bool, server_headers? : Map[String, String], max_connections? : Int32, allow_failure? : Bool, graceful_timeout? : Int32, root_path? : String, logger? : Logger, timeout_keep_alive? : Int32, timeout_handshake? : Int32, limit_max_requests? : Int32, limit_concurrency? : Int32, max_head_size? : Int32, date_header? : Bool, proxy_headers? : Bool, forwarded_allow_ips? : Array[String], ws? : WsConfig, h2? : H2Config, lifespan? : Lifespan, cleartext? : Bool, workers? : Int32) -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Config::new(host? : String, port? : Int32, backlog? : Int32, dual_stack? : Bool, reuse_addr? : Bool, server_headers? : Map[String, String], max_connections? : Int32, allow_failure? : Bool, graceful_timeout? : Int32, root_path? : String, logger? : Logger, timeout_keep_alive? : Int32, timeout_handshake? : Int32, limit_max_requests? : Int32, limit_concurrency? : Int32, max_head_size? : Int32, date_header? : Bool, proxy_headers? : Bool, forwarded_allow_ips? : Array[String], ws? : WsConfig, h2? : H2Config, lifespan? : Lifespan, cleartext? : Bool, workers? : Int32) -&gt; Self</span></summary>
+<div class="body">
+<p>Build a <code>Config</code>, defaulting to uvicorn&#x27;s own defaults: host <code>127.0.0.1</code>, port <code>12000</code>, backlog <code>2048</code>, a 5-second idle keep-alive timeout, a 16 KiB request-head cap, the <code>Date</code> header on, proxy headers trusted from <code>127.0.0.1</code>, and no request-count or concurrency limit. Transport knobs default to the async server&#x27;s own defaults: <code>reuse_addr</code> on (uvicorn sets <code>SO_REUSEADDR</code>), single-stack binding, no extra response headers, an unbounded connection ceiling, and <code>allow_failure</code> on so a single failing handler never crashes the listener.</p><p><code>graceful_timeout</code> bounds how long <code>serve_graceful</code> waits for in-flight requests to drain before it runs lifespan shutdown anyway (← uvicorn&#x27;s <code>timeout_graceful_shutdown</code>); <code>None</code> waits until the last request finishes, as uvicorn does by default.</p>
+</div></details>
+<details class="item" id="config--H2Config-new" data-item="pub fn H2Config::new(max_streams? : Int32, max_header_list? : Int32, max_frame? : Int32, window? : Int32, connection_window? : Int32) -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn H2Config::new(max_streams? : Int32, max_header_list? : Int32, max_frame? : Int32, window? : Int32, connection_window? : Int32) -&gt; Self</span></summary>
+<div class="body">
+<p>A <code>H2Config</code> with every field at its default: 100 concurrent streams, a 64 KiB field block, 16 KiB frames, and 1 MiB of flow-control window on a stream and on the connection.</p>
+</div></details>
+<details class="item" id="config--Lifespan-equal" data-item="pub fn Lifespan::equal(Self, Self) -&gt; Bool">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Lifespan::equal(Self, Self) -&gt; Bool</span></summary>
+<div class="body">
+<p class="alias">From the type's <code>derive(Eq)</code>.</p>
+</div></details>
+<details class="item" id="config--Lifespan-not_equal" data-item="pub fn Lifespan::not_equal(Self, Self) -&gt; Bool">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Lifespan::not_equal(Self, Self) -&gt; Bool</span></summary>
+<div class="body">
+<p class="alias">From the type's <code>derive(Eq)</code>.</p>
+</div></details>
+<details class="item" id="config--Lifespan-to_repr" data-item="pub fn Lifespan::to_repr(Self) -&gt; @debug.Repr">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Lifespan::to_repr(Self) -&gt; @debug.Repr</span></summary>
+<div class="body">
+<p class="alias">From the type's <code>derive(Debug)</code>.</p>
+</div></details>
+<details class="item" id="config--Logger" data-item="pub struct Logger">
+<summary><span class="caret"></span><span class="kind">struct</span><span class="sig">struct Logger</span></summary>
+<div class="body">
+<p>How much the server says, and where it goes.</p>
+<pre class="fields">out : @moonlog.Logger
+access : Bool</pre>
+</div></details>
+<details class="item" id="config--Logger-access_line" data-item="pub fn Logger::access_line(Self, String, String, String, String, Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Logger::access_line(Self, String, String, String, String, Int32) -&gt; Unit</span></summary>
+<div class="body">
+<p>Write the one-line-per-request access log (uvicorn&#x27;s <code>uvicorn.access</code>), in the same shape: peer, request line, status.</p>
+</div></details>
+<details class="item" id="config--Logger-enabled" data-item="pub fn Logger::enabled(Self, @moonlog.Level) -&gt; Bool">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Logger::enabled(Self, @moonlog.Level) -&gt; Bool</span></summary>
+<div class="body">
+<p>Whether a line at <code>level</code> would be written.</p>
+</div></details>
+<details class="item" id="config--Logger-log" data-item="pub fn Logger::log(Self, @moonlog.Level, String) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Logger::log(Self, @moonlog.Level, String) -&gt; Unit</span></summary>
+<div class="body">
+<p>Write one server-lifecycle line (uvicorn&#x27;s <code>uvicorn.error</code> logger, which carries ordinary startup messages as well as failures).</p>
+</div></details>
+<details class="item" id="config--Logger-new" data-item="pub fn Logger::new(level? : @moonlog.Level, access? : Bool, write? : (String) -&gt; Unit) -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Logger::new(level? : @moonlog.Level, access? : Bool, write? : (String) -&gt; Unit) -&gt; Self</span></summary>
+<div class="body">
+<p>A logger printing to stdout at <code>level</code>, with the access log on — uvicorn&#x27;s defaults. <code>access</code> off silences the per-request lines while keeping the server&#x27;s own.</p>
+</div></details>
+<details class="item" id="config--Logger-silent" data-item="pub fn Logger::silent() -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Logger::silent() -&gt; Self</span></summary>
+<div class="body">
+<p>A logger that says nothing, for an embedder that does its own reporting or a test that would rather not have output.</p>
+</div></details>
+<details class="item" id="config--WsConfig-new" data-item="pub fn WsConfig::new(max_size? : Int32, max_queue? : Int32, ping_interval? : Int32?, ping_timeout? : Int32?, deflate? : Bool) -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn WsConfig::new(max_size? : Int32, max_queue? : Int32, ping_interval? : Int32?, ping_timeout? : Int32?, deflate? : Bool) -&gt; Self</span></summary>
+<div class="body">
+<p>A <code>WsConfig</code> from uvicorn&#x27;s defaults, <code>max_size</code> its 16 MiB.</p>
+</div></details>
+</section>
+<section class="section pkg" id="moonbitstack-mooncat-lifespan">
+<h2 class="bar">mooncat/lifespan<span class="aside">6 items</span></h2>
+<p class="pkg-desc">The lifespan protocol: an application invoked once before the listener binds and once on the way out.</p>
+<h3 class="bar">Errors</h3>
+<details class="item" id="lifespan--LifespanError" data-item="pub suberror LifespanError">
+<summary><span class="caret"></span><span class="kind">error</span><span class="sig">suberror LifespanError</span></summary>
+<div class="body">
+<p>Raised when the lifespan protocol stops the boot or reports a failed shutdown: the application sent <code>lifespan.startup.failed</code> or <code>lifespan.shutdown.failed</code>, or it raised under <code>Lifespan::On</code>. Carries the application&#x27;s message.</p>
+<pre class="fields">LifespanError(String)</pre>
+</div></details>
+<h3 class="bar">Types and methods</h3>
+<details class="item" id="lifespan--Driver" data-item="pub struct Driver">
+<summary><span class="caret"></span><span class="kind">struct</span><span class="sig">struct Driver</span></summary>
+<div class="body">
+<p>Drives an application&#x27;s lifespan protocol (← uvicorn&#x27;s <code>LifespanOn</code>).</p><p>One invocation of the application runs under a <code>Lifespan</code> scope for the server&#x27;s whole life: <code>startup</code> sends <code>lifespan.startup</code> and waits for the answer, <code>shutdown</code> sends <code>lifespan.shutdown</code>. <code>state</code> is the scope&#x27;s namespace; the server gives every request scope a shallow copy, so what startup stores there reaches each request.</p><p><code>mode</code> is uvicorn&#x27;s <code>--lifespan</code>: under <code>Auto</code> an application that fails on the lifespan scope, as one serving only HTTP does, is taken not to speak the protocol and the server carries on; under <code>On</code> that failure stops the boot; under <code>Off</code> nothing runs.</p>
+<pre class="fields">state : Map[String, Json]</pre>
+</div></details>
+<details class="item" id="lifespan--Driver-new" data-item="pub fn Driver::new(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, mode? : @config.Lifespan, logger? : @config.Logger, state? : Map[String, Json]) -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Driver::new(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, mode? : @config.Lifespan, logger? : @config.Logger, state? : Map[String, Json]) -&gt; Self</span></summary>
+<div class="body">
+<p>A driver for one application. <code>spawn</code> parks the application under a <code>Lifespan</code> scope, and <code>startup</code> / <code>shutdown</code> deliver the two messages to it in that order. <code>state</code> is what the startup writes down for the scopes that follow, which is why it is a parameter and not a field the caller sets afterwards.</p>
+</div></details>
+<details class="item" id="lifespan--Driver-shutdown" data-item="pub async fn Driver::shutdown(Self) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn Driver::shutdown(Self) -&gt; Unit</span></summary>
+<div class="body">
+<p>Run lifespan <b>shutdown</b>: send <code>lifespan.shutdown</code> and wait for the answer, unless the invocation has already ended. Raises <code>LifespanError</code> on <code>lifespan.shutdown.failed</code>, and on a failure of the application under <code>On</code>.</p>
+</div></details>
+<details class="item" id="lifespan--Driver-spawn" data-item="pub fn Driver::spawn(Self, @async.TaskGroup[Unit]) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Driver::spawn(Self, @async.TaskGroup[Unit]) -&gt; Unit</span></summary>
+<div class="body">
+<p>Start the lifespan invocation as a task in <code>g</code>. It waits on <code>receive()</code> until <code>startup</code> and <code>shutdown</code> send it something; its failure is contained, and reported through them.</p>
+</div></details>
+<details class="item" id="lifespan--Driver-startup" data-item="pub async fn Driver::startup(Self) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn Driver::startup(Self) -&gt; Unit</span></summary>
+<div class="body">
+<p>Run lifespan <b>startup</b>: send <code>lifespan.startup</code> and wait for the answer. Returns on <code>lifespan.startup.complete</code>, and when the application returns without answering. Raises <code>LifespanError</code> on <code>lifespan.startup.failed</code>, and on a failure of the application under <code>On</code>; under <code>Auto</code> such a failure means the application does not speak the protocol.</p>
+</div></details>
+</section>
+<section class="section pkg" id="moonbitstack-mooncat-proxy">
+<h2 class="bar">mooncat/proxy<span class="aside">1 items</span></h2>
+<p class="pkg-desc">The client and scheme a trusted proxy reports, and the decision to believe it.</p>
+<h3 class="bar">Values</h3>
+<details class="item" id="proxy--proxy_rewrite" data-item="pub fn proxy_rewrite(Map[String, String], (String, Int32)?, String, trusted~ : Array[String], websocket? : Bool) -&gt; ((String, Int32)?, String)">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn proxy_rewrite(Map[String, String], (String, Int32)?, String, trusted~ : Array[String], websocket? : Bool) -&gt; ((String, Int32)?, String)</span></summary>
+<div class="body">
+<p>Rewrite a request&#x27;s <code>client</code> and <code>scheme</code> from a trusted proxy&#x27;s forwarding headers (← uvicorn&#x27;s <code>ProxyHeadersMiddleware</code>).</p><p>Nothing is rewritten unless the peer itself is trusted: these headers are attacker-controlled, and believing them from an arbitrary client lets that client name any address it likes for a rate limiter, an allowlist or an audit log. Behind a proxy the peer is the proxy, which is why <code>forwarded_allow_ips</code> defaults to <code>127.0.0.1</code> and not to <code>*</code>.</p><p><code>X-Forwarded-For</code> yields the chain&#x27;s leftmost entry with port <code>0</code>, since a forwarded chain carries no port. <code>X-Forwarded-Proto</code> replaces the scheme, mapped to <code>wss</code>/<code>ws</code> for a WebSocket scope, whose scheme names differ from the <code>https</code>/<code>http</code> the header spells.</p>
+</div></details>
+</section>
+<section class="section pkg" id="moonbitstack-mooncat-serve">
+<h2 class="bar">mooncat/serve<span class="aside">27 items</span></h2>
+<p class="pkg-desc">The accept loop, HTTP/1.1, HTTP/2, WebSocket, TLS, workers and the graceful shutdown.</p>
+<h3 class="bar">Values</h3>
+<details class="item" id="serve--alpn" data-item="pub let alpn : Array[String]">
+<summary><span class="caret"></span><span class="kind">let</span><span class="sig">let alpn : Array[String]</span></summary>
+<div class="body">
+<p>The application protocols a TLS listener offers, in preference order: HTTP/2 first, as hypercorn and nginx do, falling back to HTTP/1.1.</p>
+</div></details>
+<details class="item" id="serve--read_frame" data-item="pub async fn read_frame(&amp;@io.Reader, client? : Bool, limit? : Int32) -&gt; @ws.Frame">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn read_frame(&amp;@io.Reader, client? : Bool, limit? : Int32) -&gt; @ws.Frame</span></summary>
+<div class="body">
+<p>One frame off a stream (RFC 6455 §5.2).</p><p>The header is read in the order the format is laid out — two bytes, then the extended length, then the mask — and <code>@ws.check</code> runs on the header before the payload is read, so an enormous announced length is refused rather than allocated.</p><p><code>client</code> is the server&#x27;s position by default: a client&#x27;s frames must be masked (§5.1), so reading a server&#x27;s frames takes <code>client=false</code>. Raises <code>@ws.Refused</code> carrying the status the connection is then failed with, and passes the stream&#x27;s end through.</p>
+</div></details>
+<details class="item" id="serve--read_message" data-item="pub async fn read_message(&amp;@io.Reader, &amp;@io.Writer, limit? : Int32) -&gt; @ws.Message">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn read_message(&amp;@io.Reader, &amp;@io.Writer, limit? : Int32) -&gt; @ws.Message</span></summary>
+<div class="body">
+<p>One complete message off a stream, with the control frames between its fragments handled: a ping is answered on <code>writer</code>, a pong is dropped, and a close is echoed before the message comes back as that close.</p><p>This is the server&#x27;s receive path, so every frame must arrive masked. The reply frames go out unmasked because a server must not mask (§5.1).</p>
+</div></details>
+<details class="item" id="serve--reload_watch" data-item="pub async fn reload_watch(String, async () -&gt; Unit) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn reload_watch(String, async () -&gt; Unit) -&gt; Unit</span></summary>
+<div class="body">
+<p>Watch <code>path</code> for source changes and fire <code>on_reload</code> on each batch of events (← uvicorn&#x27;s <code>--reload</code> file watcher). Backed by <code>@fs.Watcher</code>, which debounces and reports child-file events, so a save to any file under <code>path</code> triggers one reload. <code>on_reload</code> is where a supervisor re-execs the server; wiring it to a <code>ShutdownHandle</code> turns a file save into a graceful restart. Loops until its task is cancelled, always closing the watcher.</p>
+</div></details>
+<details class="item" id="serve--request_of" data-item="pub fn request_of(Array[@header.Header]) -&gt; (String, String)">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn request_of(Array[@header.Header]) -&gt; (String, String)</span></summary>
+<div class="body">
+<p>The method and target of a request head, for the access log.</p>
+</div></details>
+<details class="item" id="serve--serve" data-item="pub async fn serve(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi ASGI application over native HTTP/1.1 + WebSocket (← uvicorn). Convenience wrapper over <code>serve_config</code> that builds a <code>Config</code> from <code>host</code> / <code>port</code> / <code>backlog</code>. Blocks in a keep-alive accept loop until the running task is cancelled.</p>
+</div></details>
+<details class="item" id="serve--serve_config" data-item="pub async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi ASGI application under an explicit <code>Config</code>.</p><p>Runs the full lifespan protocol around the accept loop: the app is invoked once under a <code>Lifespan</code> scope and <code>startup()</code> is driven <b>before</b> the listener is bound, and <code>shutdown()</code> is driven on the way out — even when the serving task is cancelled, via <code>protect_from_cancel</code>. Each accepted request is bridged by <code>dispatch</code>, which diverts WebSocket upgrades to the echo path.</p>
+</div></details>
+<details class="item" id="serve--serve_graceful" data-item="pub async fn serve_graceful(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, handle? : ShutdownHandle) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_graceful(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, handle? : ShutdownHandle) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi application with a uvicorn-style process model: a graceful shutdown path over a single acceptor that spawns a concurrent handler per connection.</p><p>The lifespan protocol runs startup before the listener binds and shutdown on the way out. A single acceptor task spawns one handler task per connection, so requests are served concurrently, each through mooncat&#x27;s HTTP/1.1 codec and, on an upgrade, its WebSocket bridge. <code>serve</code>, <code>serve_config</code> and <code>serve_tls_config</code> run this same loop; this entry point adds the handle.</p><p>Shutdown is triggered by <code>handle.shutdown()</code> / <code>handle.request_stop()</code>, by reaching <code>Config::limit_max_requests</code>, or by a signal the runtime turns into global cancellation (see the boundary note below). All three converge on one sequence, run under <code>protect_from_cancel</code> so a signal can&#x27;t abort it midway: stop accepting (cancel the acceptor), drain in-flight requests (bounded by <code>Config::graceful_timeout</code>), run the ASGI lifespan shutdown, then close the listener.</p><p>The acceptor honours the connection ceilings: <code>max_connections</code> gates accepting, so a full server leaves the next client in the listen queue rather than accepting it and sitting on it, and <code>allow_failure</code> decides whether one bad connection is contained or brings the server down. <code>limit_concurrency</code> is the other kind of ceiling — a request arriving past it is answered <code>503</code> rather than queued.</p><p>## Several workers</p><p>With <code>Config::workers</code> above 1 this process only supervises: see <code>supervise</code>. Each worker comes back through this same function, binds the port under <code>SO_REUSEPORT</code>, and serves as described here.</p><p>## Signal boundary</p><p>The only signal hook <code>moonbitlang/async</code> exposes is <code>@signal.set_global_cancellation_signals</code>, which cancels the whole task tree on SIGINT/SIGTERM. mooncat catches that cancellation and still runs lifespan shutdown and closes the listener under <code>protect_from_cancel</code>; but a signal also cancels the in-flight handler tasks, so drain-before-close is only fully honoured on the programmatic <code>ShutdownHandle</code> path. That matches uvicorn&#x27;s own escalation: a first signal drains, a second forces exit.</p>
+</div></details>
+<details class="item" id="serve--serve_h2c" data-item="pub async fn serve_h2c(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, host? : String, port? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_h2c(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, host? : String, port? : Int32) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi ASGI application over <b>HTTP/2 cleartext (h2c)</b> only — the prior-knowledge, no-TLS HTTP/2 profile (RFC 9113 §3.3). Convenience wrapper over <code>serve_h2c_config</code> that builds a <code>Config</code> from <code>host</code> / <code>port</code>. Blocks in the accept loop until the running task is cancelled.</p><p><code>serve</code> and <code>serve_tls</code> speak HTTP/2 as well, beside HTTP/1.1 on the same port; this entry point is for a listener that is to speak nothing else.</p>
+</div></details>
+<details class="item" id="serve--serve_h2c_config" data-item="pub async fn serve_h2c_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_h2c_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi ASGI application over h2c under an explicit <code>Config</code>: the same serving loop as <code>serve_config</code>, with its lifespan, limits, logging and graceful shutdown, on a listener that speaks HTTP/2 alone.</p>
+</div></details>
+<details class="item" id="serve--serve_tls" data-item="pub async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi ASGI application over native HTTP/1.1 <b>over TLS</b> (HTTPS, ← uvicorn&#x27;s <code>--ssl-certfile</code>/<code>--ssl-keyfile</code>). Convenience wrapper over <code>serve_tls_config</code> that builds the <code>Config</code> from <code>host</code>/<code>port</code>/<code>backlog</code> and the certificate paths.</p><p>Runs the full ASGI lifespan protocol around the accept loop (startup before the listener binds, shutdown on exit — even under cancellation), then, for every accepted connection, completes a TLS handshake and serves HTTP/2 when ALPN settles on <code>h2</code>, HTTP/1.1 otherwise.</p><p>A WebSocket upgrade on an HTTP/1.1 connection is served too (<code>wss://</code>): the 101, the subprotocol echo and the frames all travel over the encrypted stream.</p>
+</div></details>
+<details class="item" id="serve--serve_tls_beside" data-item="pub async fn serve_tls_beside(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @tls.Server, async (Site) -&gt; Unit) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls_beside(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @tls.Server, async (Site) -&gt; Unit) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve over HTTPS with another listener beside the TCP one, which runs from the moment the application has started until the requests in flight everywhere have drained.</p>
+</div></details>
+<details class="item" id="serve--serve_tls_config" data-item="pub async fn serve_tls_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, TlsCert) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, TlsCert) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve a moonasgi ASGI application over HTTPS under an explicit <code>Config</code> and <code>TlsCert</code>. Mirrors <code>serve_config</code>: lifespan startup is driven before the listener binds and shutdown on the way out (guarded by <code>protect_from_cancel</code> so it still runs when the serving task is cancelled), and each accepted connection completes a TLS handshake within <code>timeout_handshake</code> and then runs the same loop as a plain one.</p>
+</div></details>
+<details class="item" id="serve--serve_tls_server" data-item="pub async fn serve_tls_server(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @tls.Server) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls_server(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @tls.Server) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve over HTTPS with a TLS configuration built by the caller: the suites, the groups, the ALPN list and the certificates are all <code>server</code>&#x27;s. <code>serve_tls_config</code> is this with the configuration read from PEM files.</p>
+</div></details>
+<h3 class="bar">Types and methods</h3>
+<details class="item" id="serve--ShutdownHandle" data-item="pub struct ShutdownHandle">
+<summary><span class="caret"></span><span class="kind">struct</span><span class="sig">struct ShutdownHandle</span></summary>
+<div class="body">
+<p>A handle for driving a graceful shutdown of <code>serve_graceful</code> from outside the serving task (← uvicorn&#x27;s <code>Server.should_exit</code> / <code>handle_exit</code>). Hand one to <code>serve_graceful</code>, then call <code>shutdown()</code> from any other task to stop the server: it stops accepting, waits for in-flight requests to drain, runs the ASGI lifespan shutdown, and closes the listener, in that order.</p><p>Two async queues carry the handshake. <code>request</code> receives the shutdown trigger (a signal delivered through the runtime&#x27;s global cancellation reaches the server the same way — see <code>serve_graceful</code>). <code>done</code> is posted once the server has finished the whole shutdown sequence, so <code>shutdown()</code> can block until the port is actually free.</p>
+<pre class="fields">request : @aqueue.Queue[Unit]
+done : @aqueue.Queue[Unit]</pre>
+</div></details>
+<details class="item" id="serve--ShutdownHandle-new" data-item="pub fn ShutdownHandle::new() -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn ShutdownHandle::new() -&gt; Self</span></summary>
+<div class="body">
+<p>Create an idle shutdown handle with empty unbounded signal queues.</p>
+</div></details>
+<details class="item" id="serve--ShutdownHandle-request_stop" data-item="pub async fn ShutdownHandle::request_stop(Self) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn ShutdownHandle::request_stop(Self) -&gt; Unit</span></summary>
+<div class="body">
+<p>Request a graceful shutdown without waiting for it to finish.</p>
+</div></details>
+<details class="item" id="serve--ShutdownHandle-shutdown" data-item="pub async fn ShutdownHandle::shutdown(Self) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn ShutdownHandle::shutdown(Self) -&gt; Unit</span></summary>
+<div class="body">
+<p>Request a graceful shutdown and block until the server has drained in-flight requests, run lifespan shutdown, and closed the listener. Returns once the listen port is free again.</p>
+</div></details>
+<details class="item" id="serve--Site" data-item="pub struct Site">
+<summary><span class="caret"></span><span class="kind">struct</span><span class="sig">struct Site</span></summary>
+<div class="body">
+<p>The serving process, as a listener beside the TCP one sees it.</p>
+</div></details>
+<details class="item" id="serve--Site-admit" data-item="pub fn Site::admit(Self) -&gt; Bool">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Site::admit(Self) -&gt; Bool</span></summary>
+<div class="body">
+<p>Take a new request, or refuse it past <code>limit_concurrency</code>. Every request taken is given back with <code>finished</code>, which is what shutdown waits for.</p>
+</div></details>
+<details class="item" id="serve--Site-bound" data-item="pub fn Site::bound(Self) -&gt; @socket.Addr">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Site::bound(Self) -&gt; @socket.Addr</span></summary>
+<div class="body">
+<p>The address the server listens on.</p>
+</div></details>
+<details class="item" id="serve--Site-config" data-item="pub fn Site::config(Self) -&gt; @config.Config">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Site::config(Self) -&gt; @config.Config</span></summary>
+<div class="body">
+<p>The configuration the server was started with, which is what the second listener needs to agree with the first about limits and timeouts.</p>
+</div></details>
+<details class="item" id="serve--Site-finished" data-item="pub async fn Site::finished(Self) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn Site::finished(Self) -&gt; Unit</span></summary>
+<div class="body">
+<p>A request taken with <code>admit</code> is over.</p>
+</div></details>
+<details class="item" id="serve--Site-head" data-item="pub fn Site::head(Self, Int32, Array[(String, String)]) -&gt; Array[@header.Header]">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Site::head(Self, Int32, Array[(String, String)]) -&gt; Array[@header.Header]</span></summary>
+<div class="body">
+<p>A response head as a field section: <code>:status</code>, the application&#x27;s fields that may cross, and the configured server fields.</p>
+</div></details>
+<details class="item" id="serve--Site-scope" data-item="pub fn Site::scope(Self, Array[@header.Header], version~ : String, peer~ : @socket.Addr, suite~ : Int32) -&gt; @spec.Scope">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Site::scope(Self, Array[@header.Header], version~ : String, peer~ : @socket.Addr, suite~ : Int32) -&gt; @spec.Scope</span></summary>
+<div class="body">
+<p>The ASGI scope for a request head (RFC 9110 §7) that arrived from <code>peer</code> under TLS on HTTP version <code>version</code>, with <code>suite</code> naming its cipher.</p>
+</div></details>
+<details class="item" id="serve--Site-stopping" data-item="pub fn Site::stopping(Self) -&gt; Bool">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Site::stopping(Self) -&gt; Bool</span></summary>
+<div class="body">
+<p>Whether the server is shutting down, which is when a listener stops taking new work and lets what is running finish.</p>
+</div></details>
+<details class="item" id="serve--TlsCert-load" data-item="pub async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -&gt; @tls.Server">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -&gt; @tls.Server</span></summary>
+<div class="body">
+<p>Read the files into a TLS server configuration. A key that is not the leaf&#x27;s is refused here, at startup, rather than by every client&#x27;s handshake.</p>
+</div></details>
+</section>
+<section class="section pkg" id="moonbitstack-mooncat-cli">
+<h2 class="bar">mooncat/cli<span class="aside">10 items</span></h2>
+<p class="pkg-desc">The command line as a set of flags, and run(app) as a whole server program.</p>
+<h3 class="bar">Values</h3>
+<details class="item" id="cli--command" data-item="pub fn command(version? : String) -&gt; @argparse.Command">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn command(version? : String) -&gt; @argparse.Command</span></summary>
+<div class="body">
+<p>The command line, as <code>argparse</code> describes it.</p><p>Options carry no defaults on purpose: an absent flag must be distinguishable from one that happens to match the default, because everything not given is left as <code>parse</code> found it in <code>base</code>.</p>
+</div></details>
+<details class="item" id="cli--parse" data-item="pub fn parse(ArrayView[String], base? : @config.Config) -&gt; Plan raise">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn parse(ArrayView[String], base? : @config.Config) -&gt; Plan raise</span></summary>
+<div class="body">
+<p>Read a command line into a <code>Plan</code>, starting from <code>base</code> and overriding only what was given.</p><p><code>--help</code> and <code>--version</code> are <code>argparse</code>&#x27;s: it prints and exits the process, as uvicorn and clap do, so they never come back here.</p><p>One wart worth stating: <code>Logger</code> is opaque, so <code>--log-level</code> and <code>--access-log</code> cannot adjust the one in <code>base</code> — either flag replaces it with a fresh logger at the level asked for, which drops a custom <code>write</code>. Neither flag leaves <code>base</code>&#x27;s logger alone.</p>
+</div></details>
+<details class="item" id="cli--run" data-item="pub async fn run(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, argv? : ArrayView[String], base? : @config.Config) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn run(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, argv? : ArrayView[String], base? : @config.Config) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve <code>app</code> the way the command line says to.</p><p>This is the whole of a server program:</p><pre>async fn main {
+@cli.run(app)
+}</pre><pre>moon run src/main --target native -- --port 9000 --log-level debug</pre><p>With no <code>argv</code>, the real one is read and its first element — the path to the executable — is dropped. <code>base</code> is where the flags start from, so a program that wants its own defaults passes them and lets the command line override only what was typed.</p>
+</div></details>
+<details class="item" id="cli--serve" data-item="pub async fn serve(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, Plan) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, Plan) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve under a plan already parsed, for a program that wants to look at the plan — or change it — before the socket opens.</p>
+</div></details>
+<h3 class="bar">Errors</h3>
+<details class="item" id="cli--Refused-equal" data-item="pub fn Refused::equal(Self, Self) -&gt; Bool">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Refused::equal(Self, Self) -&gt; Bool</span></summary>
+<div class="body">
+<p class="alias">From the type's <code>derive(Eq)</code>.</p>
+</div></details>
+<details class="item" id="cli--Refused-not_equal" data-item="pub fn Refused::not_equal(Self, Self) -&gt; Bool">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Refused::not_equal(Self, Self) -&gt; Bool</span></summary>
+<div class="body">
+<p class="alias">From the type's <code>derive(Eq)</code>.</p>
+</div></details>
+<details class="item" id="cli--Refused-output" data-item="pub fn Refused::output(Self, &amp;Logger) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Refused::output(Self, &amp;Logger) -&gt; Unit</span></summary>
+<div class="body">
+<p class="alias">From the type's <code>Show</code> implementation.</p>
+</div></details>
+<details class="item" id="cli--Refused-to_repr" data-item="pub fn Refused::to_repr(Self) -&gt; @debug.Repr">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Refused::to_repr(Self) -&gt; @debug.Repr</span></summary>
+<div class="body">
+<p class="alias">From the type's <code>derive(Debug)</code>.</p>
+</div></details>
+<details class="item" id="cli--Refused-to_string" data-item="pub fn Refused::to_string(Self) -&gt; String">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Refused::to_string(Self) -&gt; String</span></summary>
+<div class="body">
+<p class="alias">From the type's <code>Show</code> implementation.</p>
+</div></details>
+<details class="item" id="cli--pub-impl-Show-for-Refuse" data-item="pub impl Show for Refused">
+<summary><span class="caret"></span><span class="kind">impl</span><span class="sig">impl Show for Refused</span></summary>
+<div class="body">
+<p class="alias">From the <code>Show</code> implementation.</p>
+</div></details>
+</section>
+<section class="section pkg" id="moonbitstack-mooncat-quic">
+<h2 class="bar">mooncat/quic<span class="aside">11 items</span></h2>
+<p class="pkg-desc">HTTP/3: the UDP socket, the datagram loop that routes by connection ID, and the request streams.</p>
+<h3 class="bar">Values</h3>
+<details class="item" id="quic--now" data-item="pub fn now() -&gt; Int64">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn now() -&gt; Int64</span></summary>
+<div class="body">
+<p>The event loop&#x27;s clock, in the microseconds the recovery and idle timers are measured in. <code>@async.now()</code> counts milliseconds since the epoch.</p>
+</div></details>
+<details class="item" id="quic--serve" data-item="pub async fn serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -&gt; Unit</span></summary>
+<div class="body">
+<p>Bind a UDP socket at <code>addr</code> (e.g. <code>&quot;0.0.0.0:443&quot;</code>) and serve <code>server</code> on it. The socket outlives the loop deliberately: closing one a task is parked in <code>recvfrom</code> on wedges it rather than waking it, so shutdown is cancellation of the task group, not a close.</p>
+</div></details>
+<details class="item" id="quic--serve_config" data-item="pub async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port: the TCP side tells clients about HTTP/3 with <code>alt-svc</code> (RFC 7838). One process only, since a UDP port cannot yet be shared across workers.</p>
+</div></details>
+<details class="item" id="quic--serve_endpoint" data-item="pub async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve QUIC on <code>ep</code> until the enclosing task group is cancelled: one task reads datagrams and demultiplexes them onto connections, the other runs the idle, probe and closing-period timers every <code>tick_ms</code> milliseconds, and both push out whatever that left ready to send. A datagram that names no connection or fails to authenticate is dropped rather than killing the loop — an endpoint cannot tell a stray packet from an attack.</p>
+</div></details>
+<details class="item" id="quic--serve_site" data-item="pub async fn serve_site(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @serve.Site, @tls.Server, transport? : @conn.Config, tick_ms? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_site(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @serve.Site, @tls.Server, transport? : @conn.Config, tick_ms? : Int32) -&gt; Unit</span></summary>
+<div class="body">
+<p>Serve HTTP/3 beside the server&#x27;s TCP listener, on UDP at the same address, until cancelled. <code>tls</code> offers <code>h3</code>.</p>
+</div></details>
+<h3 class="bar">Types and methods</h3>
+<details class="item" id="quic--Endpoint" data-item="pub struct Endpoint">
+<summary><span class="caret"></span><span class="kind">struct</span><span class="sig">struct Endpoint</span></summary>
+<div class="body">
+<p>A QUIC UDP endpoint: a bound datagram socket.</p>
+<pre class="fields">server : @socket.UdpServer</pre>
+</div></details>
+<details class="item" id="quic--Endpoint-bind" data-item="pub async fn Endpoint::bind(String) -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn Endpoint::bind(String) -&gt; Self</span></summary>
+<div class="body">
+<p>Bind an endpoint to <code>addr</code> (e.g. <code>&quot;0.0.0.0:443&quot;</code>, or <code>&quot;127.0.0.1:0&quot;</code> for an OS-assigned port). The bound address is available from <code>local_addr</code>.</p>
+</div></details>
+<details class="item" id="quic--Endpoint-close" data-item="pub fn Endpoint::close(Self) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Endpoint::close(Self) -&gt; Unit</span></summary>
+<div class="body">
+<p>Close the endpoint&#x27;s socket.</p>
+</div></details>
+<details class="item" id="quic--Endpoint-local_addr" data-item="pub fn Endpoint::local_addr(Self) -&gt; @socket.Addr">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Endpoint::local_addr(Self) -&gt; @socket.Addr</span></summary>
+<div class="body">
+<p>The address the endpoint is bound to (the concrete port when bound to port 0).</p>
+</div></details>
+<details class="item" id="quic--Endpoint-recv_datagram" data-item="pub async fn Endpoint::recv_datagram(Self, max? : Int32) -&gt; (Bytes, @socket.Addr)">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn Endpoint::recv_datagram(Self, max? : Int32) -&gt; (Bytes, @socket.Addr)</span></summary>
+<div class="body">
+<p>Receive the next datagram and its sender&#x27;s address, copying up to <code>max</code> bytes.</p>
+</div></details>
+<details class="item" id="quic--Endpoint-send_datagram" data-item="pub async fn Endpoint::send_datagram(Self, Bytes, @socket.Addr) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn Endpoint::send_datagram(Self, Bytes, @socket.Addr) -&gt; Unit</span></summary>
+<div class="body">
+<p>Send <code>data</code> as a single datagram to <code>to</code>.</p>
+</div></details>
+</section>
+<p class="api-count">99 public items across 7 packages.</p>
+<div class="pager"><a href="./playground.html">← Playground</a><a href="./index.html">Home →</a></div>
+</div></main>
+
+<footer id="footer">
+  <div class="wrap">
+    <span>mooncat — Apache-2.0. The API page is generated from the source tree.</span>
+    <span class="links">
+      <a href="./guide.html">Guide</a>
+      <a href="./api.html">API</a>
+      <a href="./playground.html">Playground</a>
+      <a href="https://github.com/moonbitstack/mooncat">GitHub</a>
+    </span>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+</body>
+</html>

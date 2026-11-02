@@ -4,7 +4,7 @@
 #
 #     sh scripts/autobahn/run.sh
 #
-# The endpoint is `src/examples/38-websocket-echo`. The container shares the host's network so that
+# The endpoint is `src/examples/05-websocket-echo`. The container shares the host's network so that
 # ws://127.0.0.1:9001 reaches it.
 set -eu
 
@@ -13,8 +13,8 @@ root=$(dirname "$(dirname "$here")")
 cd "$root"
 
 # Release, or the compressed cases take hours: deflate is an order of magnitude slower in a debug build.
-moon build src/examples/38-websocket-echo --target native --release
-./_build/native/release/build/examples/38-websocket-echo/38-websocket-echo.exe &
+moon build src/examples/05-websocket-echo --target native --release
+./_build/native/release/build/examples/05-websocket-echo/05-websocket-echo.exe &
 endpoint=$!
 trap 'kill $endpoint 2>/dev/null || true' EXIT
 sleep 1

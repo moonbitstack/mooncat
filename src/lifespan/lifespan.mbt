@@ -36,6 +36,10 @@ pub struct Driver {
 }
 
 ///|
+/// A driver for one application. `spawn` parks the application under a `Lifespan` scope, and
+/// `startup` / `shutdown` deliver the two messages to it in that order. `state` is what the
+/// startup writes down for the scopes that follow, which is why it is a parameter and not a
+/// field the caller sets afterwards.
 pub fn Driver::new(
   app : @moonasgi.AsgiApp,
   mode~ : @config.Lifespan = Auto,

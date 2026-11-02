@@ -42,11 +42,11 @@ jobs:
           moon version --all
           moon update
 
-      - name: every source file has a documentation section
-        run: python scripts/check_docs.py
+      - name: the documentation pages match the interfaces
+        run: python scripts/docs/check_docs.py
 
       - name: no two tests bind the same port
-        run: python scripts/check_ports.py
+        run: python scripts/checks/check_ports.py
 
       - name: moon check
         run: moon check --target all --deny-warn
@@ -70,15 +70,15 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           moon build --target native
-          bash scripts/check_workers.sh
+          bash scripts/checks/check_workers.sh
 
       - name: HTTP/3 against another implementation
         if: runner.os == 'Linux'
         run: |
-          moon build src/examples/37-http3 --target native
+          moon build src/examples/07-http3 --target native
           python3 -m venv "$RUNNER_TEMP/aioquic"
           "$RUNNER_TEMP/aioquic/bin/pip" install --quiet aioquic
-          "$RUNNER_TEMP/aioquic/bin/python" scripts/check_http3.py
+          "$RUNNER_TEMP/aioquic/bin/python" scripts/http3/check_http3.py
 
       - name: lint (fmt is clean)
         run: |
