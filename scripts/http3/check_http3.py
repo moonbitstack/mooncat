@@ -140,7 +140,7 @@ async def main():
 
 def binary():
     built = ROOT / "_build/native/debug/build/examples/07-http3"
-    return next(p for p in built.iterdir() if p.name in ("37-http3", "37-http3.exe"))
+    return next(p for p in built.iterdir() if p.name in ("07-http3", "07-http3.exe"))
 
 
 server = subprocess.Popen([str(binary())], cwd=ROOT, stdout=subprocess.DEVNULL)

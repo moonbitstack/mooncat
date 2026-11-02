@@ -217,7 +217,7 @@ content-length: 19
             <tr><td><code>limit_max_requests</code></td><td>none</td><td>the server retires once it has served this many</td></tr>
             <tr><td><code>timeout_keep_alive</code></td><td><code>5000</code> ms</td><td>an idle keep-alive connection is closed after this</td></tr>
             <tr><td><code>timeout_handshake</code></td><td><code>60000</code> ms</td><td>a TLS handshake that has not finished by then is dropped</td></tr>
-            <tr><td><code>timeout_graceful</code>…</td><td>none</td><td><code>graceful_timeout</code>: how long a drain may take</td></tr>
+            <tr><td><code>graceful_timeout</code></td><td>none</td><td>how long a drain may take before the listener closes</td></tr>
             <tr><td><code>max_head_size</code></td><td><code>16384</code></td><td>a request head past this is answered <code>431</code></td></tr>
             <tr><td><code>server_headers</code></td><td><code>{"server": "mooncat"}</code></td><td>added to every response; empty to send none</td></tr>
             <tr><td><code>date_header</code></td><td><code>true</code></td><td>stamp a <code>date</code> on every response</td></tr>
