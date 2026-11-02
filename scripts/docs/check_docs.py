@@ -51,7 +51,8 @@ def interfaces():
     """Every package's interface, examples aside: those are programs, not an API."""
     found = {}
     for path in sorted(SRC.rglob("pkg.generated.mbti")):
-        if path.relative_to(SRC).parts[0] == "examples":
+        parts = path.relative_to(SRC).parts
+        if parts[0] == "examples" or "snippets-check" in parts:
             continue
         text = path.read_text(encoding="utf-8")
         declared = re.search(r'^package "([^"]+)"', text, re.M)

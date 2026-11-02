@@ -18,7 +18,7 @@ async fn main {
     )
     send(
       @moonasgi.Event::HttpResponseBody(
-        body=b"hello from mooncat, heke1228\n",
+        body=b"hello from mooncat\n",
         more_body=false,
       ),
     )

@@ -18,6 +18,7 @@ the check fails. It is ignored by git.
 import html
 import pathlib
 import shutil
+import time
 import shutil
 import re
 import subprocess
@@ -112,7 +113,16 @@ def main():
         print("all %d snippets compile" % len(snippets))
         return 0
     finally:
-        shutil.rmtree(SCRATCH, ignore_errors=True)
+        # Windows can keep a handle on a file moon has just read. A directory
+        # left behind would be read as a package by the next run.
+        for attempt in range(5):
+            shutil.rmtree(SCRATCH, ignore_errors=True)
+            if not SCRATCH.exists():
+                break
+            time.sleep(0.3)
+        if SCRATCH.exists():
+            print("could not remove %s" % SCRATCH)
+            return 1
 
 
 if __name__ == "__main__":

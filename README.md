@@ -41,8 +41,8 @@ $ curl -i http://127.0.0.1:12000/
 HTTP/1.1 200 OK
 content-type: text/plain; charset=utf-8
 server: mooncat
-date: Mon, 02 Nov 2026 09:24:29 GMT
-content-length: 29
+date: Mon, 02 Nov 2026 10:11:23 GMT
+content-length: 19
 
 hello from mooncat
 ```
