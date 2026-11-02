@@ -839,6 +839,10 @@ html[lang="zh"] .card p { letter-spacing: 0.01em; }
   max-width: none;
   list-style: none;
 }
+/* `.content ul` carries the indent a bulleted list needs; this one has no
+   bullets, and the indent put the tiles out of line with every bar above
+   them. Spelled with the element to outrank that rule. */
+.content ul.facts { padding-left: 0; }
 .facts li {
   flex: 1 1 300px;
   min-width: 0;
@@ -947,6 +951,9 @@ html[lang="zh"] .card p { letter-spacing: 0.01em; }
 }
 
 .steps { display: grid; gap: 8px; margin: 0 0 16px; padding: 0; list-style: none; }
+/* The numbered steps draw their own number; the list indent would push
+   them out of line with everything above. */
+.content ol.steps { padding-left: 0; }
 .step {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr);
