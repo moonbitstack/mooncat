@@ -1,0 +1,18 @@
+import {
+  "moonbitstack/mooncat",
+  "moonbitstack/mooncat/logo",
+  "moonbitstack/moonasgi",
+  "moonbitlang/async",
+  "moonbitlang/core/env",
+}
+
+pkgtype(kind: "executable")
+
+warnings = "-29"
+
+options(
+  targets: {
+    "main.mbt": [ "native", "wasm" ],
+    "elsewhere.mbt": [ "js", "wasm-gc" ],
+  },
+)

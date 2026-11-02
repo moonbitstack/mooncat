@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbitstack/mooncat/logo"
+
+// Values
+pub fn banner() -> String
+
+pub fn disable() -> Unit
+
+pub fn enable(name? : String) -> Unit
+
+pub fn is_enabled() -> Bool
+
+pub fn names() -> Array[String]
+
+pub fn print() -> Unit
+
+pub fn register(String, String) -> Unit
+
+pub fn style() -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,7 @@
+// The banner a program may print before it starts serving. A package of its own
+// because it is not part of serving anything: a program that does not ask for it
+// never links it, and one that does asks with a single call.
+
+import {
+  "moonbitstack/mooncat/logo",
+} for "test"
