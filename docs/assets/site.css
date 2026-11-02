@@ -19,9 +19,15 @@
   --bar-line: #cfc8e3;
   --code-bg: #f2f5ff;
   --code-line: #b7b0d0;
-  --term-bg: #12123a;
-  --term-ink: #e7e3ff;
-  --term-dim: #9d97d0;
+  --term-bg: #f5f3ff;
+  --term-line: #cfc8e3;
+  --term-bar: #ebe7f6;
+  --term-dot: #d5cfe6;
+  --term-ink: #1c1b3d;
+  --term-dim: #67628c;
+  --term-prompt: #5b39d6;
+  --term-out: #2b2a52;
+  --term-comment: #6f6a94;
   --tbl-head: #5a51b8;
   --tbl-odd: #f4f2ff;
   --tbl-even: #fbfaff;
@@ -49,8 +55,14 @@
   --code-bg: #171634;
   --code-line: #37335e;
   --term-bg: #0b0a1c;
+  --term-line: #2a2750;
+  --term-bar: #1b1a44;
+  --term-dot: #3a3772;
   --term-ink: #e7e3ff;
   --term-dim: #8e88c2;
+  --term-prompt: #b8a8ff;
+  --term-out: #d8d3ff;
+  --term-comment: #8f89c4;
   --tbl-head: #443a9e;
   --tbl-odd: #15142d;
   --tbl-even: #121126;
@@ -78,8 +90,14 @@
     --code-bg: #171634;
     --code-line: #37335e;
     --term-bg: #0b0a1c;
+    --term-line: #2a2750;
+    --term-bar: #1b1a44;
+    --term-dot: #3a3772;
     --term-ink: #e7e3ff;
     --term-dim: #8e88c2;
+    --term-prompt: #b8a8ff;
+    --term-out: #d8d3ff;
+    --term-comment: #8f89c4;
     --tbl-head: #443a9e;
     --tbl-odd: #15142d;
     --tbl-even: #121126;
@@ -298,44 +316,6 @@ input[type="search"]::-ms-clear { display: none; }
 .head-tools svg { width: 16px; height: 16px; display: block; }
 .head-tools .gh { padding: 0 9px; }
 
-/* The strip of page-level links. Kept on every page, same order, same words. */
-
-.tabs {
-  border-top: 1px solid var(--line-soft);
-  background: var(--band-2);
-}
-.tabs .wrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding-top: 6px;
-  padding-bottom: 0;
-}
-.tabs a {
-  display: block;
-  padding: 7px 14px;
-  margin-bottom: -1px;
-  font-size: 0.9rem;
-  color: var(--muted);
-  border: 1px solid transparent;
-  border-bottom: 2px solid transparent;
-  border-radius: 6px 6px 0 0;
-  text-decoration: none;
-}
-.tabs a:hover {
-  color: var(--ink);
-  background: var(--accent-soft);
-  text-decoration: none;
-}
-.tabs a[aria-current="page"] {
-  color: var(--ink);
-  background: var(--paper);
-  border-color: var(--line);
-  border-bottom-color: var(--paper);
-  font-weight: 600;
-}
-.tabs a.gh { margin-left: auto; }
-
 /* ------------------------------------------------------------------ layout */
 
 #middle {
@@ -533,10 +513,12 @@ kbd {
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .st { color: #7fe0ad; } }
 .cm { color: var(--muted); }
 
-/* Terminal: the recorded sessions. Its own dark panel in both themes. */
+/* The recorded sessions. A panel, not a screen: it is drawn in the page's own
+   colours — pale in daylight, near-black after dark — so no block on a light
+   page stays dark. */
 .term {
   margin: 0 0 18px;
-  border: 1px solid #2a2750;
+  border: 1px solid var(--term-line);
   border-radius: var(--radius);
   background: var(--term-bg);
   overflow: hidden;
@@ -546,8 +528,8 @@ kbd {
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  background: #1b1a44;
-  border-bottom: 1px solid #2a2750;
+  background: var(--term-bar);
+  border-bottom: 1px solid var(--term-line);
   color: var(--term-dim);
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.74rem;
@@ -555,9 +537,9 @@ kbd {
 .term .bar-top .dots { display: flex; gap: 5px; }
 .term .bar-top .dots i {
   width: 9px; height: 9px; border-radius: 50%;
-  background: #3a3772; display: block;
+  background: var(--term-dot); display: block;
 }
-.term .bar-top .dots i:first-child { background: #7a4ffd; }
+.term .bar-top .dots i:first-child { background: var(--accent); }
 .term pre {
   margin: 0;
   padding: 12px 14px;
@@ -566,10 +548,10 @@ kbd {
   font-size: 0.82rem;
   line-height: 1.6;
 }
-.term .p { color: #b8a8ff; }
-.term .o { color: #d8d3ff; }
-.term .c { color: #8f89c4; }
-.term .ok { color: #7fe0ad; }
+.term .p { color: var(--term-prompt); }
+.term .o { color: var(--term-out); }
+.term .c { color: var(--term-comment); }
+.term .ok { color: var(--ok); }
 .term .dim { color: var(--term-dim); }
 
 /* ------------------------------------------------------------------ tables */
@@ -692,29 +674,14 @@ table.tbl {
 
 /* ------------------------------------------------------- language switch */
 
-.lang {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--paper);
-  overflow: hidden;
-}
-.lang a {
-  display: inline-flex;
-  align-items: center;
-  height: 30px;
-  padding: 0 8px;
-  font-size: 0.78rem;
-  color: var(--muted);
-  text-decoration: none;
-}
-.lang a + a { border-left: 1px solid var(--line); }
-.lang a:hover { color: var(--ink); background: var(--accent-soft); text-decoration: none; }
-.lang a[aria-current="true"] {
-  color: var(--ink);
-  background: var(--accent-soft);
-  font-weight: 600;
+/* One button, like the theme's: it names the other language, and pressing it
+   goes there. The pages themselves decide which way it points. */
+
+.head-tools .lang {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  padding: 0 9px;
 }
 
 /* --------------------------------------------------------------- Chinese */
@@ -844,29 +811,40 @@ html[lang="zh"] .card p { letter-spacing: 0.01em; }
 }
 .btn.ghost:hover { border-color: var(--accent); color: var(--link); background: var(--accent-soft); }
 
+/* The four facts under the hero: a flex row that breaks into two, each tile
+   growing to share the width rather than sitting in a narrow column. */
 .facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   margin: 0 0 26px;
   padding: 0;
   list-style: none;
 }
 .facts li {
+  flex: 1 1 300px;
+  min-width: 0;
+  text-align: center;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 10px 12px;
+  padding: 14px 16px;
   background: var(--band-2);
 }
 .facts b {
   display: block;
   font-family: "IBM Plex Mono", monospace;
-  font-size: 1.08rem;
+  font-size: 1.12rem;
   white-space: nowrap;
   color: var(--ink);
   font-weight: 500;
+  margin-bottom: 3px;
 }
-.facts span { font-size: 0.8rem; color: var(--muted); }
+.facts span {
+  display: block;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
 
 .cards {
   display: grid;
@@ -1186,9 +1164,6 @@ section.pkg h3.bar { margin-top: 18px; }
   .content h1 { font-size: 1.62rem; }
   .hero { padding: 16px 16px 18px; }
   .hero h1 { font-size: 1.7rem; }
-  .facts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .tabs a { padding: 6px 10px; font-size: 0.84rem; }
-  .tabs a.gh { margin-left: 0; }
   .tbl { font-size: 0.84rem; }
   .tbl th { white-space: normal; }
   .diagram svg { min-width: 0; width: 100%; }

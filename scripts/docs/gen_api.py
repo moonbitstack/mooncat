@@ -348,16 +348,17 @@ LANG = {
         "lede": "Every public item of every package, in the order the compiler lists them. "
                 "Generated from the package interfaces by <code>scripts/docs/gen_api.py</code>; "
                 "the prose is the <code>///</code> comment beside each declaration.",
-        "tabs": [("index.html", "Home"), ("guide.html", "Guide"), ("api.html", "API reference"),
-                 ("playground.html", "Playground")],
+        "rail": "Documentation navigation",
         "packages": "Packages",
-        "mooncat": ("mooncat", [("index.html", "Home"), ("playground.html", "Playground")]),
+        "mooncat": ("Mooncat", [("index.html", "Home"), ("playground.html", "Playground")]),
         "documentation": ("Documentation", [("guide.html", "Guide"), ("api.html", "API reference")]),
         "download": ("Download", [("https://mooncakes.io/docs/moonbitstack/mooncat", "mooncakes")]),
         "problems": ("Problems?", [("https://github.com/moonbitstack/mooncat/issues", "Issues")]),
-        "involved": ("Get involved", [("https://github.com/moonbitstack/mooncat", "Source code")]),
         "items": "%d items",
         "count": "%d public items across %d packages.",
+        "lang_href": "./zh/api.html",
+        "lang_label": "ZH",
+        "lang_title": "中文",
         "prev": "← Playground",
         "next": "Home →",
         "search": "Search the documentation",
@@ -372,16 +373,17 @@ LANG = {
         "h1": "API 参考",
         "lede": "每个包的全部公开项，顺序照编译器的列法。由 <code>scripts/docs/gen_api.py</code> "
                 "从包接口生成；说明文字来自声明旁的 <code>///</code> 注释。",
-        "tabs": [("index.html", "首页"), ("guide.html", "指南"), ("api.html", "API 参考"),
-                 ("playground.html", "演示")],
+        "rail": "文档导航",
         "packages": "包",
-        "mooncat": ("mooncat", [("index.html", "首页"), ("playground.html", "演示")]),
+        "mooncat": ("Mooncat", [("index.html", "首页"), ("playground.html", "演示")]),
         "documentation": ("文档", [("guide.html", "指南"), ("api.html", "API 参考")]),
         "download": ("下载", [("https://mooncakes.io/docs/moonbitstack/mooncat", "mooncakes")]),
         "problems": ("问题？", [("https://github.com/moonbitstack/mooncat/issues", "议题")]),
-        "involved": ("参与", [("https://github.com/moonbitstack/mooncat", "源代码")]),
         "items": "%d 项",
         "count": "共 %d 个公开项，分属 %d 个包。",
+        "lang_href": "../api.html",
+        "lang_label": "EN",
+        "lang_title": "English",
         "prev": "← 演示",
         "next": "首页 →",
         "search": "搜索文档",
@@ -389,16 +391,6 @@ LANG = {
         "footer": "mooncat — Apache-2.0。API 页面由源码树生成。",
     },
 }
-
-
-def tabs_html(labels):
-    out = ['  <nav class="tabs" aria-label="Pages">', '    <div class="wrap">']
-    for href, text in labels["tabs"]:
-        current = ' aria-current="page"' if href == "api.html" else ""
-        out.append('      <a href="./%s"%s>%s</a>' % (href, current, text))
-    out.append("    </div>")
-    out.append("  </nav>")
-    return "\n".join(out)
 
 
 def group(title, links, current=None):
@@ -417,9 +409,14 @@ def write_page(lang, found):
     head = re.sub(r"<title>.*?</title>", "<title>%s</title>" % labels["title"], head, flags=re.S)
     head = re.sub(r'<meta name="description" content="[^"]*">',
                   '<meta name="description" content="%s">' % labels["desc"], head, count=1)
-    head = re.sub(r'  <nav class="tabs".*?</nav>', tabs_html(labels), head, count=1, flags=re.S)
+    # the head is lifted from the home page; the switch has to point here
+    head = re.sub(r'<a class="lang"[^>]*>[^<]*</a>',
+                  '<a class="lang" href="%s" hreflang="%s" title="%s">%s</a>'
+                  % (labels["lang_href"], "zh" if lang == "en" else "en",
+                     labels["lang_title"], labels["lang_label"]), head, count=1)
 
-    body = ['<main id="middle">', '<aside id="side">']
+    body = ['<main id="middle">',
+            '<nav id="side" aria-label="%s">' % labels["rail"]]
     body.append('  <form class="search" id="search-form" role="search">')
     body.append('    <label class="sr-only" for="q">%s</label>' % labels["search"])
     body.append('    <input id="q" type="search" placeholder="%s" autocomplete="off">'
@@ -440,8 +437,7 @@ def write_page(lang, found):
     body.append(group(labels["documentation"][0], labels["documentation"][1], current="api.html"))
     body.append(group(labels["download"][0], labels["download"][1]))
     body.append(group(labels["problems"][0], labels["problems"][1]))
-    body.append(group(labels["involved"][0], labels["involved"][1]))
-    body.append("</aside>")
+    body.append("</nav>")
 
     body.append('<article class="content">')
     body.append("<h1>%s</h1>" % labels["h1"])

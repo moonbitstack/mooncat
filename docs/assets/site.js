@@ -47,7 +47,7 @@
         /* ignore */
       }
       paint();
-      document.dispatchEvent(new CustomEvent("mooncat:theme"));
+      window.dispatchEvent(new CustomEvent("mooncat:theme"));
     });
   }
 
@@ -244,6 +244,14 @@
         }
         if (swapped && img.hasAttribute("data-alt-alt")) {
           img.alt = img.getAttribute("data-alt-alt");
+        }
+      });
+      // The word beside the mark says what the mark says: `mooncat` under one
+      // cut, `MoonCat` under the other.
+      document.querySelectorAll("[data-word]").forEach(function (word) {
+        var said = word.getAttribute(swapped ? "data-alt-word" : "data-word");
+        if (said && word.textContent !== said) {
+          word.textContent = said;
         }
       });
     };

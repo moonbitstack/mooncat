@@ -201,7 +201,7 @@ window.SEARCH = [
   "lang": "zh",
   "page": "首页",
   "url": "zh/index.html",
-  "heading": "mooncat",
+  "heading": "MoonCat",
   "text": ""
  },
  {

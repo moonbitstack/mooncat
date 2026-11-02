@@ -123,13 +123,14 @@ def check_api_page(page, items, documented):
     return len(listed)
 
 
-def tabs(page):
+def rail(page):
+    """The left rail's own links: the four pages, plus the guide's sections."""
     text = page.read_text(encoding="utf-8")
-    nav = re.search(r'<nav class="tabs".*?</nav>', text, re.S)
-    if not nav:
+    side = re.search(r'<nav id="side".*?</nav>', text, re.S)
+    if not side:
         return None
     return [(normalise(re.sub(r"<[^>]+>", "", label)), link)
-            for link, label in re.findall(r'<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>', nav.group(0), re.S)]
+            for link, label in re.findall(r'<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>', side.group(0), re.S)]
 
 
 def check_pages():
@@ -144,13 +145,20 @@ def check_pages():
                 continue
             seen += 1
             text = page.read_text(encoding="utf-8")
-            found = tabs(page)
+            # There is no strip of tabs under the header: the rail is the only
+            # navigation, as it is on the site this one follows. Every page
+            # must reach the other three from it, and no page may grow the
+            # strip back.
+            if 'class="tabs"' in text:
+                fail("%s has the tab strip back" % name)
+            found = rail(page)
             if not found:
-                fail("%s has no page navigation" % name)
-            elif reference is None:
-                reference = (name, found)
-            elif found != reference[1]:
-                fail("%s navigates differently from %s" % (name, reference[0]))
+                fail("%s has no links in its side rail" % name)
+            else:
+                known = set(link.lstrip("./").split("#")[0] for _label, link in found)
+                for target in ("index.html", "guide.html", "api.html", "playground.html"):
+                    if target not in known:
+                        fail("%s cannot reach %s from the rail" % (name, target))
             for needle, complaint in (('rel="icon"', "no favicon"),
                                       ('id="search-form"', "no search box"),
                                       ("github.com/moonbitstack/mooncat", "no link back to the repository"),
@@ -158,11 +166,28 @@ def check_pages():
                                       ("<title>", "no title")):
                 if needle not in text:
                     fail("%s has %s" % (name, complaint))
-            switch = re.search(r'<span class="lang".*?</span>', text, re.S)
-            if switch and ("%s/" % other if other == "zh" else "../") not in switch.group(0):
-                fail("%s does not link to the %s pages" % (name, other))
+            # One button that names the other language and goes there, the
+            # way the theme button names the other theme. Both the page it
+            # points at and the word on it are checked, because a switch that
+            # says EN and stays put is worse than no switch at all.
+            switches = re.findall(r'<a class="lang"[^>]*href="([^"]+)"[^>]*>([^<]+)</a>', text)
+            if len(switches) != 1:
+                fail("%s has %d language switches, expected one"
+                     % (name, len(switches)))
+                continue
+            href, label = switches[0]
+            want = name.replace("zh/", "") if lang == "zh" else "zh/" + name
+            if href.lstrip("./") != want:
+                fail("%s switches to %s, not %s" % (name, href, want))
+            if label.strip().upper() != other.upper():
+                fail("%s labels its switch %s, not %s" % (name, label.strip(), other.upper()))
+
+            order = [text.find('class="lang"'), text.find('id="theme"'),
+                     text.find("github.com/moonbitstack/mooncat")]
+            if order != sorted(order) or -1 in order:
+                fail("%s orders its header controls wrongly: language, theme, repository" % name)
     if seen:
-        print("  pages: %d across two languages" % seen)
+        print("  pages: %d across two languages, no tab strip, rail reaches all four" % seen)
 
 
 def at_rule_blocks(text):
