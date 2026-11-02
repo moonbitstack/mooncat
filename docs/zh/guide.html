@@ -149,7 +149,7 @@ curl -i http://127.0.0.1:12000/</pre>
       </figure>
 
       <figure class="term">
-        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录</figcaption>
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded</figcaption>
         <pre><span class="p">$</span> curl --noproxy '*' -i http://127.0.0.1:12000/
 <span class="ok">HTTP/1.1 200 OK</span>
 content-type: text/plain; charset=utf-8
@@ -282,7 +282,7 @@ moon run src/main --target native -- --help</pre>
       <p>参数都可省略，含义与同形状的 Python 服务器一致：</p>
 
       <figure class="term">
-        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录 — 调了 run(app) 的程序的 --help</figcaption>
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded — 调了 run(app) 的程序的 --help</figcaption>
         <pre><span class="p">$</span> ./app --help
 Usage: mooncat [options]
 
@@ -316,7 +316,7 @@ Options:
       <p>做不到的参数回原因，不说「未知参数」。</p>
 
       <figure class="term">
-        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录</figcaption>
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded</figcaption>
         <pre><span class="p">$</span> ./app --uds /tmp/app.sock
 <span class="o">mooncat: --uds: the async transport binds TCP only</span></pre>
       </figure>
@@ -362,7 +362,7 @@ Options:
       <p>握手时 ALPN 给出 <code>h2</code> 与 <code>http/1.1</code>，客户端挑一个：</p>
 
       <figure class="term">
-        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录 — openssl s_client 对着这个监听器</figcaption>
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded — openssl s_client 对着这个监听器</figcaption>
         <pre><span class="p">$</span> openssl s_client -connect 127.0.0.1:12000 -alpn h2,http/1.1
 Protocol: TLSv1.3
 Cipher is TLS_CHACHA20_POLY1305_SHA256
@@ -372,7 +372,7 @@ ALPN protocol: h2</pre>
       <p>同端口、同证书、同应用：</p>
 
       <figure class="term">
-        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录</figcaption>
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded</figcaption>
         <pre><span class="p">$</span> curl -k --http2 https://127.0.0.1:12000/
 <span class="ok">HTTP/2 200</span>
 content-type: text/plain
@@ -428,7 +428,7 @@ content-length: 12
 
       <p>握手实录：</p>
       <figure class="term">
-        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录 — curl 8.21 说 ws://</figcaption>
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded — curl 8.21 说 ws://</figcaption>
         <pre><span class="p">$</span> curl -v ws://127.0.0.1:9001/
 &gt; GET / HTTP/1.1
 &gt; Host: 127.0.0.1:9001
@@ -464,7 +464,7 @@ content-length: 12
       <p><code>serve</code> 与 <code>serve_tls</code> 已在同端口上说 HTTP/2：TLS 下由 ALPN 点名 <code>h2</code>，明文下看前言。应用不用改。</p>
 
       <figure class="term">
-        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录 — 同一个应用，无 TLS，无升级</figcaption>
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded — 同一个应用，无 TLS，无升级</figcaption>
         <pre><span class="p">$</span> curl --http2-prior-knowledge http://127.0.0.1:12000/
 <span class="ok">HTTP/2 200</span>
 content-type: text/plain; charset=utf-8
@@ -527,7 +527,7 @@ date: Mon, 02 Nov 2026 10:11:38 GMT
       <p>此后每个响应带 <code>alt-svc</code>，客户端由此知道 UDP 端口：</p>
 
       <figure class="term">
-        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> 实录 — 一个 QUIC 客户端对着同一个端口</figcaption>
+        <figcaption class="bar-top"><span class="dots"><i></i><i></i><i></i></span> recorded — 一个 QUIC 客户端对着同一个端口</figcaption>
         <pre><span class="p">$</span> python h3trace.py   # 一个 HTTP/3 客户端，ALPN 为 h3
 <span class="ok">:status     200</span>
 content-type text/plain

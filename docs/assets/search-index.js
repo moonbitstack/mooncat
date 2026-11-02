@@ -286,7 +286,7 @@ window.SEARCH = [
   "page": "指南",
   "url": "zh/guide.html#http2",
   "heading": "HTTP/2 与 h2c",
-  "text": "serve 与 serve_tls 已在同端口上说 HTTP/2：TLS 下由 ALPN 点名 h2 ，明文下看前言。应用不用改。 实录 — 同一个应用，无 TLS，无升级 $ curl --http2-prior-knowledge http://127.0.0.1:12000/ HTTP/2 200 content-type: text/plain; charset=utf-8 server: mooncat date: Mon, 02 Nov 2026 10:11:38 GMT hello from moon"
+  "text": "serve 与 serve_tls 已在同端口上说 HTTP/2：TLS 下由 ALPN 点名 h2 ，明文下看前言。应用不用改。 recorded — 同一个应用，无 TLS，无升级 $ curl --http2-prior-knowledge http://127.0.0.1:12000/ HTTP/2 200 content-type: text/plain; charset=utf-8 server: mooncat date: Mon, 02 Nov 2026 10:11:38 GMT hello fro"
  },
  {
   "lang": "zh",
