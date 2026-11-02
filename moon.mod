@@ -1,6 +1,6 @@
 name = "moonbitstack/mooncat"
 
-version = "0.19.2"
+version = "0.19.3"
 
 readme = "README.md"
 
