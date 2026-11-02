@@ -1,0 +1,18 @@
+// An echo endpoint: `moon run src/examples/05-websocket-echo --target native`, and what
+// `scripts/autobahn/run.sh` tests.
+pkgtype(kind: "executable")
+
+import {
+  "moonbitstack/mooncat",
+  "moonbitstack/moonasgi",
+  "moonbitlang/async",
+}
+
+warnings = "-29"
+
+options(
+  targets: {
+    "main.mbt": [ "native", "wasm" ],
+    "elsewhere.mbt": [ "js", "wasm-gc" ],
+  },
+)

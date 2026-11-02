@@ -1,0 +1,19 @@
+// HTTP/1.1, HTTP/2 and HTTP/3 on one port: `moon run src/examples/07-http3 --target native`.
+pkgtype(kind: "executable")
+
+import {
+  "moonbitstack/mooncat",
+  "moonbitstack/mooncat/quic",
+  "moonbitstack/moonasgi",
+  "moonbitlang/async",
+  "moonbitlang/core/encoding/utf8",
+}
+
+warnings = "-29"
+
+options(
+  targets: {
+    "main.mbt": [ "native" ],
+    "elsewhere.mbt": [ "js", "wasm", "wasm-gc" ],
+  },
+)
