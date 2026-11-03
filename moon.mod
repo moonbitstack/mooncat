@@ -1,6 +1,6 @@
 name = "moonbitstack/mooncat"
 
-version = "0.19.3"
+version = "0.19.4"
 
 readme = "README.md"
 
@@ -11,11 +11,27 @@ license = "Apache-2.0"
 keywords = [
   "asgi",
   "server",
+  "web-server",
+  "http-server",
   "uvicorn",
+  "hypercorn",
   "http",
+  "http1",
+  "http2",
+  "h2c",
+  "http3",
+  "quic",
   "websocket",
-  "moonbit",
+  "tls",
+  "https",
+  "alpn",
+  "workers",
+  "proxy-headers",
+  "forwarded",
+  "unix-socket",
   "native",
+  "cli",
+  "moonbit",
 ]
 
 description = "A native ASGI server for MoonBit."
