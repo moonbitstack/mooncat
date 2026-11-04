@@ -60,11 +60,12 @@ pub(all) struct H2Config {
 }
 pub fn H2Config::new(max_streams? : Int32, max_header_list? : Int32, max_frame? : Int32, window? : Int32, connection_window? : Int32) -> Self
 
+#derive(Eq, @debug.Debug)
 pub(all) enum Lifespan {
   Auto
   On
   Off
-} derive(Eq, @debug.Debug)
+}
 pub fn Lifespan::equal(Self, Self) -> Bool
 pub fn Lifespan::not_equal(Self, Self) -> Bool
 pub fn Lifespan::to_repr(Self) -> @debug.Repr

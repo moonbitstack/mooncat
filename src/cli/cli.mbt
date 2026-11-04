@@ -3,6 +3,7 @@
 ///
 /// Unknown flags and missing values are `argparse`'s to report — it already
 /// prints what clap prints. These three are mooncat's own.
+#derive(Eq, Debug)
 pub(all) suberror Refused {
   /// A value that is not what the flag takes. `want` names the shape, such as
   /// `"a number"` or the list of words a choice allows.
@@ -12,7 +13,7 @@ pub(all) suberror Refused {
   /// Half of a pair. `--ssl-certfile` without `--ssl-keyfile` is not a
   /// certificate.
   Partial(flag~ : String, needs~ : String)
-} derive(Eq, Debug)
+}
 
 ///|
 pub extend Refused with Eq::{equal, not_equal}

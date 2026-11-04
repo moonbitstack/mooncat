@@ -43,6 +43,7 @@ pub fn WsConfig::new(
 
 ///|
 /// How the server runs the lifespan protocol (← uvicorn's `--lifespan`).
+#derive(Eq, Debug)
 pub(all) enum Lifespan {
   /// Run it, and carry on without it when the application fails on the lifespan scope, as one
   /// that serves only HTTP does.
@@ -51,7 +52,7 @@ pub(all) enum Lifespan {
   On
   /// Do not run it.
   Off
-} derive(Eq, Debug)
+}
 
 ///|
 pub extend Lifespan with Eq::{equal, not_equal}

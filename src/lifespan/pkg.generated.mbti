@@ -3,6 +3,7 @@ package "moonbitstack/mooncat/lifespan"
 
 import {
   "moonbitlang/async",
+  "moonbitlang/core/json",
   "moonbitstack/moonasgi/spec",
   "moonbitstack/mooncat/config",
 }
@@ -16,10 +17,10 @@ pub suberror LifespanError {
 
 // Types and methods
 pub struct Driver {
-  state : Map[String, Json]
+  state : Map[String, @json.Json]
   // private fields
 }
-pub fn Driver::new(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, mode? : @config.Lifespan, logger? : @config.Logger, state? : Map[String, Json]) -> Self
+pub fn Driver::new(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, mode? : @config.Lifespan, logger? : @config.Logger, state? : Map[String, @json.Json]) -> Self
 pub async fn Driver::shutdown(Self) -> Unit
 pub fn Driver::spawn(Self, @async.TaskGroup[Unit]) -> Unit
 pub async fn Driver::startup(Self) -> Unit

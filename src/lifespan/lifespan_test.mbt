@@ -1,5 +1,6 @@
 ///|
-suberror Unknown derive(Debug)
+#derive(Debug)
+suberror Unknown
 
 ///|
 /// Serves HTTP only: fails on any other scope, as plenty of ASGI applications do.
