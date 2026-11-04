@@ -356,10 +356,10 @@ access : Bool</pre>
 <summary><span class="caret"></span><span class="kind">struct</span><span class="sig">struct Driver</span></summary>
 <div class="body">
 <p>Drives an application&#x27;s lifespan protocol (← uvicorn&#x27;s <code>LifespanOn</code>).</p><p>One invocation of the application runs under a <code>Lifespan</code> scope for the server&#x27;s whole life: <code>startup</code> sends <code>lifespan.startup</code> and waits for the answer, <code>shutdown</code> sends <code>lifespan.shutdown</code>. <code>state</code> is the scope&#x27;s namespace; the server gives every request scope a shallow copy, so what startup stores there reaches each request.</p><p><code>mode</code> is uvicorn&#x27;s <code>--lifespan</code>: under <code>Auto</code> an application that fails on the lifespan scope, as one serving only HTTP does, is taken not to speak the protocol and the server carries on; under <code>On</code> that failure stops the boot; under <code>Off</code> nothing runs.</p>
-<pre class="fields">state : Map[String, Json]</pre>
+<pre class="fields">state : Map[String, @json.Json]</pre>
 </div></details>
-<details class="item" id="lifespan--Driver-new" data-item="pub fn Driver::new(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, mode? : @config.Lifespan, logger? : @config.Logger, state? : Map[String, Json]) -&gt; Self">
-<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Driver::new(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, mode? : @config.Lifespan, logger? : @config.Logger, state? : Map[String, Json]) -&gt; Self</span></summary>
+<details class="item" id="lifespan--Driver-new" data-item="pub fn Driver::new(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, mode? : @config.Lifespan, logger? : @config.Logger, state? : Map[String, @json.Json]) -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn Driver::new(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, mode? : @config.Lifespan, logger? : @config.Logger, state? : Map[String, @json.Json]) -&gt; Self</span></summary>
 <div class="body">
 <p>A driver for one application. <code>spawn</code> parks the application under a <code>Lifespan</code> scope, and <code>startup</code> / <code>shutdown</code> deliver the two messages to it in that order. <code>state</code> is what the startup writes down for the scopes that follow, which is why it is a parameter and not a field the caller sets afterwards.</p>
 </div></details>

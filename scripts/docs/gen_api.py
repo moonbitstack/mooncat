@@ -92,7 +92,7 @@ def doc_comments(pkg_path):
             if stripped.startswith("///"):
                 block.append(stripped[3:].lstrip())
                 continue
-            if not stripped:
+            if not stripped or stripped.startswith("#"):
                 continue
             if stripped.startswith("pub ") and block:
                 key = declared_name(stripped)
