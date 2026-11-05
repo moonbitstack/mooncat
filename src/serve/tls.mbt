@@ -21,6 +21,7 @@ pub async fn TlsCert::load(
   alpn~ : Array[String] = alpn,
   suites~ : Array[@record.Suite] = @tls.suites,
   suites12~ : Array[@record.Suite12] = @tls.suites12,
+  tickets~ : @tls.Tickets = @tls.tickets,
 ) -> @tls.Server {
   @tls.Server::new(
     @x509.pems(@fs.read_file(self.certificate_file).text()),
@@ -28,6 +29,9 @@ pub async fn TlsCert::load(
     alpn~,
     suites~,
     suites12~,
+    // HTTP over 0-RTT needs a server that can answer 425 and an application that knows the request
+    // may be a replay (RFC 8470). This one has neither, so whatever `tickets` says, it takes none.
+    tickets={ ..tickets, early: 0, },
   )
 }
 

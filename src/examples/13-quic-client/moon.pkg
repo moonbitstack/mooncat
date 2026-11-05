@@ -1,0 +1,18 @@
+// A bare QUIC client over a real socket: a handshake, a stream, a key update, and a resumption with
+// 0-RTT. `scripts/quic/check_interop.py` runs it against aioquic.
+supported_targets = "+native"
+
+pkgtype(kind: "executable")
+
+import {
+  "moonbitstack/mooncat/quic",
+  "moonbitstack/moonquic/conn",
+  "moonbitstack/moonquic/frame",
+  "moonbitstack/moontls/tls",
+  "moonbitstack/mooncred/x509",
+  "moonbitlang/async",
+  "moonbitlang/async/os_error",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+}

@@ -136,11 +136,7 @@ fn tls_hello_quic_transport_params(
   extensions : Array[@ext.Ext],
 ) -> Array[@conn.Param] {
   match @ext.find(extensions[:], QuicTransportParameters) {
-    Some(e) =>
-      match @conn.decode(e.data[:]) {
-        Some(params) => params
-        None => []
-      }
+    Some(e) => @conn.decode(e.data[:]) catch { _ => [] }
     None => []
   }
 }

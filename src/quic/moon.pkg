@@ -19,6 +19,7 @@ import {
   "moonbitlang/async",
   "moonbitlang/async/cond_var",
   "moonbitlang/async/socket",
+  "moonbitlang/async/os_error",
   "moonbitlang/core/cmp",
   "moonbitlang/core/env",
   "moonbitlang/core/encoding/utf8",

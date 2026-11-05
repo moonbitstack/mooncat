@@ -174,3 +174,12 @@ async test "tls: a certificate loads with the TLS 1.2 suites it is given" {
   assert_eq(test_cert().load(suites12=chosen).suites12, chosen)
   assert_eq(test_cert().load().suites12, @tls.suites12)
 }
+
+///|
+async test "resumption is the caller's to turn on, and 0-RTT stays off whatever it says" {
+  assert_false(test_cert().load().tickets.is_on())
+  let key = Bytes::make(32, b'')
+  let on = test_cert().load(tickets=@tls.Tickets::new([key][:], early=1024))
+  assert_true(on.tickets.is_on())
+  assert_eq(on.tickets.early, 0)
+}

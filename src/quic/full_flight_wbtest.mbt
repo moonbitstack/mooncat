@@ -77,7 +77,11 @@ test "full flight: the server's Handshake flight carries real EE, Certificate, a
   // A real self-signed X.509 certificate whose key is the one that signs the CertificateVerify,
   // so the certificate and the signature are consistent — the identity a client authenticates.
   let der = @x509.self_signed(
-    cert_key, b"\x2a", "mooncat.example", "250101000000Z", "350101000000Z",
+    key=Ec(cert_key),
+    cn="mooncat.example",
+    serial=b"*",
+    not_before=1735689600L,
+    not_after=2051222400L,
   )
   let cert_body = @msg.certificate([der][:])
   let flight = server.send_handshake_flight(

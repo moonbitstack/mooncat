@@ -208,6 +208,7 @@ moon run src/examples/09-tour --target native
 them with real clients and prints what came back, then stops.
 `11-event-log` wraps an application in a middleware that prints every ASGI message
 it sees, one JSON line each; the playground is recorded from it.
+`12-quic-echo` and `13-quic-client` are bare QUIC over a real socket, with no HTTP in between: tickets, 0-RTT, a key update.
 
 ## Targets
 

@@ -56,8 +56,15 @@ pub async fn Endpoint::recv_datagram(
   match self.link {
     Socket(server) => {
       let buf = FixedArray::make(max, b'\x00')
-      let (n, from) = server.recvfrom(buf)
-      (Bytes::makei(n, i => buf[i]), from)
+      for ;; {
+        // Windows reports the ICMP "port unreachable" an earlier send drew as an error on this
+        // socket, WSAECONNRESET. That peer is gone; every other one is still here.
+        let (n, from) = server.recvfrom(buf) catch {
+          @os_error.OSError(10054, ..) => continue
+          e => raise e
+        }
+        break (Bytes::makei(n, i => buf[i]), from)
+      }
     }
     Relay(conn) => {
       let (peer, datagram) = read_relayed(conn)

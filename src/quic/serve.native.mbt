@@ -12,6 +12,12 @@ pub fn now() -> Int64 {
 }
 
 ///|
+/// The clock tickets and client certificates are judged at, in seconds since the Unix epoch.
+pub fn wall() -> Int64 {
+  @async.now() / 1000L
+}
+
+///|
 /// Push every datagram the server has ready onto `ep`, until its queues are empty or the
 /// anti-amplification limit stops it.
 async fn quic_pump(
@@ -41,7 +47,7 @@ pub async fn serve_endpoint(
     let _ : @async.Task[Unit] = g.spawn(() => {
       for ;; {
         let (datagram, from) = ep.recv_datagram()
-        server.recv(datagram, from, now()) catch {
+        server.recv(datagram, from, now(), wall=wall()) catch {
           _ => ()
         }
         quic_pump(ep, server) catch {

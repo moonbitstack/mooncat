@@ -1,0 +1,16 @@
+// A bare QUIC server over a real socket: tickets, 0-RTT and whatever a client sends comes back in
+// upper case. `scripts/quic/check_interop.py` runs it against aioquic.
+supported_targets = "+native"
+
+pkgtype(kind: "executable")
+
+import {
+  "moonbitstack/mooncat/quic",
+  "moonbitstack/moonquic/conn",
+  "moonbitstack/moontls/tls",
+  "moonbitstack/mooncred/x509",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/env",
+}

@@ -16,11 +16,13 @@ pub fn now() -> Int64
 
 pub async fn serve(String, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -> Unit
 
-pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -> Unit
+pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite], suites12? : Array[@record.Suite12], tickets? : @tls.Tickets) -> Unit
 
 pub async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -> Unit
 
 pub async fn serve_site(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @serve.Site, @tls.Server, transport? : @conn.Config, tick_ms? : Int32) -> Unit
+
+pub fn wall() -> Int64
 
 // Errors
 

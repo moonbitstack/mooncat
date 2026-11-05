@@ -72,7 +72,7 @@ pub(all) struct TlsCert {
   certificate_file : String
   private_key_file : String
 }
-pub async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -> @tls.Server
+pub async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12], tickets? : @tls.Tickets) -> @tls.Server
 
 // Type aliases
 

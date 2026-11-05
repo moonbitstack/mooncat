@@ -509,6 +509,8 @@ async fn H3::dispatch(self : H3, g : @async.TaskGroup[Unit]) -> Unit {
           }
           self.clients.remove(session.cid())
         }
+        // No HTTP datagrams here (RFC 9297), and this server does not offer them.
+        Datagram => ()
       }
     }
   }
@@ -565,7 +567,7 @@ pub async fn serve_site(
     let _ : @async.Task[Unit] = g.spawn(() => {
       for ;; {
         let (datagram, from) = h3.ep.recv_datagram()
-        h3.server.recv(datagram, from, now()) catch {
+        h3.server.recv(datagram, from, now(), wall=wall()) catch {
           _ => ()
         }
         h3.dispatch(g)
@@ -601,20 +603,24 @@ fn entropy(n : Int32) -> Bytes {
 /// With `workers` above 1 the TCP port is shared by the kernel, as for `serve_tls`, and the UDP port
 /// by this process: it holds the socket and passes each datagram to the worker whose number is in
 /// the connection id (see `route.mbt`).
+///
+/// `tickets` turns session resumption on, over TCP and UDP alike. All the workers need the same
+/// keys. 0-RTT stays off whatever it says, since nothing here can answer 425 (RFC 8470).
 pub async fn serve_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
   cert : @serve.TlsCert,
   suites? : Array[@record.Suite],
   suites12? : Array[@record.Suite12],
+  tickets? : @tls.Tickets,
 ) -> Unit {
   if config.workers > 1 && @serve.worker() is None {
     return supervise_with_relay(config)
   }
   let headers = config.server_headers.copy()
   headers["alt-svc"] = "h3=\":\{config.port}\"; ma=86400"
-  let tcp = cert.load(suites?, suites12?)
-  let udp = cert.load(alpn=["h3"], suites?)
+  let tcp = cert.load(suites?, suites12?, tickets?)
+  let udp = cert.load(alpn=["h3"], suites?, tickets?)
   @serve.serve_tls_beside(app, { ..config, server_headers: headers, }, tcp, site => {
     serve_site(app, site, udp)
   })
