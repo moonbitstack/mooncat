@@ -72,6 +72,12 @@ jobs:
           moon build --target native
           bash scripts/checks/check_workers.sh
 
+      - name: TLS resumption with Python's ssl
+        if: runner.os == 'Linux'
+        run: |
+          moon build src/examples/14-http2-server --target native
+          python3 scripts/checks/check_tls_resume.py
+
       - name: HTTP/3 against another implementation
         if: runner.os == 'Linux'
         run: |

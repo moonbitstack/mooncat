@@ -603,8 +603,10 @@ fn entropy(n : Int32) -> Bytes {
 /// by this process: it holds the socket and passes each datagram to the worker whose number is in
 /// the connection id (see `route.mbt`).
 ///
-/// `tickets` turns session resumption on, over TCP and UDP alike. All the workers need the same
-/// keys. 0-RTT stays off whatever it says, since nothing here can answer 425 (RFC 8470).
+/// Session resumption is on over TCP and UDP alike, each worker with keys of its own, so a ticket
+/// resumes only on the worker that sealed it. `tickets` chooses the keys: pass the same ones to share
+/// tickets across workers, or `@tls.tickets` to turn it off. 0-RTT stays off whatever it says, since
+/// nothing here can answer 425 (RFC 8470).
 pub async fn serve_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,

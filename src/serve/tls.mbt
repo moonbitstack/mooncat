@@ -16,13 +16,24 @@ pub let alpn : Array[String] = ["h2", "http/1.1"]
 ///|
 /// Read the files into a TLS server configuration. A key that is not the leaf's is refused here,
 /// at startup, rather than by every client's handshake.
+///
+/// Session resumption is on, as it is by default in nginx, Go and OpenSSL, under a ticket key made
+/// here for this process. Pass `tickets` to choose the keys, which is how several workers come to
+/// share them, or `@tls.tickets` to turn it off. A ticket this process cannot open costs a full
+/// handshake and nothing else.
 pub async fn TlsCert::load(
   self : TlsCert,
   alpn~ : Array[String] = alpn,
   suites~ : Array[@record.Suite] = @tls.suites,
   suites12~ : Array[@record.Suite12] = @tls.suites12,
-  tickets~ : @tls.Tickets = @tls.tickets,
+  tickets? : @tls.Tickets,
 ) -> @tls.Server {
+  let tickets = match (tickets, @env.rand(32)) {
+    (Some(tickets), _) => tickets
+    (None, Some(key)) => @tls.Tickets::new([key][:])
+    // No entropy to make a key with, so no tickets.
+    (None, None) => @tls.tickets
+  }
   @tls.Server::new(
     @x509.pems(@fs.read_file(self.certificate_file).text()),
     @x509.PrivateKey::pem(@fs.read_file(self.private_key_file).text()),
