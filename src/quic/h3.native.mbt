@@ -5,29 +5,21 @@
 // runs the application in a task of its own, the body is taken as the application asks for it, so
 // a stream's credit comes back at that pace, and `receive` says `http.disconnect` when the
 // response is complete or the client has walked away.
+//
+// What the protocol allows on a stream is `moonhttp`'s to judge; this file only says what to do
+// when it says no. An HTTP/3 fault is always the connection's, never a stream's (§4.1.2, §7.2):
+// the two ends no longer agree about what the streams mean, so the connection is closed with the
+// code the refusal carries and every exchange on it stops.
 
 ///|
-/// RFC 9114 §8.1 error codes.
-const H3_NO_ERROR : UInt64 = 0x100UL
+/// The largest field section this server will take (SETTINGS_MAX_FIELD_SECTION_SIZE, RFC 9114
+/// §7.2.4.1). A frame bigger than this is refused as its header arrives rather than buffered.
+let max_field_section_size : UInt64 = 16384UL
 
 ///|
-const H3_INTERNAL_ERROR : UInt64 = 0x102UL
-
-///|
-const H3_FRAME_UNEXPECTED : UInt64 = 0x105UL
-
-///|
-const H3_REQUEST_REJECTED : UInt64 = 0x10bUL
-
-///|
-const H3_REQUEST_CANCELLED : UInt64 = 0x10cUL
-
-///|
-const H3_MESSAGE_ERROR : UInt64 = 0x10eUL
-
-///|
-/// QPACK_DECOMPRESSION_FAILED, RFC 9204 §6.
-const QPACK_DECOMPRESSION_FAILED : UInt64 = 0x200UL
+/// The QPACK dynamic table this server offers, which is none: it sends headers from the static
+/// table and asks peers to do the same, so an encoder stream may set no capacity at all.
+let qpack_table_capacity : UInt64 = 0UL
 
 ///|
 /// How much of one response is held unacknowledged before `send` waits, which is what paces a fast
@@ -42,8 +34,8 @@ let frame_size : Int32 = 16384
 /// A request stream.
 priv struct Exchange {
   id : UInt64
-  mut held : Bytes
-  mut data_left : UInt64
+  incoming : @http3.Incoming
+  mut parts : Array[@http3.Part]
   mut gone : Bool
   mut done : Bool
   // Taken with `admit`, so to be given back with `finished`.
@@ -55,8 +47,11 @@ priv struct Exchange {
 fn Exchange::new(id : UInt64) -> Exchange {
   {
     id,
-    held: b"",
-    data_left: 0UL,
+    incoming: @http3.Incoming::new(
+      limit=max_field_section_size,
+      chunk=frame_size,
+    ),
+    parts: [],
     gone: false,
     done: false,
     admitted: false,
@@ -71,23 +66,35 @@ fn Exchange::cut(self : Exchange) -> Unit {
 }
 
 ///|
+/// What comes next on a request stream.
+priv enum Piece {
+  Head(Array[@header.Header])
+  Body(Bytes)
+  End
+}
+
+///|
+/// A peer's unidirectional stream, once its type has arrived (RFC 9114 §6.2, RFC 9204 §4.2).
+priv enum Uni {
+  /// The type varint has not fully arrived.
+  Opening(Bytes)
+  Control(@http3.Control)
+  Encoder(@http3.Encoder)
+  Decoder(@http3.Decoder)
+  /// A push or reserved stream: nothing in it is for this server.
+  Ignored
+}
+
+///|
 /// One client connection.
 priv struct Client {
   session : @conn.Session[@socket.Addr]
   wire : @http3.Conn
   exchanges : Map[UInt64, Exchange]
-  uni : Map[UInt64, Bytes]
+  uni : Map[UInt64, Uni]
   mut control : UInt64?
   mut next_request : UInt64
   mut leaving : Bool
-}
-
-///|
-/// What comes next on a request stream.
-priv enum Piece {
-  Head(Bytes)
-  Body(Bytes)
-  End
 }
 
 ///|
@@ -109,8 +116,8 @@ async fn H3::pump(self : H3) -> Unit {
 
 ///|
 /// End the connection with an HTTP/3 error, and everything on it.
-async fn H3::abort(self : H3, client : Client, code : UInt64) -> Unit {
-  client.session.close(code, b"", now(), application=true)
+async fn H3::abort(self : H3, client : Client, code : @http3.Code) -> Unit {
+  client.session.close(code.code(), b"", now(), application=true)
   for _, ex in client.exchanges {
     ex.cut()
   }
@@ -127,53 +134,33 @@ fn join(a : Bytes, b : BytesView) -> Bytes {
 }
 
 ///|
-/// What arrives next on `ex`: a whole HEADERS field section, whatever part of a DATA frame's
-/// payload is here, or the end. DATA is handed over as it comes rather than as whole frames, so a
-/// large body stays out of memory. Unknown frame types are skipped (RFC 9114 §9); one that does not
-/// belong on a request stream ends the connection (§7.2).
+/// What arrives next on `ex`: the request's head, the next piece of its body, or the end. A window
+/// into the stream is taken as it comes rather than whole, so a large body stays out of memory,
+/// and what the protocol does not allow on a request stream — DATA before HEADERS, a frame a
+/// control stream owns, a malformed field section — is refused by the reader.
 async fn H3::next(self : H3, client : Client, ex : Exchange) -> Piece {
   for ;; {
     if ex.gone {
       return End
     }
-    if ex.data_left > 0UL && ex.held.length() > 0 {
-      let have = ex.held.length().to_uint64()
-      let take = if have < ex.data_left { have } else { ex.data_left }
-      let part = ex.held[0:take.to_int()].to_owned()
-      ex.held = ex.held[take.to_int():].to_owned()
-      ex.data_left = ex.data_left - take
-      return Body(part)
-    }
-    if ex.data_left == 0UL && ex.held.length() > 0 {
-      if @quic.decode(ex.held[:]) is Some((kind, at)) {
-        if kind == 0UL {
-          if @quic.decode(ex.held[at:]) is Some((size, more)) {
-            ex.data_left = size
-            ex.held = ex.held[at + more:].to_owned()
-            continue
-          }
-        } else {
-          match @http3.decode(ex.held[:]) {
-            Some((frame, used)) => {
-              ex.held = ex.held[used:].to_owned()
-              if frame is Headers(section) {
-                return Head(section)
-              }
-              @http3.check(frame, Request)
-              continue
-            }
-            None => ()
-          }
-        }
+    if ex.parts.length() > 0 {
+      let part = ex.parts[0]
+      ex.parts.remove(0) |> ignore
+      match part {
+        @http3.Part::Head(fields) => return Head(fields)
+        @http3.Part::Data(body) => return Body(body)
+        // Trailing fields carry nothing this binding hands the application.
+        @http3.Part::Trailers(_) => continue
       }
     }
     let got = client.session.read(ex.id)
     if got.length() > 0 {
-      ex.held = join(ex.held, got[:])
+      ex.parts = ex.incoming.feed(got)
       self.pump()
       continue
     }
     if client.session.finished(ex.id) {
+      ex.incoming.end()
       return End
     }
     ex.changed.wait()
@@ -213,56 +200,24 @@ async fn H3::write_head(
 }
 
 ///|
-/// Whether a request head carries what RFC 9114 §4.3.1 requires, and its pseudo-fields come first.
-fn well_formed(fields : Array[@header.Header]) -> Bool {
-  let mut verb = false
-  let mut path = false
-  let mut scheme = false
-  let mut regular = false
-  for field in fields {
-    let (name, _) = field.ascii()
-    if name.has_prefix(":") {
-      if regular {
-        return false
-      }
-      match name {
-        ":method" => verb = true
-        ":path" => path = true
-        ":scheme" => scheme = true
-        ":authority" => ()
-        _ => return false
-      }
-    } else {
-      regular = true
-    }
-  }
-  verb && path && scheme
-}
-
-///|
 /// Answer one request stream.
 async fn H3::answer(self : H3, client : Client, ex : Exchange) -> Unit {
+  // A fault the application's `receive` ran into cannot be raised through it: the ASGI signature
+  // has no error type, so it is kept here and raised once the application has returned.
+  let fault : Ref[@http3.Code?] = Ref(None)
   let section = match self.next(client, ex) {
     Head(section) => section
     _ => return
-  }
-  let fields = @qpack.decode(section) catch {
-    _ => return self.abort(client, QPACK_DECOMPRESSION_FAILED)
-  }
-  guard well_formed(fields) else {
-    client.session.stop(ex.id, H3_MESSAGE_ERROR)
-    client.session.reset(ex.id, H3_MESSAGE_ERROR)
-    return self.pump()
   }
   guard self.site.admit() else {
     self.write_head(client, ex, self.site.head(503, []), fin=true)
     return
   }
   ex.admitted = true
-  let (verb, target) = @serve.request_of(fields)
+  let (verb, target) = @serve.request_of(section)
   let config = self.site.config()
   let scope = self.site.scope(
-    fields,
+    section,
     version="3",
     peer=client.session.peer(),
     suite=client.session.suite_code(),
@@ -275,14 +230,23 @@ async fn H3::answer(self : H3, client : Client, ex : Exchange) -> Unit {
         return @moonasgi.Event::HttpDisconnect
       }
       if !delivered.val {
-        match self.next(client, ex) {
-          Body(part) =>
+        let piece = Ok(self.next(client, ex)) catch {
+          @http3.Refused::Fault(code~, ..) => Err(code)
+          @http3.Refused::Malformed(_) => Err(@http3.GeneralProtocolError)
+          _ => Err(@http3.InternalError)
+        }
+        match piece {
+          Ok(Body(part)) =>
             return @moonasgi.Event::HttpRequest(body=part, more_body=true)
-          Head(_) => continue
-          End => {
+          Ok(Head(_)) => continue
+          Ok(End) => {
             guard !ex.gone else { return @moonasgi.Event::HttpDisconnect }
             delivered.val = true
             return @moonasgi.Event::HttpRequest(body=b"", more_body=false)
+          }
+          Err(code) => {
+            fault.val = Some(code)
+            return @moonasgi.Event::HttpDisconnect
           }
         }
       }
@@ -366,12 +330,17 @@ async fn H3::answer(self : H3, client : Client, ex : Exchange) -> Unit {
       failed.val = true
     }
   }
+  match fault.val {
+    Some(code) =>
+      raise @http3.Fault(code~, detail="the request stream was refused")
+    None => ()
+  }
   if !ex.gone && !ex.done {
     if status.val == 0 {
       status.val = 500
       self.write_head(client, ex, self.site.head(500, []), fin=true)
     } else if failed.val {
-      client.session.reset(ex.id, H3_INTERNAL_ERROR)
+      client.session.reset(ex.id, @http3.InternalError.code())
     } else {
       self.write(client, ex, b"", fin=true)
     }
@@ -379,7 +348,7 @@ async fn H3::answer(self : H3, client : Client, ex : Exchange) -> Unit {
   complete()
   // RFC 9114 §4.1: a server done before the request ended tells the client it may stop.
   if !client.session.finished(ex.id) && !ex.gone {
-    client.session.stop(ex.id, H3_NO_ERROR)
+    client.session.stop(ex.id, @http3.NoError.code())
   }
   self.pump()
   config.logger.access_line(
@@ -392,30 +361,94 @@ async fn H3::answer(self : H3, client : Client, ex : Exchange) -> Unit {
 }
 
 ///|
-/// A client's unidirectional stream: the control stream sets the connection up, QPACK's two say
-/// nothing this server listens to, since it declares no dynamic table, and the rest are read past
-/// (RFC 9114 §6.2).
-async fn H3::on_uni(self : H3, client : Client, id : UInt64) -> Unit {
-  let got = client.session.read(id)
-  self.pump()
-  let held = match client.uni.get(id) {
-    Some(before) => join(before, got[:])
-    None => got
+/// Classify a unidirectional stream from the bytes read so far, and hand what follows its type to
+/// the reader for that kind.
+fn classify(client : Client, bytes : Bytes) -> Uni raise @http3.Refused {
+  let (kind, at) = match @http3.Stream::decode(bytes[:]) {
+    Some(v) => v
+    // The type is a varint of up to eight octets and may be split across packets.
+    None => return Opening(bytes)
   }
-  guard !client.wire.settings_established() ||
-    !(@quic.decode(held[:]) is Some((0UL, _))) else {
-    return
-  }
-  match @quic.decode(held[:]) {
-    Some((0UL, _)) =>
-      // A control stream's SETTINGS may be split across packets: an error here is as likely to
-      // mean more is coming.
-      try client.wire.accept_uni_stream(held) catch {
-        _ => client.uni[id] = held
-      } noraise {
-        _ => client.uni.remove(id)
+  client.wire.open_stream(kind)
+  let rest = bytes[at:].to_owned()
+  match kind {
+    ControlKind => {
+      let reader = @http3.Control::new(limit=max_field_section_size)
+      if reader.feed(rest) is Some(settings) {
+        client.wire.accept_settings(settings)
       }
-    _ => client.uni[id] = b""
+      Control(reader)
+    }
+    EncoderKind => {
+      let reader = @http3.Encoder::new(limit=qpack_table_capacity.to_int())
+      reader.feed(rest)
+      Encoder(reader)
+    }
+    DecoderKind => {
+      let reader = @http3.Decoder::new()
+      reader.feed(rest)
+      Decoder(reader)
+    }
+    PushKind(_) | ReservedKind(_) => Ignored
+  }
+}
+
+///|
+/// Take what a peer's unidirectional stream has to say: the control stream sets the connection up,
+/// the QPACK streams keep their two ends agreed about the table, and a push or reserved stream is
+/// read past (RFC 9114 §6.2). A stream the connection needs ending is H3_CLOSED_CRITICAL_STREAM,
+/// which is how a peer says it will not go on.
+async fn H3::read_uni(
+  self : H3,
+  client : Client,
+  id : UInt64,
+) -> Unit raise @http3.Refused {
+  let got = client.session.read(id)
+  self.pump() catch {
+    _ => ()
+  }
+  let known = client.uni.get(id)
+  let bytes = match known {
+    Some(Opening(held)) => join(held, got[:])
+    _ => got
+  }
+  match known {
+    None | Some(Opening(_)) => client.uni[id] = classify(client, bytes)
+    Some(Control(reader)) =>
+      if reader.feed(got) is Some(settings) {
+        client.wire.accept_settings(settings)
+      }
+    Some(Encoder(reader)) => reader.feed(got)
+    Some(Decoder(reader)) => reader.feed(got)
+    Some(Ignored) => ()
+  }
+  if client.session.finished(id) {
+    match client.uni.get(id) {
+      Some(Control(reader)) => reader.end()
+      Some(Encoder(reader)) => reader.end()
+      Some(Decoder(reader)) => reader.end()
+      Some(Opening(_)) =>
+        raise @http3.Fault(
+          code=@http3.FrameError,
+          detail="a unidirectional stream ending inside its type",
+        )
+      Some(Ignored) | None => ()
+    }
+    client.uni.remove(id)
+  }
+}
+
+///|
+/// Read a peer's unidirectional stream and act on it, closing the connection when it says
+/// something HTTP/3 does not allow.
+async fn H3::on_uni(self : H3, client : Client, id : UInt64) -> Unit {
+  let outcome = Ok(self.read_uni(client, id)) catch {
+    @http3.Refused::Fault(code~, ..) => Err(code)
+    @http3.Refused::Malformed(_) => Err(@http3.GeneralProtocolError)
+  }
+  match outcome {
+    Ok(_) => ()
+    Err(code) => self.abort(client, code) catch { _ => () }
   }
 }
 
@@ -428,8 +461,8 @@ fn H3::open(
   id : UInt64,
 ) -> Unit {
   if client.leaving {
-    client.session.stop(id, H3_REQUEST_REJECTED)
-    client.session.reset(id, H3_REQUEST_REJECTED)
+    client.session.stop(id, @http3.RequestRejected.code())
+    client.session.reset(id, @http3.RequestRejected.code())
     return
   }
   let ex = Exchange::new(id)
@@ -438,12 +471,16 @@ fn H3::open(
     client.next_request = id + 4UL
   }
   g.spawn_bg(allow_failure=true, () => {
-    self.answer(client, ex) catch {
-      @http3.Refused::Malformed(_) =>
-        self.abort(client, H3_FRAME_UNEXPECTED) catch {
-          _ => ()
-        }
-      _ => ()
+    // A request stream that says something HTTP/3 does not allow ends the connection, not the
+    // stream: §4.1.2 and §7.2 make each of those faults the connection's.
+    let refused = Ok(self.answer(client, ex)) catch {
+      @http3.Refused::Fault(code~, ..) => Err(code)
+      @http3.Refused::Malformed(_) => Err(@http3.GeneralProtocolError)
+      _ => Err(@http3.InternalError)
+    }
+    match refused {
+      Ok(_) => ()
+      Err(code) => self.abort(client, code) catch { _ => () }
     }
     client.session.release(id)
     client.exchanges.remove(id)
@@ -469,7 +506,9 @@ async fn H3::dispatch(self : H3, g : @async.TaskGroup[Unit]) -> Unit {
           session,
           wire: @http3.Conn::new(
             Server,
-            @http3.Settings::new(0UL, @http3.max_field_section, 0UL),
+            @http3.Settings::new(
+              qpack_table_capacity, max_field_section_size, 0UL,
+            ),
           ),
           exchanges: Map([]),
           uni: Map([]),
@@ -496,11 +535,16 @@ async fn H3::dispatch(self : H3, g : @async.TaskGroup[Unit]) -> Unit {
             // its number: under loss a later stream can arrive first.
             None => self.open(g, client, id)
           }
-        Reset(id, _) => if client.exchanges.get(id) is Some(ex) { ex.cut() }
+        Reset(id, _) =>
+          if client.exchanges.get(id) is Some(ex) {
+            ex.cut()
+          } else {
+            self.on_uni_reset(client, id)
+          }
         Stopped(id, _) =>
           if client.exchanges.get(id) is Some(ex) {
             ex.cut()
-            session.reset(id, H3_REQUEST_CANCELLED)
+            session.reset(id, @http3.RequestCancelled.code())
           }
         Closed(_) => {
           for _, ex in client.exchanges {
@@ -514,6 +558,24 @@ async fn H3::dispatch(self : H3, g : @async.TaskGroup[Unit]) -> Unit {
     }
   }
   self.credit.broadcast()
+}
+
+///|
+/// A peer abandoned a unidirectional stream. Closing one the connection needs is the same fault
+/// as ending it (§6.2.1, RFC 9204 §4.2).
+async fn H3::on_uni_reset(self : H3, client : Client, id : UInt64) -> Unit {
+  guard client.uni.get(id) is Some(stream) else { return }
+  client.uni.remove(id)
+  let fault = match stream {
+    Control(_) | Decoder(_) => Some(@http3.ClosedCriticalStream)
+    Encoder(_) => Some(@http3.ClosedCriticalStream)
+    Opening(_) | Ignored => None
+  }
+  if fault is Some(code) {
+    self.abort(client, code) catch {
+      _ => ()
+    }
+  }
 }
 
 ///|
@@ -557,7 +619,12 @@ pub async fn serve_site(
   @async.with_task_group(g => {
     defer {
       for _, client in h3.clients {
-        client.session.close(H3_NO_ERROR, b"", now(), application=true)
+        client.session.close(
+          @http3.NoError.code(),
+          b"",
+          now(),
+          application=true,
+        )
       }
       @async.protect_from_cancel(() => h3.pump()) catch {
         _ => ()
