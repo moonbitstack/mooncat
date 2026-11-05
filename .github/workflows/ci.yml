@@ -86,6 +86,10 @@ jobs:
           "$RUNNER_TEMP/aioquic/bin/pip" install --quiet aioquic
           "$RUNNER_TEMP/aioquic/bin/python" scripts/http3/check_http3.py
 
+      - name: HTTP/3 conformance, h3spec 0.1.14
+        if: runner.os == 'Linux'
+        run: sh scripts/http3/check_h3spec.sh
+
       - name: QUIC against aioquic, both ways
         if: runner.os == 'Linux'
         run: |

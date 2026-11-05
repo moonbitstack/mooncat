@@ -210,6 +210,7 @@ them with real clients and prints what came back, then stops.
 it sees, one JSON line each; the playground is recorded from it.
 `12-quic-echo` and `13-quic-client` are bare QUIC over a real socket, with no HTTP in between: tickets, 0-RTT, a key update.
 `14-http2-server` is what `scripts/http2/check_h2spec.sh` runs h2spec against: all 146 cases pass in the clear and over TLS, and all 147 with its strict checks on.
+`07-http3` serves HTTP/1.1, HTTP/2 and HTTP/3 on one port, and is what `scripts/http3/check_h3spec.sh` runs h3spec against: all 34 cases of its "HTTP/3 servers" section pass.
 
 ## Targets
 
