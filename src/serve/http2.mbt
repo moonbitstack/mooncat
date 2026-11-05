@@ -52,8 +52,8 @@ priv struct H2 {
   // Broadcast when the peer may have opened a send window: WINDOW_UPDATE, new SETTINGS, a
   // stream reset or the end of the connection.
   credit : @cond_var.Cond
-  // A GOAWAY has gone one way or the other: no new streams, and the connection ends once the
-  // open ones are answered.
+  // This side has sent a GOAWAY: no new streams, and the connection ends once the open ones are
+  // answered.
   mut draining : Bool
   mut idle_since : Int64
 }
@@ -287,8 +287,8 @@ async fn H2::leave(self : H2) -> Unit {
 
 ///|
 /// The reading side: take the peer's octets into the state machine and act on what comes out,
-/// until the peer closes, a connection error, a GOAWAY with nothing left open, or an idle spell
-/// past `timeout_keep_alive`.
+/// until the peer closes, a connection error, this side's GOAWAY with nothing left open, or an
+/// idle spell past `timeout_keep_alive`.
 ///
 /// Reads are bounded by the keep-alive time so the loop gets to look at the clock: a connection
 /// with no stream open for that long is sent a GOAWAY and closed, as hypercorn does.
@@ -349,7 +349,9 @@ async fn H2::read(
         self.credit.broadcast()
       }
       WindowUpdated(..) | Settings(_) => self.credit.broadcast()
-      GoAway(..) => self.draining = true
+      // It stops streams this side would open, and a server opens none (§6.8). The peer may still
+      // ping or finish what is in flight, and closes when it is ready.
+      GoAway(..) => ()
       Closed => return
       _ => ()
     }

@@ -505,6 +505,26 @@ async test "h2c: limit_max_requests counts streams and stops the server with a G
 }
 
 ///|
+async test "h2c: a peer's GOAWAY does not end the connection" {
+  @async.with_task_group(g => {
+    let task = g.spawn(() => {
+      serve_h2c_config(
+        answer("ok"),
+        @config.Config::new(port=18315, logger=@config.Logger::silent()),
+      )
+    })
+    @async.sleep(250)
+    let peer = Peer::connect(18315)
+    peer.wire.goaway()
+    peer.flush()
+    let id = peer.request("GET", "/")
+    peer.wait([id])
+    assert_false(peer.closed)
+    task.cancel()
+  })
+}
+
+///|
 async test "h2c: a connection idle past timeout_keep_alive is sent a GOAWAY and closed" {
   @async.with_task_group(g => {
     let task = g.spawn(() => {

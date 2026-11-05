@@ -40,7 +40,7 @@ async fn serve_websocket_raw(
     http_version: "1.1",
     scheme,
     path: @utf8.decode_lossy(percent_decode(raw_path)),
-    raw_path: @utf8.encode(raw_path),
+    raw_path: Some(@utf8.encode(raw_path)),
     query_string: @utf8.encode(query),
     root_path: config.root_path,
     headers,

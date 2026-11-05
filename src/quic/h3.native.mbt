@@ -467,11 +467,10 @@ async fn H3::dispatch(self : H3, g : @async.TaskGroup[Unit]) -> Unit {
       None => {
         let c : Client = {
           session,
-          wire: @http3.Conn::new(Server, {
-            qpack_max_table_capacity: 0UL,
-            max_field_section_size: @http3.max_field_section,
-            qpack_blocked_streams: 0UL,
-          }),
+          wire: @http3.Conn::new(
+            Server,
+            @http3.Settings::new(0UL, @http3.max_field_section, 0UL),
+          ),
           exchanges: Map([]),
           uni: Map([]),
           control: None,

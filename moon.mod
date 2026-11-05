@@ -39,19 +39,19 @@ description = "A native ASGI server for MoonBit."
 preferred_target = "native"
 
 import {
-  "moonbitstack/moonasgi@0.10.4",
+  "moonbitstack/moonasgi@0.10.6",
   "moonbitlang/async@0.22.5",
-  "moonbitstack/moonbase@0.4.2",
+  "moonbitstack/moonbase@0.4.3",
   "moonbitstack/mooncrypt@0.4.11",
-  "moonbitstack/mooncred@0.6.7",
-  "moonbitstack/moonlog@0.1.4",
+  "moonbitstack/mooncred@0.6.9",
+  "moonbitstack/moonlog@0.1.5",
   "moonbitstack/moontls@0.9.14",
   "moonbitstack/moonquic@0.3.11",
-  "moonbitstack/moonnet@0.1.8",
-  "moonbitstack/moonhttp@0.15.4",
-  "moonbitstack/moonurl@0.2.3",
-  "moonbitstack/moondate@0.1.2",
-  "moonbitstack/moonvar@0.2.0",
+  "moonbitstack/moonnet@0.1.9",
+  "moonbitstack/moonhttp@0.15.6",
+  "moonbitstack/moonurl@0.2.5",
+  "moonbitstack/moondate@0.1.4",
+  "moonbitstack/moonvar@0.2.1",
 }
 
 source = "src"

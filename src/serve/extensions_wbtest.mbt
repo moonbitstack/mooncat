@@ -9,7 +9,7 @@ fn reporting() -> @moonasgi.AsgiApp {
     let ext = h.extensions
     let lines = [
       "path=\{h.path}",
-      "raw=\{@utf8.decode_lossy(h.raw_path[:])}",
+      "raw=\{@utf8.decode_lossy(h.raw_path.unwrap()[:])}",
       "root=\{h.root_path}",
       "scheme=\{h.scheme}",
       "client=\{h.client is Some(_)}",

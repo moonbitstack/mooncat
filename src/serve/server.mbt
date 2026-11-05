@@ -287,7 +287,7 @@ async test "the request scope carries the peer, the bind address, and a decoded 
       match scope {
         Http(hs) => {
           seen.push(hs.path)
-          seen.push(@utf8.decode_lossy(hs.raw_path))
+          seen.push(@utf8.decode_lossy(hs.raw_path.unwrap()))
           seen.push(hs.root_path)
           seen.push(
             match hs.client {
