@@ -123,3 +123,6 @@ jobs:
 
       - name: autobahn
         run: sh scripts/autobahn/run.sh
+
+      - name: h2spec
+        run: sh scripts/http2/check_h2spec.sh
