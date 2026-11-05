@@ -560,7 +560,9 @@ async test "http1: the response signals connection close and HTTP/1.0 keep-alive
 /// are derived from the version and the fields exactly as they are for a request off
 /// a socket — a record could set them to values no real request would produce.
 fn h1(verb : String, version : String, fields : String) -> @http1.Request {
-  let wire = @utf8.encode(verb + " / " + version + "\r\n" + fields + "\r\n")
+  let wire = @utf8.encode(
+    verb + " / " + version + "\r\nhost: test\r\n" + fields + "\r\n",
+  )
   @http1.request(wire[:]).0 catch {
     e => abort("a test request should parse: \{e}")
   }
@@ -702,7 +704,7 @@ async test "http1: an idle keep-alive read gives up after timeout_keep_alive" {
 /// service behind a proxy that adds a large header block has to be able to raise it.
 async test "http1: the keep-alive read applies the configured head cap" {
   @async.with_task_group(g => {
-    let head = b"GET /ok HTTP/1.1\r\nx-pad: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n\r\n"
+    let head = b"GET /ok HTTP/1.1\r\nhost: x\r\nx-pad:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n\r\n"
     let (r, w) = @pipe.pipe()
     let feeder = g.spawn(() => {
       w.write(head) catch {
@@ -854,7 +856,7 @@ fn count_bytes(hay : Bytes, needle : Bytes) -> Int32 {
 /// want it lower than the 16 KiB default.
 async test "http1: the request-head cap is configurable, not fixed" {
   // A head of roughly 130 bytes: under the 16 KiB default, over a 64-byte cap.
-  let head = b"GET /ok HTTP/1.1\r\nx-pad: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n\r\n"
+  let head = b"GET /ok HTTP/1.1\r\nhost: x\r\nx-pad:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n\r\n"
   let (r1, w1) = @pipe.pipe()
   w1.write(head)
   w1.close()

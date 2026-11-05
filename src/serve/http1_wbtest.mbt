@@ -35,7 +35,7 @@ async test "http1: two pipelined requests in one segment are both read" {
 /// A body read after the head takes exactly its length, leaving the next request.
 async test "http1: a sized body followed by the next request leaves that request intact" {
   let inbox = inbox_of(
-    "POST /p HTTP/1.1\r\ncontent-length: 5\r\n\r\nhelloGET /q HTTP/1.1\r\n\r\n",
+    "POST /p HTTP/1.1\r\nhost: x\r\ncontent-length: 5\r\n\r\nhelloGET /q HTTP/1.1\r\nhost: x\r\n\r\n",
   )
   let config = @config.Config::new(timeout_keep_alive=3000)
   guard next_head(inbox, config) is Some(post) else {
@@ -53,9 +53,9 @@ async test "http1: a sized body followed by the next request leaves that request
 /// The same for a chunked body, whose end is only known by reading it.
 async test "http1: a chunked body followed by the next request leaves that request intact" {
   let inbox = inbox_of(
-    "POST /c HTTP/1.1\r\ntransfer-encoding: chunked\r\n\r\n" +
+    "POST /c HTTP/1.1\r\nhost: x\r\ntransfer-encoding: chunked\r\n\r\n" +
     "5\r\nhello\r\n6\r\n world\r\n0\r\n\r\n" +
-    "GET /after HTTP/1.1\r\n\r\n",
+    "GET /after HTTP/1.1\r\nhost: x\r\n\r\n",
   )
   let config = @config.Config::new(timeout_keep_alive=3000)
   guard next_head(inbox, config) is Some(post) else {
@@ -76,7 +76,7 @@ async test "http1: a chunked body followed by the next request leaves that reque
 /// refused head ends the connection rather than reaching dispatch.
 async test "http1: a request that tries to smuggle a second one is not read" {
   let inbox = inbox_of(
-    "POST / HTTP/1.1\r\ncontent-length: 5\r\ntransfer-encoding: chunked\r\n\r\n",
+    "POST / HTTP/1.1\r\nhost: x\r\ncontent-length: 5\r\ntransfer-encoding: chunked\r\n\r\n",
   )
   assert_eq(
     next_head(inbox, @config.Config::new(timeout_keep_alive=3000)) is None,
@@ -174,7 +174,9 @@ async test "a malformed request is answered 400 before the connection closes" {
 ///|
 /// A head past `max_head_size` is the one refusal with its own status (RFC 6585 §5).
 async test "a head past max_head_size is answered 431" {
-  let big = "GET / HTTP/1.1\r\nx-filler: " + "a".repeat(200) + "\r\n\r\n"
+  let big = "GET / HTTP/1.1\r\nhost: x\r\nx-filler: " +
+    "a".repeat(200) +
+    "\r\n\r\n"
   let answer = exchange(
     @utf8.encode(big),
     config=@config.Config::new(
@@ -316,4 +318,30 @@ async test "http1: a client that leaves mid-response is heard as http.disconnect
     assert_true(reached is Some(_))
     task.cancel()
   })
+}
+
+///|
+async test "what RFC 9112 says to refuse is answered, and one empty line before a request is not refused" {
+  let cases = [
+    ("GET / HTTP/1.1\r\n\r\n", "400"),
+    ("GET / HTTP/1.1\r\nHost: a\r\nHost: b\r\n\r\n", "400"),
+    ("GET / HTTP/1.1\r\nHost: x\r\nA: b\u{0}c\r\n\r\n", "400"),
+    ("POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: xchunked\r\n\r\n", "400"),
+    (
+      "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: gzip, chunked\r\n\r\n", "501",
+    ),
+    ("GET / HTTP/2.0\r\nHost: x\r\n\r\n", "505"),
+    ("\r\nGET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n", "200"),
+  ]
+  for i, case in cases {
+    let (wire, status) = case
+    let answer = exchange(
+      @utf8.encode(wire),
+      config=@config.Config::new(
+        port=18462 + i,
+        logger=@config.Logger::silent(),
+      ),
+    )
+    assert_true(answer.has_prefix("HTTP/1.1 \{status} "))
+  }
 }

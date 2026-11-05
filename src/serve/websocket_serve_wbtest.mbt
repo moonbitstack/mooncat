@@ -37,6 +37,7 @@ fn ws_upgrade_request() -> @http1.Request {
   // Read through the real parser, so the test drives exactly what a socket would.
   let wire = @utf8.encode(
     "GET /chat HTTP/1.1\r\n" +
+    "Host: localhost\r\n" +
     "Upgrade: websocket\r\n" +
     "Connection: Upgrade\r\n" +
     "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
@@ -215,6 +216,7 @@ async test "wss: an upgrade over TLS completes and a text frame is echoed" {
 fn ws_deflate_request() -> @http1.Request {
   let wire = @utf8.encode(
     "GET /chat HTTP/1.1\r\n" +
+    "Host: localhost\r\n" +
     "Upgrade: websocket\r\n" +
     "Connection: Upgrade\r\n" +
     "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
