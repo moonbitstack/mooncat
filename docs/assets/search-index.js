@@ -187,7 +187,7 @@ window.SEARCH = [
   "lang": "en",
   "page": "API reference",
   "url": "api.html#moonbitstack-mooncat-quic",
-  "heading": "mooncat/quic 12 items",
+  "heading": "mooncat/quic 13 items",
   "text": "HTTP/3: the UDP socket, the datagram loop that routes by connection ID, and the request streams. Values fn fn now() -> Int64 The event loop's clock, in the microseconds the recovery and idle timers are measured in. @async.now() counts milliseconds since the ep"
  },
  {
@@ -383,7 +383,7 @@ window.SEARCH = [
   "lang": "zh",
   "page": "API 参考",
   "url": "zh/api.html#moonbitstack-mooncat-quic",
-  "heading": "mooncat/quic 12 项",
+  "heading": "mooncat/quic 13 项",
   "text": "HTTP/3：UDP 套接字、按连接 ID 分发的数据报循环，以及请求流。 值 fn fn now() -> Int64 The event loop's clock, in the microseconds the recovery and idle timers are measured in. @async.now() counts milliseconds since the epoch. fn async fn serve(String, @conn.Endpoint[@socket.Addr], tic"
  },
  {

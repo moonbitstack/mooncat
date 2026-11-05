@@ -80,7 +80,7 @@
       <li><a href="#moonbitstack-mooncat-proxy">mooncat/proxy (1)</a></li>
       <li><a href="#moonbitstack-mooncat-serve">mooncat/serve (29)</a></li>
       <li><a href="#moonbitstack-mooncat-cli">mooncat/cli (10)</a></li>
-      <li><a href="#moonbitstack-mooncat-quic">mooncat/quic (12)</a></li>
+      <li><a href="#moonbitstack-mooncat-quic">mooncat/quic (13)</a></li>
     </ul>
   </div>
   <div class="grp">
@@ -154,7 +154,7 @@
 <details class="item" id="mooncat--serve_config" data-item="pub async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config) -&gt; Unit</span></summary>
 <div class="body">
-<p>Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port: the TCP side tells clients about HTTP/3 with <code>alt-svc</code> (RFC 7838).</p><p>With <code>workers</code> above 1 the TCP port is shared by the kernel, as for <code>serve_tls</code>, and the UDP port by this process: it holds the socket and passes each datagram to the worker whose number is in the connection id (see <code>route.mbt</code>).</p>
+<p>Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port: the TCP side tells clients about HTTP/3 with <code>alt-svc</code> (RFC 7838).</p><p>With <code>workers</code> above 1 the TCP port is shared by the kernel, as for <code>serve_tls</code>, and the UDP port by this process: it holds the socket and passes each datagram to the worker whose number is in the connection id (see <code>route.mbt</code>).</p><p><code>tickets</code> turns session resumption on, over TCP and UDP alike. All the workers need the same keys. 0-RTT stays off whatever it says, since nothing here can answer 425 (RFC 8470).</p>
 </div></details>
 <details class="item" id="mooncat--serve_graceful" data-item="pub async fn serve_graceful(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, handle? : @serve.ShutdownHandle) -&gt; Unit">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_graceful(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, handle? : @serve.ShutdownHandle) -&gt; Unit</span></summary>
@@ -536,8 +536,8 @@ done : @aqueue.Queue[Unit]</pre>
 <div class="body">
 <p>Whether the server is shutting down, which is when a listener stops taking new work and lets what is running finish.</p>
 </div></details>
-<details class="item" id="serve--TlsCert-load" data-item="pub async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -&gt; @tls.Server">
-<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -&gt; @tls.Server</span></summary>
+<details class="item" id="serve--TlsCert-load" data-item="pub async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12], tickets? : @tls.Tickets) -&gt; @tls.Server">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12], tickets? : @tls.Tickets) -&gt; @tls.Server</span></summary>
 <div class="body">
 <p>Read the files into a TLS server configuration. A key that is not the leaf&#x27;s is refused here, at startup, rather than by every client&#x27;s handshake.</p>
 </div></details>
@@ -601,7 +601,7 @@ done : @aqueue.Queue[Unit]</pre>
 </div></details>
 </section>
 <section class="section pkg" id="moonbitstack-mooncat-quic">
-<h2 class="bar">mooncat/quic<span class="aside">12 项</span></h2>
+<h2 class="bar">mooncat/quic<span class="aside">13 项</span></h2>
 <p class="pkg-desc">HTTP/3：UDP 套接字、按连接 ID 分发的数据报循环，以及请求流。</p>
 <h3 class="bar">值</h3>
 <details class="item" id="quic--now" data-item="pub fn now() -&gt; Int64">
@@ -614,10 +614,10 @@ done : @aqueue.Queue[Unit]</pre>
 <div class="body">
 <p>Bind a UDP socket at <code>addr</code> (e.g. <code>&quot;0.0.0.0:443&quot;</code>) and serve <code>server</code> on it. The socket outlives the loop deliberately: closing one a task is parked in <code>recvfrom</code> on wedges it rather than waking it, so shutdown is cancellation of the task group, not a close.</p>
 </div></details>
-<details class="item" id="quic--serve_config" data-item="pub async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -&gt; Unit">
-<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite], suites12? : Array[@record.Suite12]) -&gt; Unit</span></summary>
+<details class="item" id="quic--serve_config" data-item="pub async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite], suites12? : Array[@record.Suite12], tickets? : @tls.Tickets) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_config(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @config.Config, @serve.TlsCert, suites? : Array[@record.Suite], suites12? : Array[@record.Suite12], tickets? : @tls.Tickets) -&gt; Unit</span></summary>
 <div class="body">
-<p>Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port: the TCP side tells clients about HTTP/3 with <code>alt-svc</code> (RFC 7838).</p><p>With <code>workers</code> above 1 the TCP port is shared by the kernel, as for <code>serve_tls</code>, and the UDP port by this process: it holds the socket and passes each datagram to the worker whose number is in the connection id (see <code>route.mbt</code>).</p>
+<p>Serve HTTP/1.1, HTTP/2 and HTTP/3 together under one certificate, TCP and UDP on the same port: the TCP side tells clients about HTTP/3 with <code>alt-svc</code> (RFC 7838).</p><p>With <code>workers</code> above 1 the TCP port is shared by the kernel, as for <code>serve_tls</code>, and the UDP port by this process: it holds the socket and passes each datagram to the worker whose number is in the connection id (see <code>route.mbt</code>).</p><p><code>tickets</code> turns session resumption on, over TCP and UDP alike. All the workers need the same keys. 0-RTT stays off whatever it says, since nothing here can answer 425 (RFC 8470).</p>
 </div></details>
 <details class="item" id="quic--serve_endpoint" data-item="pub async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -&gt; Unit">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_endpoint(Endpoint, @conn.Endpoint[@socket.Addr], tick_ms? : Int32) -&gt; Unit</span></summary>
@@ -628,6 +628,11 @@ done : @aqueue.Queue[Unit]</pre>
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_site(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, @serve.Site, @tls.Server, transport? : @conn.Config, tick_ms? : Int32) -&gt; Unit</span></summary>
 <div class="body">
 <p>Serve HTTP/3 beside the server&#x27;s TCP listener, on UDP at the same address, until cancelled. <code>tls</code> offers <code>h3</code>.</p>
+</div></details>
+<details class="item" id="quic--wall" data-item="pub fn wall() -&gt; Int64">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn wall() -&gt; Int64</span></summary>
+<div class="body">
+<p>The clock tickets and client certificates are judged at, in seconds since the Unix epoch.</p>
 </div></details>
 <h3 class="bar">类型与方法</h3>
 <details class="item" id="quic--Endpoint" data-item="pub struct Endpoint">
@@ -666,7 +671,7 @@ done : @aqueue.Queue[Unit]</pre>
 <p>Send <code>data</code> as a single datagram to <code>to</code>.</p>
 </div></details>
 </section>
-<p class="api-count">共 102 个公开项，分属 7 个包。</p>
+<p class="api-count">共 103 个公开项，分属 7 个包。</p>
 <div class="pager"><a href="./playground.html">← 演示</a><a href="./index.html">首页 →</a></div>
 </article></main>
 
