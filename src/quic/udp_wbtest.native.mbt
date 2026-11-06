@@ -246,6 +246,7 @@ async test "quic over udp: a full TLS 1.3 ECDHE handshake reaches CONNECTED over
       version: 0x0303,
       random: Bytes::make(32, b'\x23'),
       session_id: b"lfanke",
+      cookie: b"",
       suites: [0x1301],
       compression: b"\x00",
       extensions: [

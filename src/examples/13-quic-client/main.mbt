@@ -114,10 +114,7 @@ async fn main {
   client.write(4UL, b"second", fin=true)
   println("stream after update \{reply(udp, to, client, 4UL)}")
   let again = client_of(store, 23, true)
-  let queued = again.send_zero_rtt([
-    @frame.Stream(id=0UL, offset=0UL, fin=true, data=b"early"),
-  ])
-  println("0-RTT queued \{queued}")
+  again.write(0UL, b"early", fin=true)
   println("early reply \{reply(udp, to, again, 0UL)}")
   println("early accepted \{again.early_accepted()}")
 }

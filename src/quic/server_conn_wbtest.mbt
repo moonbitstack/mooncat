@@ -381,6 +381,7 @@ test "server conn: the handshake flight is protected with ECDHE-derived keys the
     version: 0x0303,
     random: Bytes::make(32, b'\x23'),
     session_id: b"heke1228",
+    cookie: b"",
     suites: [0x1301],
     compression: b"\x00",
     extensions: [
@@ -492,6 +493,7 @@ test "server conn: a full ECDHE handshake reaches CONNECTED" {
     version: 0x0303,
     random: Bytes::make(32, b'\x23'),
     session_id: b"lfanke",
+    cookie: b"",
     suites: [0x1301],
     compression: b"\x00",
     extensions: [

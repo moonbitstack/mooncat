@@ -7,7 +7,6 @@ pkgtype(kind: "executable")
 import {
   "moonbitstack/mooncat/quic",
   "moonbitstack/moonquic/conn",
-  "moonbitstack/moonquic/frame",
   "moonbitstack/moontls/tls",
   "moonbitstack/mooncred/x509",
   "moonbitlang/async",

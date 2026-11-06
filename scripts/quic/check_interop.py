@@ -176,7 +176,7 @@ def against_their_server(cert, key):
         stop.set()
         server.join()
     print(out, end="")
-    for want in ["connected true", "stream FIRST", "ticket true", "updated true", "stream after update SECOND", "0-RTT queued true", "early reply EARLY", "early accepted true"]:
+    for want in ["connected true", "stream FIRST", "ticket true", "updated true", "stream after update SECOND", "early reply EARLY", "early accepted true"]:
         assert want in out, f"our client: no `{want}`"
     assert seen == [b"early"], ("the server did not read it before the handshake finished", seen)
     print("theirs: read 0-RTT from our client before the handshake finished")
