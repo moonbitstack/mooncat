@@ -142,6 +142,8 @@ Options:
   --lifespan <lifespan>                                            auto, on or off
   --ssl-certfile <ssl-certfile>                                    PEM certificate; serves HTTPS
   --ssl-keyfile <ssl-keyfile>                                      PEM private key; serves HTTPS
+  --ssl-keyfile-password <ssl-keyfile-password>                    password of the key file or the PKCS#12 file
+  --ssl-pkcs12 <ssl-pkcs12>                                        PKCS#12 file (.p12, .pfx) holding the chain and the key; serves HTTPS
 
 $ ./app --uds /tmp/app.sock
 mooncat: --uds: the async transport binds TCP only
@@ -149,6 +151,20 @@ mooncat: --uds: the async transport binds TCP only
 
 `@cli.parse(argv)` returns the plan without opening anything, for a program that
 wants to look before it serves.
+
+## Certificates
+
+`TlsCert` says where the chain and the key come from: PEM files, with a password when the key is
+encrypted, or one PKCS#12 file. A PKCS#12 file does not promise an order, so the certificate that
+holds the key's public half is put first. Either serves HTTPS, HTTP/2 and HTTP/3 alike.
+
+```moonbit
+let pem = @mooncat.TlsCert::pem("cert.pem", "key.pem", password="secret")
+let pfx = @mooncat.TlsCert::pkcs12("server.p12", password="secret")
+```
+
+On the command line the same choice is `--ssl-certfile` with `--ssl-keyfile`, or `--ssl-pkcs12`,
+and `--ssl-keyfile-password` for whichever holds the key.
 
 ## Configuration
 

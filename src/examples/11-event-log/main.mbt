@@ -5,10 +5,11 @@
 ///
 ///     moon run src/examples/11-event-log --target native
 async fn main {
-  @quic.serve_config(logged(answer), @mooncat.Config::new(port=12000), {
-    certificate_file: "src/certs/cert.pem",
-    private_key_file: "src/certs/key.pem",
-  })
+  @quic.serve_config(
+    logged(answer),
+    @mooncat.Config::new(port=12000),
+    @mooncat.TlsCert::pem("src/certs/cert.pem", "src/certs/key.pem"),
+  )
 }
 
 ///|

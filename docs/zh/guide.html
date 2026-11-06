@@ -519,10 +519,10 @@ date: Mon, 02 Nov 2026 10:11:38 GMT
     <span class="k">let</span> line = <span class="st">"\{http.http_version} \{http.http_method} \{http.path}\n"</span>
     send(@moonasgi.Event::HttpResponseBody(body=@utf8.encode(line), more_body=<span class="k">false</span>))
   }
-  @quic.serve_config(app, @mooncat.Config::new(port=<span class="ty">12000</span>), {
-    certificate_file: <span class="st">"src/certs/cert.pem"</span>,
-    private_key_file: <span class="st">"src/certs/key.pem"</span>,
-  })
+  @quic.serve_config(app, @mooncat.Config::new(port=<span class="ty">12000</span>), @mooncat.TlsCert::pem(
+    <span class="st">"src/certs/cert.pem"</span>,
+    <span class="st">"src/certs/key.pem"</span>,
+  ))
 }</pre>
       </figure>
 

@@ -36,7 +36,7 @@ pub async fn serve_h2c(async (@spec.Scope, async () -> @spec.Event, async (@spec
 
 pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config) -> Unit
 
-pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -> Unit
+pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, password? : String, host? : String, port? : Int32, backlog? : Int32) -> Unit
 
 pub async fn serve_tls_beside(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server, async (@serve.Site) -> Unit) -> Unit
 

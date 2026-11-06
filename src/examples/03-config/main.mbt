@@ -32,13 +32,17 @@ fn main {
   println(
     "defaults         = \{d.bind()} backlog=\{d.backlog} reuse_addr=\{d.reuse_addr} allow_failure=\{d.allow_failure}",
   )
-  let cert = @mooncat.TlsCert::{
-    certificate_file: "src/certs/cert.pem",
-    private_key_file: "src/certs/key.pem",
+  let pem = @mooncat.TlsCert::pem("src/certs/cert.pem", "src/certs/key.pem")
+  let pfx = @mooncat.TlsCert::pkcs12("src/certs/server.p12", password="moon")
+  for cert in [pem, pfx] {
+    match cert {
+      Pem(certificate_file~, private_key_file~, ..) =>
+        println(
+          "tls bundle       = cert=\{certificate_file} key=\{private_key_file}",
+        )
+      Pkcs12(file~, ..) => println("tls bundle       = pkcs12=\{file}")
+    }
   }
-  println(
-    "tls bundle       = cert=\{cert.certificate_file} key=\{cert.private_key_file}",
-  )
 }
 
 ///|

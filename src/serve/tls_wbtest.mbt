@@ -4,7 +4,7 @@
 /// A client that trusts exactly the test certificate. It is self-signed and marked as a CA, which
 /// path validation refuses as a leaf, so the client pins it instead.
 async fn pinned(alpn : Array[String]) -> @tls.Client {
-  let der = @x509.pems(@fs.read_file(test_cert().certificate_file).text())[0]
+  let der = @x509.pems(@fs.read_file("src/certs/cert.pem").text())[0]
   @tls.Client::new(
     @x509.Roots::new(),
     alpn~,
@@ -183,4 +183,58 @@ async test "resumption is on unless the caller turns it off, and 0-RTT stays off
   let on = test_cert().load(tickets=@tls.Tickets::new([key][:], early=1024))
   assert_true(on.tickets.is_on())
   assert_eq(on.tickets.early, 0)
+}
+
+///|
+/// A key's public half, encoded, which is what tells two keys apart.
+fn public_of(key : @x509.PrivateKey) -> Bytes {
+  @x509.Spki::encode(key.public())
+}
+
+///|
+/// Whether reading `cert` is refused.
+async fn refused(cert : TlsCert) -> Bool {
+  try {
+    ignore(cert.read())
+    false
+  } catch {
+    _ => true
+  }
+}
+
+///|
+async test "an encrypted key opens with its password and gives the plain key" {
+  let plain = test_cert().read()
+  let encrypted = TlsCert::pem(
+    "src/certs/cert.pem",
+    "src/certs/key.enc.pem",
+    password="moon",
+  ).read()
+  assert_eq(encrypted.0, plain.0)
+  assert_eq(public_of(encrypted.1), public_of(plain.1))
+  assert_true(
+    refused(
+      TlsCert::pem(
+        "src/certs/cert.pem",
+        "src/certs/key.enc.pem",
+        password="sun",
+      ),
+    ),
+  )
+  // Without a password the encrypted key is not a key at all.
+  assert_true(
+    refused(TlsCert::pem("src/certs/cert.pem", "src/certs/key.enc.pem")),
+  )
+}
+
+///|
+async test "a PKCS#12 file gives the PEM pair's leaf and key, and a server takes them" {
+  let plain = test_cert().read()
+  let pfx = TlsCert::pkcs12("src/certs/server.p12", password="moon")
+  let (chain, key) = pfx.read()
+  assert_eq(chain[0], plain.0[0])
+  assert_eq(public_of(key), public_of(plain.1))
+  // The server checks at startup that the key is the leaf's.
+  ignore(pfx.load())
+  assert_true(refused(TlsCert::pkcs12("src/certs/server.p12", password="sun")))
 }

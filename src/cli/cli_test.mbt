@@ -91,9 +91,27 @@ test "the root path reaches the app" {
 /// a server that quietly serves plaintext on the HTTPS port.
 test "a certificate takes both files" {
   let got = plan(["--ssl-certfile", "cert.pem", "--ssl-keyfile", "key.pem"])
-  guard got.tls is Some(cert) else { fail("no certificate") }
-  assert_eq(cert.certificate_file, "cert.pem")
-  assert_eq(cert.private_key_file, "key.pem")
+  guard got.tls is Some(Pem(certificate_file~, private_key_file~, password~)) else {
+    fail("no certificate")
+  }
+  assert_eq(certificate_file, "cert.pem")
+  assert_eq(private_key_file, "key.pem")
+  assert_eq(password, None)
+}
+
+///|
+test "a PKCS#12 file stands for both halves, and the password goes with it" {
+  let got = plan([
+    "--ssl-pkcs12", "server.p12", "--ssl-keyfile-password", "moon",
+  ])
+  guard got.tls is Some(Pkcs12(file~, password~)) else { fail("no PKCS#12") }
+  assert_eq(file, "server.p12")
+  assert_eq(password, "moon")
+  let pem = plan([
+    "--ssl-certfile", "cert.pem", "--ssl-keyfile", "key.pem", "--ssl-keyfile-password",
+    "moon",
+  ])
+  assert_true(pem.tls is Some(Pem(password=Some("moon"), ..)))
 }
 
 ///|

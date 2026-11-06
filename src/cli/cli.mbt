@@ -78,7 +78,6 @@ let refused : Array[(String, Bool, String)] = [
   ("ws", true, "there is one WebSocket implementation"),
   ("log-config", true, "logging is configured in code, through Config::logger"),
   ("env-file", true, "read the file yourself and build a Config"),
-  ("ssl-keyfile-password", true, "the TLS backend takes unencrypted keys"),
   (
     "ssl-version", true, "versions are set on @tls.Server, and serve_tls_server takes it",
   ),
@@ -179,6 +178,10 @@ pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
     text("lifespan", "auto, on or off"),
     text("ssl-certfile", "PEM certificate; serves HTTPS"),
     text("ssl-keyfile", "PEM private key; serves HTTPS"),
+    text("ssl-keyfile-password", "password of the key file or the PKCS#12 file"),
+    text(
+      "ssl-pkcs12", "PKCS#12 file (.p12, .pfx) holding the chain and the key; serves HTTPS",
+    ),
     text(
       "ssl-ciphers", "TLS 1.3 and 1.2 suites to accept by IANA name, colon-separated, best first",
     ),
@@ -245,7 +248,10 @@ pub fn parse(
   let h2c = got.flags.get("h2c") is Some(true)
   let http3 = got.flags.get("http3") is Some(true)
   if http3 && tls is None {
-    raise Unsupported(flag="--http3", why="QUIC needs --ssl-certfile")
+    raise Unsupported(
+      flag="--http3",
+      why="QUIC needs --ssl-certfile or --ssl-pkcs12",
+    )
   }
   let (suites, suites12) = match reading(got, "ssl-ciphers") {
     Some(text) => cipher_list(text)
@@ -346,18 +352,32 @@ fn fold(
 }
 
 ///|
-/// The certificate, if one was asked for. Both halves or neither.
+/// The certificate, if one was asked for: both PEM halves, or one PKCS#12 file, or neither.
 fn certificate(got : @argparse.Matches) -> @mooncat.TlsCert? raise Refused {
   let cert = reading(got, "ssl-certfile")
   let key = reading(got, "ssl-keyfile")
-  match (cert, key) {
-    (None, None) => None
-    (Some(_), None) =>
+  let pfx = reading(got, "ssl-pkcs12")
+  let password = reading(got, "ssl-keyfile-password")
+  match (cert, key, pfx) {
+    (None, None, None) => {
+      if password is Some(_) {
+        raise Partial(flag="--ssl-keyfile-password", needs="--ssl-keyfile")
+      }
+      None
+    }
+    (None, None, Some(file)) =>
+      Some(@mooncat.TlsCert::pkcs12(file, password=password.unwrap_or("")))
+    (Some(_), _, Some(_)) | (_, Some(_), Some(_)) =>
+      raise Unsupported(
+        flag="--ssl-pkcs12",
+        why="the PKCS#12 file holds the chain and the key; leave out --ssl-certfile and --ssl-keyfile",
+      )
+    (Some(_), None, None) =>
       raise Partial(flag="--ssl-certfile", needs="--ssl-keyfile")
-    (None, Some(_)) =>
+    (None, Some(_), None) =>
       raise Partial(flag="--ssl-keyfile", needs="--ssl-certfile")
-    (Some(cert), Some(key)) =>
-      Some({ certificate_file: cert, private_key_file: key, })
+    (Some(cert), Some(key), None) =>
+      Some(@mooncat.TlsCert::pem(cert, key, password?))
   }
 }
 

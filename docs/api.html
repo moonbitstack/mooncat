@@ -78,7 +78,7 @@
       <li><a href="#moonbitstack-mooncat-config">mooncat/config (19)</a></li>
       <li><a href="#moonbitstack-mooncat-lifespan">mooncat/lifespan (6)</a></li>
       <li><a href="#moonbitstack-mooncat-proxy">mooncat/proxy (1)</a></li>
-      <li><a href="#moonbitstack-mooncat-serve">mooncat/serve (29)</a></li>
+      <li><a href="#moonbitstack-mooncat-serve">mooncat/serve (32)</a></li>
       <li><a href="#moonbitstack-mooncat-cli">mooncat/cli (10)</a></li>
       <li><a href="#moonbitstack-mooncat-quic">mooncat/quic (13)</a></li>
     </ul>
@@ -171,8 +171,8 @@
 <div class="body">
 <p>Serve a moonasgi ASGI application over h2c under an explicit <code>Config</code>: the same serving loop as <code>serve_config</code>, with its lifespan, limits, logging and graceful shutdown, on a listener that speaks HTTP/2 alone.</p>
 </div></details>
-<details class="item" id="mooncat--serve_tls" data-item="pub async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit">
-<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit</span></summary>
+<details class="item" id="mooncat--serve_tls" data-item="pub async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, password? : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, password? : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit</span></summary>
 <div class="body">
 <p>Serve a moonasgi ASGI application over native HTTP/1.1 <b>over TLS</b> (HTTPS, ← uvicorn&#x27;s <code>--ssl-certfile</code>/<code>--ssl-keyfile</code>). Convenience wrapper over <code>serve_tls_config</code> that builds the <code>Config</code> from <code>host</code>/<code>port</code>/<code>backlog</code> and the certificate paths.</p><p>Runs the full ASGI lifespan protocol around the accept loop (startup before the listener binds, shutdown on exit — even under cancellation), then, for every accepted connection, completes a TLS handshake and serves HTTP/2 when ALPN settles on <code>h2</code>, HTTP/1.1 otherwise.</p><p>A WebSocket upgrade on an HTTP/1.1 connection is served too (<code>wss://</code>): the 101, the subprotocol echo and the frames all travel over the encrypted stream.</p>
 </div></details>
@@ -390,7 +390,7 @@ access : Bool</pre>
 </div></details>
 </section>
 <section class="section pkg" id="moonbitstack-mooncat-serve">
-<h2 class="bar">mooncat/serve<span class="aside">29 items</span></h2>
+<h2 class="bar">mooncat/serve<span class="aside">32 items</span></h2>
 <p class="pkg-desc">The accept loop, HTTP/1.1, HTTP/2, WebSocket, TLS, workers and the graceful shutdown.</p>
 <h3 class="bar">Values</h3>
 <details class="item" id="serve--alpn" data-item="pub let alpn : Array[String]">
@@ -443,8 +443,8 @@ access : Bool</pre>
 <div class="body">
 <p>Serve a moonasgi ASGI application over h2c under an explicit <code>Config</code>: the same serving loop as <code>serve_config</code>, with its lifespan, limits, logging and graceful shutdown, on a listener that speaks HTTP/2 alone.</p>
 </div></details>
-<details class="item" id="serve--serve_tls" data-item="pub async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit">
-<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit</span></summary>
+<details class="item" id="serve--serve_tls" data-item="pub async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, password? : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn serve_tls(async (@spec.Scope, async () -&gt; @spec.Event, async (@spec.Event) -&gt; Unit) -&gt; Unit, certificate_file~ : String, private_key_file~ : String, password? : String, host? : String, port? : Int32, backlog? : Int32) -&gt; Unit</span></summary>
 <div class="body">
 <p>Serve a moonasgi ASGI application over native HTTP/1.1 <b>over TLS</b> (HTTPS, ← uvicorn&#x27;s <code>--ssl-certfile</code>/<code>--ssl-keyfile</code>). Convenience wrapper over <code>serve_tls_config</code> that builds the <code>Config</code> from <code>host</code>/<code>port</code>/<code>backlog</code> and the certificate paths.</p><p>Runs the full ASGI lifespan protocol around the accept loop (startup before the listener binds, shutdown on exit — even under cancellation), then, for every accepted connection, completes a TLS handshake and serves HTTP/2 when ALPN settles on <code>h2</code>, HTTP/1.1 otherwise.</p><p>A WebSocket upgrade on an HTTP/1.1 connection is served too (<code>wss://</code>): the 101, the subprotocol echo and the frames all travel over the encrypted stream.</p>
 </div></details>
@@ -540,6 +540,21 @@ done : @aqueue.Queue[Unit]</pre>
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12], tickets? : @tls.Tickets) -&gt; @tls.Server</span></summary>
 <div class="body">
 <p>Read the files into a TLS server configuration. A key that is not the leaf&#x27;s is refused here, at startup, rather than by every client&#x27;s handshake.</p><p>Session resumption is on, as it is by default in nginx, Go and OpenSSL, under a ticket key made here for this process. Pass <code>tickets</code> to choose the keys, which is how several workers come to share them, or <code>@tls.tickets</code> to turn it off. A ticket this process cannot open costs a full handshake and nothing else.</p>
+</div></details>
+<details class="item" id="serve--TlsCert-pem" data-item="pub fn TlsCert::pem(String, String, password? : String) -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn TlsCert::pem(String, String, password? : String) -&gt; Self</span></summary>
+<div class="body">
+<p>A chain and key in PEM files.</p>
+</div></details>
+<details class="item" id="serve--TlsCert-pkcs12" data-item="pub fn TlsCert::pkcs12(String, password? : String) -&gt; Self">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn TlsCert::pkcs12(String, password? : String) -&gt; Self</span></summary>
+<div class="body">
+<p>A chain and key in one PKCS#12 file.</p>
+</div></details>
+<details class="item" id="serve--TlsCert-read" data-item="pub async fn TlsCert::read(Self) -&gt; (Array[Bytes], @x509.PrivateKey)">
+<summary><span class="caret"></span><span class="kind">fn</span><span class="sig">async fn TlsCert::read(Self) -&gt; (Array[Bytes], @x509.PrivateKey)</span></summary>
+<div class="body">
+<p>The chain, leaf first, and the key the files hold. A PKCS#12 file does not promise an order, so the certificate that holds the key&#x27;s public half is moved to the front.</p>
 </div></details>
 </section>
 <section class="section pkg" id="moonbitstack-mooncat-cli">
@@ -671,7 +686,7 @@ done : @aqueue.Queue[Unit]</pre>
 <p>Send <code>data</code> as a single datagram to <code>to</code>.</p>
 </div></details>
 </section>
-<p class="api-count">103 public items across 7 packages.</p>
+<p class="api-count">106 public items across 7 packages.</p>
 <div class="pager"><a href="./playground.html">← Playground</a><a href="./index.html">Home →</a></div>
 </article></main>
 
