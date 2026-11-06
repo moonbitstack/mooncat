@@ -44,6 +44,13 @@ fn client_of(
     Bytes::makei(8, i => (seed * 3 + i).to_byte()),
     scid,
     @quic.wall(),
+    // What the last connection left, which early data may spend before the server's parameters
+    // arrive (RFC 9000 §7.4.1). aioquic advertises a megabyte of each.
+    cfg={
+      ..@conn.Config::default(),
+      zero_rtt_data: 1_000_000UL,
+      zero_rtt_stream_data: 1_000_000UL,
+    },
   )
 }
 
