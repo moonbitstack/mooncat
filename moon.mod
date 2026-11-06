@@ -46,7 +46,7 @@ import {
   "moonbitstack/mooncred@0.6.10",
   "moonbitstack/moonlog@0.1.6",
   "moonbitstack/moontls@0.9.15",
-  "moonbitstack/moonquic@0.3.12",
+  "moonbitstack/moonquic@0.3.13",
   "moonbitstack/moonnet@0.1.11",
   "moonbitstack/moonhttp@0.15.9",
   "moonbitstack/moonurl@0.2.5",
