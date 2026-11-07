@@ -17,7 +17,7 @@ HTTP/3 and WebSocket, with TLS, on one port.
 An application is a function. It never sees a socket; the server never sees a
 route:
 
-```moonbit
+```moonbit native
 async fn main {
   let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
     send(
@@ -87,8 +87,8 @@ Every entry point runs the same loop, so they share the limits, keep-alive,
 pipelining and the WebSocket bridge. `serve` is the short way in;
 `serve_config` takes the record.
 
-```moonbit
-async fn main {
+```moonbit native
+async fn configured() -> Unit {
   let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
     send(@moonasgi.Event::HttpResponseStart(status=200, headers=[], trailers=false))
     send(@moonasgi.Event::HttpResponseBody(body=b"configured\n", more_body=false))
@@ -109,8 +109,8 @@ async fn main {
 Python server of this shape takes, so a habit carries over; a flag the transport
 cannot honour answers with the reason rather than "unexpected argument".
 
-```moonbit
-async fn main {
+```moonbit native
+async fn on_the_command_line() -> Unit {
   let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
     send(@moonasgi.Event::HttpResponseStart(status=200, headers=[], trailers=false))
     send(@moonasgi.Event::HttpResponseBody(body=b"ok", more_body=false))
@@ -158,7 +158,7 @@ wants to look before it serves.
 encrypted, or one PKCS#12 file. A PKCS#12 file does not promise an order, so the certificate that
 holds the key's public half is put first. Either serves HTTPS, HTTP/2 and HTTP/3 alike.
 
-```moonbit
+```moonbit native
 let pem = @mooncat.TlsCert::pem("cert.pem", "key.pem", password="secret")
 let pfx = @mooncat.TlsCert::pkcs12("server.p12", password="secret")
 ```
