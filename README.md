@@ -65,6 +65,7 @@ Both, in `moon.mod`, and the importing package needs them in its `moon.pkg`.
 | h2c | the connection preface `PRI * HTTP/2.0` | the same scope, once per stream |
 | HTTP/2 | ALPN answering `h2` | one scope per stream, each stream in a task of its own |
 | HTTP/3 | the same port number on UDP | one scope per stream, advertised with `alt-svc` |
+| 0-RTT | a QUIC request that travelled with the handshake | the same scope, with `Early-Data: 1` in its headers and `early_data(scope)` true |
 | ws, wss | `Upgrade: websocket` on an ordinary request | a `websocket` scope: connect, accept, receive, send, close |
 
 The listener decides as the connection opens: under TLS in the handshake, in the
@@ -86,6 +87,10 @@ clear from the first bytes on the wire.
 Every entry point runs the same loop, so they share the limits, keep-alive,
 pipelining and the WebSocket bridge. `serve` is the short way in;
 `serve_config` takes the record.
+
+Every listener also takes `listening=`: hand it a `Listening` and it reports the
+address it bound, which is how a caller that asked for port 0 — every test does —
+learns which port the system gave it.
 
 ```moonbit native
 async fn configured() -> Unit {
@@ -189,6 +194,8 @@ differs is written.
 | `workers` | `1` | processes on one port, on Linux |
 | `ws` | 16 MiB messages, 32 queued, 20 s pings | the WebSocket side |
 | `h2` | 100 streams, 64 KiB fields, 16 KiB frames, 1 MiB windows | the HTTP/2 side |
+| `early_data` | `Accept` | what a request sent in 0-RTT gets: taken and marked, `Refuse`d with 425, or `Off` |
+| `early_data_size` | `16384` | how much early data one ticket allows |
 
 ## HTTP/3
 
@@ -198,6 +205,84 @@ with `alt-svc`. The QUIC half is native only. Under `workers` the kernel shares
 the TCP port and the supervisor shares the UDP one: it holds the socket and passes
 each datagram to the worker whose number is in the connection id, so a connection
 stays with the worker that took it.
+
+## HTTP over 0-RTT
+
+HTTP/3 runs TLS 1.3, so a client that has a ticket from an earlier visit can send
+its next request with the handshake instead of after it. Such a request may reach
+the application twice — anything that saw the early data can replay it — and RFC
+8470 asks the origin to say so and to be able to refuse.
+
+A request that arrived that way reaches the application with `Early-Data: 1` in
+its headers, with the `http.request.early_data` extension, and with
+`early_data(scope)` true. The application decides what that means for it:
+
+```moonbit native
+async fn replay_safe(scope : @moonasgi.Scope, send : @moonasgi.Send) -> Unit {
+  let early = @mooncat.early_data(scope)
+  let status = if early { 425 } else { 200 }
+  send(
+    @moonasgi.Event::HttpResponseStart(status~, headers=[], trailers=false),
+  )
+  send(
+    @moonasgi.Event::HttpResponseBody(
+      body=@utf8.encode("early: \{early}\n"),
+      more_body=false,
+    ),
+  )
+}
+```
+
+`early_data = Accept` takes the request and marks it, which is the default;
+`EarlyData::Refuse` answers `425 Too Early` and never runs the application, for a
+server whose routes cannot be replayed; `EarlyData::Off` puts no allowance in a
+ticket, so no client can send any. `early_data_size` is how much one ticket
+allows. Over TCP there is no early data whatever the setting says: a byte stream
+cannot hold a request back until the handshake says whether to take it.
+
+## Interoperability
+
+`scripts/interop/check_matrix.py` runs the cases the QUIC interoperability runner
+names, against aioquic, in CI. `src/examples/16-interop-server` is the server
+under them.
+
+| Case | What it checks | Result |
+|:--|:--|:--|
+| handshake | the TLS handshake completes and ALPN settles on `h3` | pass |
+| transfer | a mebibyte down, 64 KiB up, both intact | pass |
+| retry | an Initial that proved nothing is answered with a Retry, and the handshake after it completes | pass |
+| resumption | a ticket is issued, and the next handshake resumes | pass |
+| zerortt | early data is accepted and the request answered | pass |
+| chacha20 | a handshake offering only ChaCha20-Poly1305 completes | pass |
+| migration | the same connection is answered at a source port it did not start on | pass |
+| v2 | QUIC version 2 | not offered: version 1 only, and a version 2 Initial is answered with a negotiated list naming 1 |
+| keyupdate | a TLS KeyUpdate | not a case: QUIC has none, and one closes the connection (RFC 9001 §6) |
+
+Retry and 0-RTT cannot be the same run: a client that has been sent a Retry may
+not send early data under a token it has not been given yet (RFC 9000 §8.1), so
+the server is started once with Retry on and once without.
+
+`scripts/interop/` also holds the image the runner starts — `Dockerfile`,
+`run_endpoint.sh` — and `implementations.json` naming the peers to cross with:
+quic-go, aioquic and ngtcp2. The matrix above is what was executed here; the image
+needs Docker, which the machine that wrote this did not have.
+
+`scripts/http3/check_connections.py` asks the other question a server can fail: a
+hundred connections one after another, a burst at once, and one connection that
+stays open and keeps asking while the others come and go.
+
+## Conformance
+
+| Suite | Cases | Result |
+|:--|:--|:--|
+| h2spec, in the clear and over TLS | 146 | all pass |
+| h2spec, strict | 147 | all pass |
+| h3spec 0.1.14, its HTTP/3 servers section | 34 | all pass |
+| Autobahn `fuzzingclient`, WebSocket | all cases | pass |
+| HTTP/3 matrix, against aioquic | 7 | pass, and the two cases above that do not apply |
+
+What does not pass is what this server does not offer: QUIC version 2, which is
+the transport's to add, and TLS KeyUpdate, which QUIC does not have.
 
 ## Packages
 
@@ -225,6 +310,9 @@ them with real clients and prints what came back, then stops.
 `11-event-log` wraps an application in a middleware that prints every ASGI message
 it sees, one JSON line each; the playground is recorded from it.
 `12-quic-echo` and `13-quic-client` are bare QUIC over a real socket, with no HTTP in between: tickets, 0-RTT, a key update.
+`15-early-data` serves HTTP over 0-RTT and says whether each request was one:
+`MOONCAT_EARLY=accept`, `refuse` or `off`. `16-interop-server` is what
+`scripts/interop/check_matrix.py` drives: `GET /<n>` is `n` bytes.
 `14-http2-server` is what `scripts/http2/check_h2spec.sh` runs h2spec against: all 146 cases pass in the clear and over TLS, and all 147 with its strict checks on.
 `07-http3` serves HTTP/1.1, HTTP/2 and HTTP/3 on one port, and is what `scripts/http3/check_h3spec.sh` runs h3spec against: all 34 cases of its "HTTP/3 servers" section pass.
 

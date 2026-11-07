@@ -547,6 +547,40 @@ date        Mon, 02 Nov 2026 09:25:39 GMT
       </aside>
     </section>
 
+    <section class="section" id="early-data">
+      <h2 class="bar">HTTP over 0-RTT</h2>
+      <p>A client that has visited before holds a ticket. HTTP/3 runs TLS 1.3, so its next request can travel with the handshake rather than after it. That request may reach the application twice — anything that saw the early data can replay it — and RFC 8470 asks the origin to say so and to be able to refuse. The scope says it three ways: the <code>Early-Data: 1</code> header, the <code>http.request.early_data</code> extension, and <code>early_data(scope)</code>.</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> pay(scope : @moonasgi.Scope, send : @moonasgi.Send) -&gt; Unit {
+  <span class="k">if</span> @mooncat.early_data(scope) {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">425</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"try again\n"</span>, more_body=<span class="k">false</span>))
+    <span class="k">return</span>
+  }
+  send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+  send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"paid\n"</span>, more_body=<span class="k">false</span>))
+}</pre>
+      </figure>
+
+      <p>An application that cannot be replayed at all is better served by letting the server refuse before it runs:</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th><code>early_data</code></th><th>What a request sent in 0-RTT gets</th></tr></thead>
+          <tbody>
+            <tr><td><code>Accept</code></td><td>taken, and marked for the application; the default</td></tr>
+            <tr><td><code>Refuse</code></td><td>answered <code>425 Too Early</code> without running the application</td></tr>
+            <tr><td><code>Off</code></td><td>no allowance in the ticket, so no client can send any</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <aside class="note">
+        <p><b>Only over QUIC.</b> A TCP byte stream cannot hold a request back until the handshake says whether to take it, so HTTPS and HTTP/2 offer no early data whatever the setting says. <code>early_data_size</code> is how much one ticket allows, 16 KiB by default.</p>
+      </aside>
+    </section>
+
     <section class="section" id="lifespan">
       <h2 class="bar">Lifespan</h2>
       <p>The application is invoked once before the listener binds, under a <code>Lifespan</code> scope, and once more on the way out. That is where a connection pool is opened and closed. <code>Config.lifespan</code> decides how strictly this is enforced:</p>

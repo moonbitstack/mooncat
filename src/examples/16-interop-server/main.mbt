@@ -108,10 +108,7 @@ async fn app(
     ),
   )
   send(
-    @moonasgi.Event::HttpResponseBody(
-      body=@utf8.encode(line),
-      more_body=false,
-    ),
+    @moonasgi.Event::HttpResponseBody(body=@utf8.encode(line), more_body=false),
   )
 }
 
@@ -134,8 +131,7 @@ async fn main {
     retry: switched_on("MOONCAT_RETRY"),
   }
   let cert = match (setting("MOONCAT_CERT"), setting("MOONCAT_KEY")) {
-    (Some(cert), Some(key)) =>
-      @mooncat.TlsCert::pem(cert, key)
+    (Some(cert), Some(key)) => @mooncat.TlsCert::pem(cert, key)
     _ => @mooncat.TlsCert::pem("src/certs/cert.pem", "src/certs/key.pem")
   }
   @quic.serve_config(app, config, cert, transport~)

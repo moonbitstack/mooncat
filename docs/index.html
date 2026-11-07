@@ -185,6 +185,7 @@
             <tr><td><code>h2c</code></td><td>the connection preface <code>PRI * HTTP/2.0</code></td><td>the same scope, once per stream</td></tr>
             <tr><td><code>HTTP/2</code></td><td>ALPN answering <code>h2</code></td><td>one scope per stream, each stream in its own task</td></tr>
             <tr><td><code>HTTP/3</code></td><td>the same port number on UDP</td><td>one scope per stream, advertised by <code>alt-svc</code></td></tr>
+            <tr><td><code>0-RTT</code></td><td>a QUIC request that travelled with the handshake</td><td>the same scope, marked <code>Early-Data: 1</code> so the application knows it may be a replay</td></tr>
             <tr><td><code>ws</code> · <code>wss</code></td><td><code>Upgrade: websocket</code>, at the start</td><td>a <code>websocket</code> scope: connect, accept, receive, send, close</td></tr>
           </tbody>
         </table>

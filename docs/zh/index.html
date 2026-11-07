@@ -185,6 +185,7 @@
             <tr><td><code>h2c</code></td><td>连接前言 <code>PRI * HTTP/2.0</code></td><td>同一个 scope，每条流一个</td></tr>
             <tr><td><code>HTTP/2</code></td><td>ALPN 应答 <code>h2</code></td><td>每条流一个 scope，每条流一个任务</td></tr>
             <tr><td><code>HTTP/3</code></td><td>UDP 上的同一个端口号</td><td>每条流一个 scope，由 <code>alt-svc</code> 告知</td></tr>
+            <tr><td><code>0-RTT</code></td><td>随握手一起到的 QUIC 请求</td><td>同一个 scope，带 <code>Early-Data: 1</code>，应用知道它可能是重放</td></tr>
             <tr><td><code>ws</code> · <code>wss</code></td><td>开头的 <code>Upgrade: websocket</code></td><td>一个 <code>websocket</code> scope：connect、accept、receive、send、close</td></tr>
           </tbody>
         </table>

@@ -115,7 +115,7 @@ async fn h2t_get(port : Int32, path : String) -> (String, String, Bytes) {
 async test "h2c: mooncat serves a routed app answering a real HTTP/2 GET" {
   @async.with_task_group(g => {
     let app = greet_app()
-    let listening = Listening::new()
+    let listening = @serve.Listening::new()
     let task = g.spawn(() => @serve.serve_h2c(app, port=0, listening~))
     let port = listening.addr().port()
     let (status, content_type, body) = h2t_get(port, "/greet/moon")

@@ -102,6 +102,13 @@ window.SEARCH = [
  {
   "lang": "en",
   "page": "Guide",
+  "url": "guide.html#early-data",
+  "heading": "HTTP over 0-RTT",
+  "text": "A client that has visited before holds a ticket. HTTP/3 runs TLS 1.3, so its next request can travel with the handshake rather than after it. That request may reach the application twice — anything that saw the early data can replay it — and RFC 8470 asks the "
+ },
+ {
+  "lang": "en",
+  "page": "Guide",
   "url": "guide.html#lifespan",
   "heading": "Lifespan",
   "text": "The application is invoked once before the listener binds, under a Lifespan scope, and once more on the way out. That is where a connection pool is opened and closed. Config.lifespan decides how strictly this is enforced: Mode Behaviour Auto run it; an applica"
@@ -145,15 +152,15 @@ window.SEARCH = [
   "lang": "en",
   "page": "API reference",
   "url": "api.html#moonbitstack-mooncat",
-  "heading": "mooncat 25 items",
-  "text": "The entry points, re-exported: what a program that serves one application needs, and nothing it does not. Values fn fn http_date(Int64) -> String Format a Unix-epoch millisecond count as an HTTP-date in the IMF-fixdate form RFC 7231 §7.1.1.1 makes mandatory fo"
+  "heading": "mooncat 29 items",
+  "text": "The entry points, re-exported: what a program that serves one application needs, and nothing it does not. Values fn fn early_data(@spec.Scope) -> Bool Whether this scope's request may be a replay: it arrived in 0-RTT, before the handshake that would have prove"
  },
  {
   "lang": "en",
   "page": "API reference",
   "url": "api.html#moonbitstack-mooncat-config",
-  "heading": "mooncat/config 19 items",
-  "text": "The configuration record, the access and error log, and the HTTP date every response can carry. Values fn fn http_date(Int64) -> String Format a Unix-epoch millisecond count as an HTTP-date in the IMF-fixdate form RFC 7231 §7.1.1.1 makes mandatory for a Date h"
+  "heading": "mooncat/config 23 items",
+  "text": "The configuration record, the access and error log, and the HTTP date every response can carry. Values let let early_data_size : Int32 How much a client may send in 0-RTT under one ticket, in bytes: 16 KiB, room for a request head and a small body, small enoug"
  },
  {
   "lang": "en",
@@ -173,7 +180,7 @@ window.SEARCH = [
   "lang": "en",
   "page": "API reference",
   "url": "api.html#moonbitstack-mooncat-serve",
-  "heading": "mooncat/serve 29 items",
+  "heading": "mooncat/serve 37 items",
   "text": "The accept loop, HTTP/1.1, HTTP/2, WebSocket, TLS, workers and the graceful shutdown. Values let let alpn : Array[String] The application protocols a TLS listener offers, in preference order: HTTP/2 first, as hypercorn and nginx do, falling back to HTTP/1.1. f"
  },
  {
@@ -298,6 +305,13 @@ window.SEARCH = [
  {
   "lang": "zh",
   "page": "指南",
+  "url": "zh/guide.html#early-data",
+  "heading": "HTTP over 0-RTT",
+  "text": "来过的客户端手里有一张 ticket。HTTP/3 跑在 TLS 1.3 上，于是它下一个请求可以随握手一起到，而不是等握手之后。这样的请求可能让应用看到两次：看到过早数据的任何一方都能重放它。RFC 8470 要求源站说明这一点，并且能拒绝。作用域用三种方式说： Early-Data: 1 头、 http.request.early_data 扩展，以及 early_data(scope) 。 src/main.mbt async fn pay(scope : @moonasgi.Scope, send : @m"
+ },
+ {
+  "lang": "zh",
+  "page": "指南",
   "url": "zh/guide.html#lifespan",
   "heading": "lifespan",
   "text": "应用在监听前与退出前各被调用一次，都在 Lifespan scope 下。连接池在这里开关。 Config.lifespan 决定严格程度： 模式 行为 Auto 照跑；在 lifespan scope 上失败的应用照样服务 On 照跑；在它上面失败，服务器就不启动 Off 完全不跑 src/main.mbt async fn main { let mut pool = \"\" let app : @moonasgi.AsgiApp = (scope, receive, send) => { match scope "
@@ -341,15 +355,15 @@ window.SEARCH = [
   "lang": "zh",
   "page": "API 参考",
   "url": "zh/api.html#moonbitstack-mooncat",
-  "heading": "mooncat 25 项",
-  "text": "入口函数的重导出：服务一个应用需要的东西，不多一样。 值 fn fn http_date(Int64) -> String Format a Unix-epoch millisecond count as an HTTP-date in the IMF-fixdate form RFC 7231 §7.1.1.1 makes mandatory for a Date header: Sun, 06 Nov 1994 08:49:37 GMT , always GMT, always fixed-width. The"
+  "heading": "mooncat 29 项",
+  "text": "入口函数的重导出：服务一个应用需要的东西，不多一样。 值 fn fn early_data(@spec.Scope) -> Bool Whether this scope's request may be a replay: it arrived in 0-RTT, before the handshake that would have proved the client owns its address (RFC 8470). A request forwarded by a proxy that took i"
  },
  {
   "lang": "zh",
   "page": "API 参考",
   "url": "zh/api.html#moonbitstack-mooncat-config",
-  "heading": "mooncat/config 19 项",
-  "text": "配置记录、访问与错误日志，以及每个响应可以带的 HTTP 日期。 值 fn fn http_date(Int64) -> String Format a Unix-epoch millisecond count as an HTTP-date in the IMF-fixdate form RFC 7231 §7.1.1.1 makes mandatory for a Date header: Sun, 06 Nov 1994 08:49:37 GMT , always GMT, always fixed-widt"
+  "heading": "mooncat/config 23 项",
+  "text": "配置记录、访问与错误日志，以及每个响应可以带的 HTTP 日期。 值 let let early_data_size : Int32 How much a client may send in 0-RTT under one ticket, in bytes: 16 KiB, room for a request head and a small body, small enough that replaying one costs little. fn fn http_date(Int64) -> String "
  },
  {
   "lang": "zh",
@@ -369,8 +383,8 @@ window.SEARCH = [
   "lang": "zh",
   "page": "API 参考",
   "url": "zh/api.html#moonbitstack-mooncat-serve",
-  "heading": "mooncat/serve 29 项",
-  "text": "接受循环、HTTP/1.1、HTTP/2、WebSocket、TLS、多 worker 与优雅停机。 值 let let alpn : Array[String] The application protocols a TLS listener offers, in preference order: HTTP/2 first, as hypercorn and nginx do, falling back to HTTP/1.1. fn async fn read_frame(&@io.Reader, clien"
+  "heading": "mooncat/serve 37 项",
+  "text": "接受循环、HTTP/1.1、HTTP/2、WebSocket、TLS、多 worker 与优雅停机。 值 let let alpn : Array[String] The application protocols a TLS listener offers, in preference order: HTTP/2 first, as hypercorn and nginx do, falling back to HTTP/1.1. fn fn early_data(@spec.Scope) -> Bool Whe"
  },
  {
   "lang": "zh",

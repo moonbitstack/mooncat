@@ -547,6 +547,40 @@ date        Mon, 02 Nov 2026 09:25:39 GMT
       </aside>
     </section>
 
+    <section class="section" id="early-data">
+      <h2 class="bar">HTTP over 0-RTT</h2>
+      <p>来过的客户端手里有一张 ticket。HTTP/3 跑在 TLS 1.3 上，于是它下一个请求可以随握手一起到，而不是等握手之后。这样的请求可能让应用看到两次：看到过早数据的任何一方都能重放它。RFC 8470 要求源站说明这一点，并且能拒绝。作用域用三种方式说：<code>Early-Data: 1</code> 头、<code>http.request.early_data</code> 扩展，以及 <code>early_data(scope)</code>。</p>
+
+      <figure class="code">
+        <figcaption>src/main.mbt</figcaption>
+        <pre><span class="k">async fn</span> pay(scope : @moonasgi.Scope, send : @moonasgi.Send) -&gt; Unit {
+  <span class="k">if</span> @mooncat.early_data(scope) {
+    send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">425</span>, headers=[], trailers=<span class="k">false</span>))
+    send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"try again\n"</span>, more_body=<span class="k">false</span>))
+    <span class="k">return</span>
+  }
+  send(@moonasgi.Event::HttpResponseStart(status=<span class="ty">200</span>, headers=[], trailers=<span class="k">false</span>))
+  send(@moonasgi.Event::HttpResponseBody(body=b<span class="st">"paid\n"</span>, more_body=<span class="k">false</span>))
+}</pre>
+      </figure>
+
+      <p>完全不能被重放的应用，交给服务端在运行之前拒绝更省事：</p>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th><code>early_data</code></th><th>0-RTT 送来的请求会得到什么</th></tr></thead>
+          <tbody>
+            <tr><td><code>Accept</code></td><td>收下，并告诉应用；默认</td></tr>
+            <tr><td><code>Refuse</code></td><td>回 <code>425 Too Early</code>，应用根本不运行</td></tr>
+            <tr><td><code>Off</code></td><td>ticket 里不带额度，客户端发不出来</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <aside class="note">
+        <p><b>只在 QUIC 上。</b>TCP 的字节流没办法把一个请求压到握手结论之后，所以 HTTPS 与 HTTP/2 上无论怎么设置都没有早数据。<code>early_data_size</code> 是一张 ticket 允许的字节数，默认 16 KiB。</p>
+      </aside>
+    </section>
+
     <section class="section" id="lifespan">
       <h2 class="bar">lifespan</h2>
       <p>应用在监听前与退出前各被调用一次，都在 <code>Lifespan</code> scope 下。连接池在这里开关。<code>Config.lifespan</code> 决定严格程度：</p>

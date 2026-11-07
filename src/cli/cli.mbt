@@ -176,6 +176,9 @@ pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
       "ws-per-message-deflate", "accept WebSocket compression: true or false",
     ),
     text("lifespan", "auto, on or off"),
+    text(
+      "early-data", "accept, refuse or off: what a request sent in 0-RTT gets",
+    ),
     text("ssl-certfile", "PEM certificate; serves HTTPS"),
     text("ssl-keyfile", "PEM private key; serves HTTPS"),
     text("ssl-keyfile-password", "password of the key file or the PKCS#12 file"),
@@ -346,6 +349,18 @@ fn fold(
       Some(other) =>
         raise Value(flag="--lifespan", got=other, want="auto, on or off")
       None => base.lifespan
+    },
+    early_data: match reading(got, "early-data") {
+      Some("accept") => @mooncat.EarlyData::Accept
+      Some("refuse") => @mooncat.EarlyData::Refuse
+      Some("off") => @mooncat.EarlyData::Off
+      Some(other) =>
+        raise Value(
+          flag="--early-data",
+          got=other,
+          want="accept, refuse or off",
+        )
+      None => base.early_data
     },
     logger: logger(got, base.logger),
   }

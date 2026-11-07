@@ -236,6 +236,29 @@ test "the help text names the flags a user will reach for" {
 }
 
 ///|
+/// What a request sent in 0-RTT gets is a word, and a word the parser does not know is refused
+/// with the three it does.
+test "early data is a word, and an unknown one is refused" {
+  assert_eq(
+    plan(["--early-data", "refuse"]).config.early_data,
+    @mooncat.EarlyData::Refuse,
+  )
+  assert_eq(
+    plan(["--early-data", "off"]).config.early_data,
+    @mooncat.EarlyData::Off,
+  )
+  let base = @mooncat.Config::new(early_data=@mooncat.EarlyData::Off)
+  assert_eq(
+    @cli.parse(["--early-data", "accept"][:], base~).config.early_data,
+    @mooncat.EarlyData::Accept,
+  )
+  guard refusal(["--early-data", "maybe"]) is Some(@cli.Value(want~, ..)) else {
+    fail("--early-data accepted a word it does not know")
+  }
+  assert_eq(want, "accept, refuse or off")
+}
+
+///|
 fn refusal(argv : Array[String]) -> @cli.Refused? {
   try {
     @cli.parse(argv[:]) |> ignore

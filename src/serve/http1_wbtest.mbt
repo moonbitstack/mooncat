@@ -337,7 +337,7 @@ async test "what RFC 9112 says to refuse is answered, and one empty line before 
     ("GET / HTTP/2.0\r\nHost: x\r\n\r\n", "505"),
     ("\r\nGET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n", "200"),
   ]
-  for i, case in cases {
+  for case in cases {
     let (wire, status) = case
     let answer = exchange(
       @utf8.encode(wire),
