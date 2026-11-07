@@ -701,6 +701,11 @@ fn entropy(n : Int32) -> Bytes {
 /// resumes only on the worker that sealed it. `tickets` chooses the keys: pass the same ones to share
 /// tickets across workers, or `@tls.tickets` to turn it off.
 ///
+/// `transport` is the QUIC configuration itself — Retry, the idle timeout, the flow-control credit.
+/// With `workers` above 1 it reaches this process only: the workers are started again from the
+/// command line, so they take the default, while everything on `Config` does reach them through the
+/// flags that were typed.
+///
 /// `Config.early_data` decides what a request sent in 0-RTT gets: taken and marked with
 /// `Early-Data: 1`, answered `425 Too Early` without running the application, or not offered at
 /// all (RFC 8470). `Config.early_data_size` is the allowance one ticket carries. Over TCP there is
