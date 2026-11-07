@@ -29,6 +29,9 @@ HOST = "127.0.0.1"
 PORT = int(os.environ.get("MOONCAT_PORT", "12000"))
 SEQUENTIAL = int(os.environ.get("MOONCAT_SEQUENTIAL", "100"))
 CONCURRENT = int(os.environ.get("MOONCAT_CONCURRENT", "20"))
+# Generous on purpose: a hundred connects are slow on a loaded runner, and a slow answer is not
+# the failure this looks for.
+TIMEOUT = float(os.environ.get("MOONCAT_TIMEOUT", "60"))
 
 
 class Client(QuicConnectionProtocol):
@@ -68,7 +71,7 @@ class Client(QuicConnectionProtocol):
             end_stream=True,
         )
         self.transmit()
-        await asyncio.wait_for(waiter["done"], 30)
+        await asyncio.wait_for(waiter["done"], TIMEOUT)
         return dict(waiter["headers"]).get(b":status"), waiter["body"]
 
 
