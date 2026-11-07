@@ -108,6 +108,30 @@ jobs:
         if: runner.os == 'Linux'
         run: sh scripts/http3/check_h3spec.sh
 
+      # One process, many connections: a hundred one after another, and a burst beside a
+      # connection that stays open across it.
+      - name: HTTP/3 connections, many in one process
+        if: runner.os == 'Linux'
+        run: |
+          moon build src/examples/07-http3 --target native
+          "$RUNNER_TEMP/aioquic/bin/python" scripts/http3/check_connections.py
+
+      # RFC 8470: a request that arrived in 0-RTT is marked, refused with 425 when the policy
+      # says so, and not offered at all when it is off.
+      - name: HTTP over 0-RTT against aioquic
+        if: runner.os == 'Linux'
+        run: |
+          moon build src/examples/15-early-data --target native
+          "$RUNNER_TEMP/aioquic/bin/python" scripts/http3/check_zero_rtt.py
+
+      # The cases the QUIC interoperability runner names, driven directly so that no Docker is
+      # needed; the image and the descriptor it would use are in scripts/interop.
+      - name: QUIC interoperability matrix
+        if: runner.os == 'Linux'
+        run: |
+          moon build src/examples/16-interop-server --target native
+          "$RUNNER_TEMP/aioquic/bin/python" scripts/interop/check_matrix.py
+
       - name: QUIC against aioquic, both ways
         if: runner.os == 'Linux'
         run: |

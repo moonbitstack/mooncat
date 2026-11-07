@@ -1,0 +1,19 @@
+// An HTTP/3 server behind the interoperability runner: `scripts/interop/`.
+supported_targets = "+native"
+
+pkgtype(kind: "executable")
+
+import {
+  "moonbitstack/mooncat",
+  "moonbitstack/mooncat/quic",
+  "moonbitstack/moonasgi",
+  "moonbitstack/moonquic/conn",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/buffer",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+warnings = "-29"

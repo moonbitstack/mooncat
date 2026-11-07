@@ -1,0 +1,22 @@
+{
+  "mooncat": {
+    "image": "mooncat-interop",
+    "url": "https://github.com/moonbitstack/mooncat",
+    "role": "server"
+  },
+  "quic-go": {
+    "image": "martenseemann/quic-go-interop:latest",
+    "url": "https://github.com/quic-go/quic-go",
+    "role": "both"
+  },
+  "aioquic": {
+    "image": "aiortc/aioquic-interop:latest",
+    "url": "https://github.com/aiortc/aioquic",
+    "role": "both"
+  },
+  "ngtcp2": {
+    "image": "ngtcp2/ngtcp2-interop:latest",
+    "url": "https://github.com/ngtcp2/ngtcp2",
+    "role": "both"
+  }
+}
