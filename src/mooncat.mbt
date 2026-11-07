@@ -8,6 +8,8 @@ pub using @config {
   type WsConfig,
   type H2Config,
   type Lifespan,
+  type EarlyData,
+  early_data_size,
   http_date,
   http_date_now,
   port,

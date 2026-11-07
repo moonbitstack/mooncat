@@ -7,6 +7,8 @@ import {
   "moonbitstack/moonasgi",
   "moonbitlang/async",
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 warnings = "-29"

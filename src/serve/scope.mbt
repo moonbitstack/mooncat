@@ -6,6 +6,9 @@ priv struct Link {
   bound : @socket.Addr?
   peer : @socket.Addr?
   tls : @moonasgi.TlsExtension?
+  // Whether the request reached this server before its handshake finished, which is what makes
+  // answering it twice different from answering it once (RFC 8470).
+  early : Bool
   // The lifespan state, of which every scope gets a shallow copy (ASGI lifespan sub-spec).
   state : Map[String, Json]
 }
@@ -13,7 +16,14 @@ priv struct Link {
 ///|
 /// A connection in the clear with nothing known about either end.
 fn Link::plain() -> Link {
-  { scheme: "http", bound: None, peer: None, tls: None, state: {}, }
+  {
+    scheme: "http",
+    bound: None,
+    peer: None,
+    tls: None,
+    early: false,
+    state: {},
+  }
 }
 
 ///|
@@ -51,12 +61,40 @@ fn pem(der : Bytes) -> String {
 
 ///|
 /// The extensions an HTTP scope here advertises: 103 Early Hints and response trailers, which
-/// both versions honour, and the TLS facts on a TLS connection.
+/// both versions honour, the TLS facts on a TLS connection, and — on a request that arrived in
+/// 0-RTT — the `http.request.early_data` extension, whose value is the same `true` the header
+/// says in prose.
 fn http_extensions(link : Link) -> @moonasgi.Extensions {
   let base = @moonasgi.Extensions::none().enable_early_hint().enable_trailers()
-  match link.tls {
+  let base = match link.tls {
     Some(t) => base.with_tls(t)
     None => base
+  }
+  if link.early {
+    base.enable("http.request.early_data", value=Json::boolean(true))
+  } else {
+    base
+  }
+}
+
+///|
+/// The request header that says a request arrived in 0-RTT (RFC 8470 §5.1). A proxy adds it to
+/// what it forwards; an origin adds it to what it hands its application, which is the same thing
+/// one hop later: whoever answers must know it may be answering a replay.
+let early_data_header : String = "early-data"
+
+///|
+/// Whether this scope's request may be a replay: it arrived in 0-RTT, before the handshake that
+/// would have proved the client owns its address (RFC 8470). A request forwarded by a proxy that
+/// took it in 0-RTT says so with `Early-Data: 1`, so both are read.
+pub fn early_data(scope : @moonasgi.Scope) -> Bool {
+  match scope {
+    Http(http) =>
+      http.headers.any(h => {
+        h.0.to_lower() == early_data_header &&
+        h.1.trim(chars=" ").to_lower() == "1"
+      })
+    _ => false
   }
 }
 
@@ -116,7 +154,14 @@ fn http_scope(
     raw_path: Some(@utf8.encode(raw_path)),
     query_string: @utf8.encode(query),
     root_path: config.root_path,
-    headers,
+    headers: if link.early &&
+      !headers.any(h => h.0.to_lower() == early_data_header) {
+      // The application reads the request it was handed; the fact has to be in there, not only
+      // beside it, because that is where RFC 8470 puts it.
+      headers + [(early_data_header, "1")]
+    } else {
+      headers
+    },
     client,
     server: server_pair(link.bound),
     asgi: @moonasgi.AsgiVersion::http(),

@@ -49,9 +49,13 @@ async fn app(
 
 ///|
 async fn main {
+  let port = match @env.get_env_var("MOONCAT_PORT") {
+    Some(text) => @string.parse_int(text) catch { _ => 12000 }
+    None => 12000
+  }
   @quic.serve_config(
     app,
-    @mooncat.Config::new(port=12000),
+    @mooncat.Config::new(port~),
     @mooncat.TlsCert::pem("src/certs/cert.pem", "src/certs/key.pem"),
   )
 }

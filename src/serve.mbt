@@ -6,8 +6,10 @@ pub using @proxy {proxy_rewrite}
 
 ///|
 pub using @serve {
+  type Listening,
   type ShutdownHandle,
   type TlsCert,
+  early_data,
   read_frame,
   read_message,
   reload_watch,

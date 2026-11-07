@@ -84,12 +84,18 @@ pub let alpn : Array[String] = ["h2", "http/1.1"]
 /// here for this process. Pass `tickets` to choose the keys, which is how several workers come to
 /// share them, or `@tls.tickets` to turn it off. A ticket this process cannot open costs a full
 /// handshake and nothing else.
+///
+/// `early` is how much a client may send before its handshake finishes, under a ticket this server
+/// issued: 0, the default, offers none. Early data over TLS on a TCP connection is not taken —
+/// a request has to be answered before it can be judged, and a byte stream has no way to hold one
+/// back — so only a QUIC listener asks for it.
 pub async fn TlsCert::load(
   self : TlsCert,
   alpn~ : Array[String] = alpn,
   suites~ : Array[@record.Suite] = @tls.suites,
   suites12~ : Array[@record.Suite12] = @tls.suites12,
   tickets? : @tls.Tickets,
+  early~ : Int32 = 0,
 ) -> @tls.Server {
   let tickets = match (tickets, @env.rand(32)) {
     (Some(tickets), _) => tickets
@@ -98,16 +104,10 @@ pub async fn TlsCert::load(
     (None, None) => @tls.tickets
   }
   let (chain, key) = self.read()
-  @tls.Server::new(
-    chain,
-    key,
-    alpn~,
-    suites~,
-    suites12~,
-    // HTTP over 0-RTT needs a server that can answer 425 and an application that knows the request
-    // may be a replay (RFC 8470). This one has neither, so whatever `tickets` says, it takes none.
-    tickets={ ..tickets, early: 0, },
-  )
+  @tls.Server::new(chain, key, alpn~, suites~, suites12~, tickets={
+    ..tickets,
+    early,
+  })
 }
 
 ///|
@@ -131,11 +131,13 @@ pub async fn serve_tls(
   host~ : String = "127.0.0.1",
   port~ : Int32 = @config.port,
   backlog~ : Int32 = 2048,
+  listening? : Listening,
 ) -> Unit {
   serve_tls_config(
     app,
     @config.Config::new(host~, port~, backlog~),
     TlsCert::pem(certificate_file, private_key_file, password?),
+    listening?,
   )
 }
 
@@ -150,8 +152,9 @@ pub async fn serve_tls_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
   cert : TlsCert,
+  listening? : Listening,
 ) -> Unit {
-  serve_tls_server(app, config, cert.load())
+  serve_tls_server(app, config, cert.load(), listening?)
 }
 
 ///|
@@ -162,20 +165,35 @@ pub async fn serve_tls_server(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
   server : @tls.Server,
+  listening? : Listening,
 ) -> Unit {
-  run(app, config, ShutdownHandle::new(), Some(server), Both)
+  run(app, config, ShutdownHandle::new(), Some(server), Both, listening?)
 }
 
 ///|
 /// Serve over HTTPS with another listener beside the TCP one, which runs from the moment the
 /// application has started until the requests in flight everywhere have drained.
+///
+/// `alt_svc` is a header value to advertise the neighbour with, in which `{port}` is replaced by the
+/// port the socket actually got — which is the only way to name it when the caller asked for port 0.
 pub async fn serve_tls_beside(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
   server : @tls.Server,
   beside : async (Site) -> Unit,
+  alt_svc~ : String = "",
+  listening? : Listening,
 ) -> Unit {
-  run(app, config, ShutdownHandle::new(), Some(server), Both, beside~)
+  run(
+    app,
+    config,
+    ShutdownHandle::new(),
+    Some(server),
+    Both,
+    beside~,
+    alt_svc~,
+    listening?,
+  )
 }
 
 ///|

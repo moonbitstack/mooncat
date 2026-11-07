@@ -1,0 +1,16 @@
+// HTTP over 0-RTT on one port: `moon run src/examples/15-early-data --target native`.
+supported_targets = "+native"
+
+pkgtype(kind: "executable")
+
+import {
+  "moonbitstack/mooncat",
+  "moonbitstack/mooncat/quic",
+  "moonbitstack/moonasgi",
+  "moonbitlang/async",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+warnings = "-29"

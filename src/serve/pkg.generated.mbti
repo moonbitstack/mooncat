@@ -17,6 +17,8 @@ import {
 // Values
 pub let alpn : Array[String]
 
+pub fn early_data(@spec.Scope) -> Bool
+
 pub async fn read_frame(&@io.Reader, client? : Bool, limit? : Int32) -> @ws.Frame
 
 pub async fn read_message(&@io.Reader, &@io.Writer, limit? : Int32) -> @ws.Message
@@ -25,23 +27,23 @@ pub async fn reload_watch(String, async () -> Unit) -> Unit
 
 pub fn request_of(Array[@header.Header]) -> (String, String)
 
-pub async fn serve(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32, backlog? : Int32) -> Unit
+pub async fn serve(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32, backlog? : Int32, listening? : Listening) -> Unit
 
-pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config) -> Unit
+pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, listening? : Listening) -> Unit
 
-pub async fn serve_graceful(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, handle? : ShutdownHandle) -> Unit
+pub async fn serve_graceful(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, handle? : ShutdownHandle, listening? : Listening) -> Unit
 
-pub async fn serve_h2c(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32) -> Unit
+pub async fn serve_h2c(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32, listening? : Listening) -> Unit
 
-pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config) -> Unit
+pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, listening? : Listening) -> Unit
 
-pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, password? : String, host? : String, port? : Int32, backlog? : Int32) -> Unit
+pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, password? : String, host? : String, port? : Int32, backlog? : Int32, listening? : Listening) -> Unit
 
-pub async fn serve_tls_beside(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server, async (Site) -> Unit) -> Unit
+pub async fn serve_tls_beside(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server, async (Site) -> Unit, alt_svc? : String, listening? : Listening) -> Unit
 
-pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, TlsCert) -> Unit
+pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, TlsCert, listening? : Listening) -> Unit
 
-pub async fn serve_tls_server(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server) -> Unit
+pub async fn serve_tls_server(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server, listening? : Listening) -> Unit
 
 pub async fn supervise(@config.Config, env? : Map[String, String]) -> Unit
 
@@ -50,6 +52,13 @@ pub fn worker() -> Int32?
 // Errors
 
 // Types and methods
+pub struct Listening {
+  // private fields
+}
+pub async fn Listening::addr(Self) -> @socket.Addr
+pub fn Listening::bound(Self) -> Bool
+pub fn Listening::new() -> Self
+
 pub struct ShutdownHandle {
   request : @aqueue.Queue[Unit]
   done : @aqueue.Queue[Unit]
@@ -66,14 +75,14 @@ pub fn Site::bound(Self) -> @socket.Addr
 pub fn Site::config(Self) -> @config.Config
 pub async fn Site::finished(Self) -> Unit
 pub fn Site::head(Self, Int32, Array[(String, String)]) -> Array[@header.Header]
-pub fn Site::scope(Self, Array[@header.Header], version~ : String, peer~ : @socket.Addr, suite~ : Int32) -> @spec.Scope
+pub fn Site::scope(Self, Array[@header.Header], version~ : String, peer~ : @socket.Addr, suite~ : Int32, early? : Bool) -> @spec.Scope
 pub fn Site::stopping(Self) -> Bool
 
 pub(all) enum TlsCert {
   Pem(certificate_file~ : String, private_key_file~ : String, password~ : String?)
   Pkcs12(file~ : String, password~ : String)
 }
-pub async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12], tickets? : @tls.Tickets) -> @tls.Server
+pub async fn TlsCert::load(Self, alpn? : Array[String], suites? : Array[@record.Suite], suites12? : Array[@record.Suite12], tickets? : @tls.Tickets, early? : Int32) -> @tls.Server
 pub fn TlsCert::pem(String, String, password? : String) -> Self
 pub fn TlsCert::pkcs12(String, password? : String) -> Self
 pub async fn TlsCert::read(Self) -> (Array[Bytes], @x509.PrivateKey)

@@ -1,4 +1,20 @@
 ///|
+/// Fill `{port}` in a header value with the port the socket was given. A listener that advertises
+/// another one — `alt-svc` naming the same number over UDP — cannot know it before it binds.
+fn substitute_port(template : String, port : Int32) -> String {
+  let out = StringBuilder()
+  let mut first = true
+  for part in template.split("{port}") {
+    if !first {
+      out.write_string(port.to_string())
+    }
+    first = false
+    out.write_string(part.to_owned())
+  }
+  out.to_string()
+}
+
+///|
 /// A handle for driving a graceful shutdown of `serve_graceful` from outside the
 /// serving task (← uvicorn's `Server.should_exit` / `handle_exit`). Hand one to
 /// `serve_graceful`, then call `shutdown()` from any other task to stop the
@@ -191,6 +207,7 @@ async fn accept_loop(
             bound: Some(bound),
             peer: Some(peer),
             tls: tls_facts(stream, chain),
+            early: false,
             state,
           }
           let h2 = match speak {
@@ -343,8 +360,9 @@ pub async fn serve_graceful(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
   handle~ : ShutdownHandle = ShutdownHandle::new(),
+  listening? : Listening,
 ) -> Unit {
-  run(app, config, handle, None, Both)
+  run(app, config, handle, None, Both, listening?)
 }
 
 ///|
@@ -366,27 +384,30 @@ async fn run(
   tls : @tls.Server?,
   speak : Speak,
   beside? : async (Site) -> Unit,
+  alt_svc~ : String = "",
+  listening? : Listening,
 ) -> Unit {
   if config.workers > 1 && !is_worker() {
     return supervise(config)
   }
-  let listening = Ref(false)
-  serve_here(app, config, handle, tls, speak, listening, beside?) catch {
-    e if is_worker() && !listening.val => leave_failed(config, e)
+  let listening = listening.unwrap_or(Listening::new())
+  serve_here(app, config, handle, tls, speak, listening, beside?, alt_svc~) catch {
+    e if is_worker() && !listening.bound() => leave_failed(config, e)
     e => raise e
   }
 }
 
 ///|
-/// This process's share of the serving; `listening` turns true once the socket is bound.
+/// This process's share of the serving; `listening` is told the address once the socket is bound.
 async fn serve_here(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
   handle : ShutdownHandle,
   tls : @tls.Server?,
   speak : Speak,
-  listening : Ref[Bool],
+  listening : Listening,
   beside? : async (Site) -> Unit,
+  alt_svc~ : String = "",
 ) -> Unit {
   @async.with_task_group(g => {
     let lifespan = @lifespan.Driver::new(
@@ -403,7 +424,18 @@ async fn serve_here(
       reuse_addr=config.reuse_addr,
       reuse_port_lb=config.workers > 1,
     )
-    listening.val = true
+    // Port 0 means the system chose, so the running server has to be the one that says which.
+    let bound = server.addr
+    listening.set(bound)
+    let config = if alt_svc.length() > 0 {
+      let headers = config.server_headers.copy()
+      headers["alt-svc"] = substitute_port(alt_svc, bound.port())
+      { ..config, port: bound.port(), server_headers: headers, }
+    } else if config.port == 0 {
+      { ..config, port: bound.port(), }
+    } else {
+      config
+    }
     let scheme = if tls is Some(_) { "https" } else { "http" }
     config.logger.log(
       @moonlog.info,

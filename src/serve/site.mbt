@@ -57,13 +57,15 @@ pub async fn Site::finished(self : Site) -> Unit {
 
 ///|
 /// The ASGI scope for a request head (RFC 9110 §7) that arrived from `peer` under TLS on HTTP
-/// version `version`, with `suite` naming its cipher.
+/// version `version`, with `suite` naming its cipher. `early` says the request reached this
+/// server before its handshake finished (RFC 8470).
 pub fn Site::scope(
   self : Site,
   fields : Array[@header.Header],
   version~ : String,
   peer~ : @socket.Addr,
   suite~ : Int32,
+  early~ : Bool = false,
 ) -> @moonasgi.Scope {
   let link : Link = {
     scheme: "https",
@@ -77,6 +79,7 @@ pub fn Site::scope(
       tls_version: Some(0x0304),
       cipher_suite: Some(suite),
     }),
+    early,
     state: self.state,
   }
   field_scope(fields, link, self.config, version)

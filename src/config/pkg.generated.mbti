@@ -7,6 +7,8 @@ import {
 }
 
 // Values
+pub let early_data_size : Int32
+
 pub fn http_date(Int64) -> String
 
 pub fn http_date_now() -> String
@@ -47,9 +49,21 @@ pub(all) struct Config {
   lifespan : Lifespan
   cleartext : Bool
   workers : Int32
+  early_data : EarlyData
+  early_data_size : Int32
 }
 pub fn Config::bind(Self) -> String
-pub fn Config::new(host? : String, port? : Int32, backlog? : Int32, dual_stack? : Bool, reuse_addr? : Bool, server_headers? : Map[String, String], max_connections? : Int32, allow_failure? : Bool, graceful_timeout? : Int32, root_path? : String, logger? : Logger, timeout_keep_alive? : Int32, timeout_handshake? : Int32, limit_max_requests? : Int32, limit_concurrency? : Int32, max_head_size? : Int32, date_header? : Bool, proxy_headers? : Bool, forwarded_allow_ips? : Array[String], ws? : WsConfig, h2? : H2Config, lifespan? : Lifespan, cleartext? : Bool, workers? : Int32) -> Self
+pub fn Config::new(host? : String, port? : Int32, backlog? : Int32, dual_stack? : Bool, reuse_addr? : Bool, server_headers? : Map[String, String], max_connections? : Int32, allow_failure? : Bool, graceful_timeout? : Int32, root_path? : String, logger? : Logger, timeout_keep_alive? : Int32, timeout_handshake? : Int32, limit_max_requests? : Int32, limit_concurrency? : Int32, max_head_size? : Int32, date_header? : Bool, proxy_headers? : Bool, forwarded_allow_ips? : Array[String], ws? : WsConfig, h2? : H2Config, lifespan? : Lifespan, cleartext? : Bool, workers? : Int32, early_data? : EarlyData, early_data_size? : Int32) -> Self
+
+#derive(Eq, @debug.Debug)
+pub(all) enum EarlyData {
+  Accept
+  Refuse
+  Off
+}
+pub fn EarlyData::equal(Self, Self) -> Bool
+pub fn EarlyData::not_equal(Self, Self) -> Bool
+pub fn EarlyData::to_repr(Self) -> @debug.Repr
 
 pub(all) struct H2Config {
   max_streams : Int32

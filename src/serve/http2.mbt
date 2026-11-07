@@ -530,8 +530,9 @@ pub async fn serve_h2c(
   app : @moonasgi.AsgiApp,
   host~ : String = "127.0.0.1",
   port~ : Int32 = @config.port,
+  listening? : Listening,
 ) -> Unit {
-  serve_h2c_config(app, @config.Config::new(host~, port~))
+  serve_h2c_config(app, @config.Config::new(host~, port~), listening?)
 }
 
 ///|
@@ -541,6 +542,7 @@ pub async fn serve_h2c(
 pub async fn serve_h2c_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
+  listening? : Listening,
 ) -> Unit {
-  run(app, config, ShutdownHandle::new(), None, H2)
+  run(app, config, ShutdownHandle::new(), None, H2, listening?)
 }

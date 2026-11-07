@@ -34,6 +34,9 @@ let frame_size : Int32 = 16384
 /// A request stream.
 priv struct Exchange {
   id : UInt64
+  // Whether the stream was already readable before the handshake finished, which only 0-RTT data
+  // can be: the request may then be a replay (RFC 8470).
+  early : Bool
   incoming : @http3.Incoming
   mut parts : Array[@http3.Part]
   mut gone : Bool
@@ -44,9 +47,10 @@ priv struct Exchange {
 }
 
 ///|
-fn Exchange::new(id : UInt64) -> Exchange {
+fn Exchange::new(id : UInt64, early~ : Bool) -> Exchange {
   {
     id,
+    early,
     incoming: @http3.Incoming::new(
       limit=max_field_section_size,
       chunk=frame_size,
@@ -95,6 +99,9 @@ priv struct Client {
   mut control : UInt64?
   mut next_request : UInt64
   mut leaving : Bool
+  // Whether the handshake has finished. A request stream the transport reports before it can only
+  // have arrived in 0-RTT: 1-RTT streams need the keys the handshake makes.
+  mut connected : Bool
 }
 
 ///|
@@ -209,18 +216,36 @@ async fn H3::answer(self : H3, client : Client, ex : Exchange) -> Unit {
     Head(section) => section
     _ => return
   }
+  let (verb, target) = @serve.request_of(section)
+  let config = self.site.config()
+  // RFC 8470 §4: an origin that took early data may answer `425 Too Early` instead of running the
+  // application, and the client sends the request again once the handshake is done. This is how an
+  // application that cannot be replayed is kept from being replayed.
+  if ex.early && config.early_data is Refuse {
+    self.write_head(client, ex, self.site.head(425, []), fin=true)
+    ex.done = true
+    ex.changed.broadcast()
+    self.pump()
+    config.logger.access_line(
+      client.session.peer().to_string(),
+      verb,
+      target,
+      "3",
+      425,
+    )
+    return
+  }
   guard self.site.admit() else {
     self.write_head(client, ex, self.site.head(503, []), fin=true)
     return
   }
   ex.admitted = true
-  let (verb, target) = @serve.request_of(section)
-  let config = self.site.config()
   let scope = self.site.scope(
     section,
     version="3",
     peer=client.session.peer(),
     suite=client.session.suite_code(),
+    early=ex.early,
   )
   let head = verb == "HEAD"
   let delivered = Ref(false)
@@ -465,7 +490,7 @@ fn H3::open(
     client.session.reset(id, @http3.RequestRejected.code())
     return
   }
-  let ex = Exchange::new(id)
+  let ex = Exchange::new(id, early=!client.connected)
   client.exchanges[id] = ex
   if id >= client.next_request {
     client.next_request = id + 4UL
@@ -515,6 +540,7 @@ async fn H3::dispatch(self : H3, g : @async.TaskGroup[Unit]) -> Unit {
           control: None,
           next_request: 0UL,
           leaving: false,
+          connected: false,
         }
         self.clients[session.cid()] = c
         c
@@ -523,6 +549,7 @@ async fn H3::dispatch(self : H3, g : @async.TaskGroup[Unit]) -> Unit {
     for event in session.take_events() {
       match event {
         Connected => {
+          client.connected = true
           let id = session.open_uni()
           client.control = Some(id)
           session.write(id, client.wire.open_control_stream())
@@ -672,8 +699,13 @@ fn entropy(n : Int32) -> Bytes {
 ///
 /// Session resumption is on over TCP and UDP alike, each worker with keys of its own, so a ticket
 /// resumes only on the worker that sealed it. `tickets` chooses the keys: pass the same ones to share
-/// tickets across workers, or `@tls.tickets` to turn it off. 0-RTT stays off whatever it says, since
-/// nothing here can answer 425 (RFC 8470).
+/// tickets across workers, or `@tls.tickets` to turn it off.
+///
+/// `Config.early_data` decides what a request sent in 0-RTT gets: taken and marked with
+/// `Early-Data: 1`, answered `425 Too Early` without running the application, or not offered at
+/// all (RFC 8470). `Config.early_data_size` is the allowance one ticket carries. Over TCP there is
+/// no early data whatever it says: a byte stream cannot hold a request back until the handshake
+/// says whether to take it, so only the QUIC listener offers any.
 pub async fn serve_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
@@ -681,15 +713,28 @@ pub async fn serve_config(
   suites? : Array[@record.Suite],
   suites12? : Array[@record.Suite12],
   tickets? : @tls.Tickets,
+  transport? : @conn.Config,
+  listening? : @serve.Listening,
 ) -> Unit {
   if config.workers > 1 && @serve.worker() is None {
     return supervise_with_relay(config)
   }
-  let headers = config.server_headers.copy()
-  headers["alt-svc"] = "h3=\":\{config.port}\"; ma=86400"
   let tcp = cert.load(suites?, suites12?, tickets?)
-  let udp = cert.load(alpn=["h3"], suites?, tickets?)
-  @serve.serve_tls_beside(app, { ..config, server_headers: headers, }, tcp, site => {
-    serve_site(app, site, udp)
-  })
+  let early = if config.early_data is Off { 0 } else { config.early_data_size }
+  let udp = cert.load(alpn=["h3"], suites?, tickets?, early~)
+  @serve.serve_tls_beside(
+    app,
+    config,
+    tcp,
+    site => {
+      serve_site(
+        app,
+        site,
+        udp,
+        transport=transport.unwrap_or(@conn.Config::default()),
+      )
+    },
+    alt_svc="h3=\":{port}\"; ma=86400",
+    listening?,
+  )
 }

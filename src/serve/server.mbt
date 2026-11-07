@@ -67,8 +67,9 @@ pub async fn serve(
   host~ : String = "127.0.0.1",
   port~ : Int32 = @config.port,
   backlog~ : Int32 = 2048,
+  listening? : Listening,
 ) -> Unit {
-  serve_config(app, @config.Config::new(host~, port~, backlog~))
+  serve_config(app, @config.Config::new(host~, port~, backlog~), listening?)
 }
 
 ///|
@@ -82,8 +83,9 @@ pub async fn serve(
 pub async fn serve_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,
+  listening? : Listening,
 ) -> Unit {
-  run(app, config, ShutdownHandle::new(), None, Both)
+  run(app, config, ShutdownHandle::new(), None, Both, listening?)
 }
 
 ///|

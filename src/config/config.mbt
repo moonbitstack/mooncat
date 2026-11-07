@@ -61,6 +61,31 @@ pub extend Lifespan with Eq::{equal, not_equal}
 pub extend Lifespan with Debug::{to_repr}
 
 ///|
+/// What the server does with a request a client sent before its handshake had finished — early
+/// data, in the TLS 1.3 and QUIC sense (RFC 8446 §4.2.10, RFC 9000 §12). Such a request can be
+/// replayed by whoever saw it, so RFC 8470 makes it the origin's to judge.
+#derive(Eq, Debug)
+pub(all) enum EarlyData {
+  /// Take it, and tell the application the request may be a replay.
+  Accept
+  /// Answer `425 Too Early` and never run the application.
+  Refuse
+  /// Do not offer it: no ticket carries an allowance, so no client can send any.
+  Off
+}
+
+///|
+pub extend EarlyData with Eq::{equal, not_equal}
+
+///|
+pub extend EarlyData with Debug::{to_repr}
+
+///|
+/// How much a client may send in 0-RTT under one ticket, in bytes: 16 KiB, room for a request
+/// head and a small body, small enough that replaying one costs little.
+pub let early_data_size : Int32 = 16384
+
+///|
 /// The HTTP/2 knobs. The stream ceiling, header-list cap and frame cap are hypercorn's
 /// (`h2_max_concurrent_streams`, `h2_max_header_list_size`, `h2_max_inbound_frame_size`). The
 /// receive windows are Go's server's (`MaxUploadBufferPerStream`, `MaxUploadBufferPerConnection`):
@@ -168,6 +193,11 @@ pub(all) struct Config {
   // supervises: it runs this same program that many times and replaces any that die. Linux only,
   // because that is where the kernel shares a port across processes.
   workers : Int32
+  // What a request that arrived in 0-RTT gets: taken and marked, answered `425`, or not offered at
+  // all (RFC 8470). Only a listener that can take early data — TLS 1.3 over QUIC — reads it.
+  early_data : EarlyData
+  // How much early data one ticket allows, in bytes.
+  early_data_size : Int32
 }
 
 ///|
@@ -218,6 +248,8 @@ pub fn Config::new(
   lifespan~ : Lifespan = Auto,
   cleartext~ : Bool = true,
   workers~ : Int32 = 1,
+  early_data~ : EarlyData = Accept,
+  early_data_size~ : Int32 = early_data_size,
 ) -> Config {
   {
     host,
@@ -244,6 +276,8 @@ pub fn Config::new(
     lifespan,
     cleartext,
     workers,
+    early_data,
+    early_data_size,
   }
 }
 

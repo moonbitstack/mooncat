@@ -12,6 +12,10 @@ import {
 }
 
 // Values
+pub fn early_data(@spec.Scope) -> Bool
+
+pub let early_data_size : Int32
+
 pub fn http_date(Int64) -> String
 
 pub fn http_date_now() -> String
@@ -26,23 +30,23 @@ pub async fn read_message(&@io.Reader, &@io.Writer, limit? : Int32) -> @ws.Messa
 
 pub async fn reload_watch(String, async () -> Unit) -> Unit
 
-pub async fn serve(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32, backlog? : Int32) -> Unit
+pub async fn serve(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32, backlog? : Int32, listening? : @serve.Listening) -> Unit
 
-pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config) -> Unit
+pub async fn serve_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, listening? : @serve.Listening) -> Unit
 
-pub async fn serve_graceful(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, handle? : @serve.ShutdownHandle) -> Unit
+pub async fn serve_graceful(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, handle? : @serve.ShutdownHandle, listening? : @serve.Listening) -> Unit
 
-pub async fn serve_h2c(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32) -> Unit
+pub async fn serve_h2c(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, host? : String, port? : Int32, listening? : @serve.Listening) -> Unit
 
-pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config) -> Unit
+pub async fn serve_h2c_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, listening? : @serve.Listening) -> Unit
 
-pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, password? : String, host? : String, port? : Int32, backlog? : Int32) -> Unit
+pub async fn serve_tls(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, certificate_file~ : String, private_key_file~ : String, password? : String, host? : String, port? : Int32, backlog? : Int32, listening? : @serve.Listening) -> Unit
 
-pub async fn serve_tls_beside(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server, async (@serve.Site) -> Unit) -> Unit
+pub async fn serve_tls_beside(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server, async (@serve.Site) -> Unit, alt_svc? : String, listening? : @serve.Listening) -> Unit
 
-pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @serve.TlsCert) -> Unit
+pub async fn serve_tls_config(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @serve.TlsCert, listening? : @serve.Listening) -> Unit
 
-pub async fn serve_tls_server(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server) -> Unit
+pub async fn serve_tls_server(async (@spec.Scope, async () -> @spec.Event, async (@spec.Event) -> Unit) -> Unit, @config.Config, @tls.Server, listening? : @serve.Listening) -> Unit
 
 // Errors
 
@@ -53,11 +57,15 @@ pub using @config {type Config}
 
 pub using @lifespan {type Driver}
 
+pub using @config {type EarlyData}
+
 pub using @config {type H2Config}
 
 pub using @config {type Lifespan}
 
 pub using @lifespan {type LifespanError}
+
+pub using @serve {type Listening}
 
 pub using @config {type Logger}
 
