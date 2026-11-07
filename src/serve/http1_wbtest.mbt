@@ -148,9 +148,12 @@ async fn exchange(raw : Bytes, config~ : @config.Config) -> String {
       )
       send(@moonasgi.Event::HttpResponseBody(body=b"ok", more_body=false))
     }
-    let srv = g.spawn(() => serve_config(app, config))
-    @async.sleep(250)
-    let tcp = @socket.Tcp::connect(@socket.Addr::parse(config.bind()))
+    let listening = Listening::new()
+    // Port 0: the system picks one, and the listener says which, so two of these can run at once.
+    let srv = g.spawn(() => {
+      serve_config(app, { ..config, port: 0, }, listening~)
+    })
+    let tcp = @socket.Tcp::connect(listening.addr())
     defer tcp.close()
     tcp.write(raw)
     answer = @utf8.decode_lossy(tcp.read_all().binary())
@@ -165,7 +168,7 @@ async fn exchange(raw : Bytes, config~ : @config.Config) -> String {
 async test "a malformed request is answered 400 before the connection closes" {
   let answer = exchange(
     b"NOT HTTP AT ALL\r\n\r\n",
-    config=@config.Config::new(port=18460, logger=@config.Logger::silent()),
+    config=@config.Config::new(logger=@config.Logger::silent()),
   )
   assert_true(answer.has_prefix("HTTP/1.1 400 Bad Request\r\n"))
   assert_true(answer.has_suffix("Invalid HTTP request received."))
@@ -180,7 +183,6 @@ async test "a head past max_head_size is answered 431" {
   let answer = exchange(
     @utf8.encode(big),
     config=@config.Config::new(
-      port=18461,
       max_head_size=64,
       logger=@config.Logger::silent(),
     ),
@@ -268,14 +270,15 @@ async test "http1: http.disconnect comes after the response, not straight after 
         send(HttpResponseBody(body=b"", more_body=false))
       })
     }
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_config(
         app,
-        @config.Config::new(port=18320, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
+        listening~,
       )
     })
-    @async.sleep(250)
-    let sock = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18320"))
+    let sock = @socket.Tcp::connect(listening.addr())
     sock.write(b"GET /stream HTTP/1.1\r\nhost: x\r\n\r\n")
     let text = read_until_marker(sock, "0\r\n\r\n")
     assert_true(text.contains("tick"))
@@ -299,14 +302,15 @@ async test "http1: a client that leaves mid-response is heard as http.disconnect
         heard.push("disconnect")
       }
     }
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_config(
         app,
-        @config.Config::new(port=18321, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
+        listening~,
       )
     })
-    @async.sleep(250)
-    let sock = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18321"))
+    let sock = @socket.Tcp::connect(listening.addr())
     sock.write(b"GET / HTTP/1.1\r\nhost: x\r\n\r\n")
     ignore(read_until_marker(sock, "first"))
     sock.close()
@@ -337,10 +341,7 @@ async test "what RFC 9112 says to refuse is answered, and one empty line before 
     let (wire, status) = case
     let answer = exchange(
       @utf8.encode(wire),
-      config=@config.Config::new(
-        port=18462 + i,
-        logger=@config.Logger::silent(),
-      ),
+      config=@config.Config::new(logger=@config.Logger::silent()),
     )
     assert_true(answer.has_prefix("HTTP/1.1 \{status} "))
   }

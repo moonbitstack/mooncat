@@ -38,16 +38,17 @@ fn text_app(text : String) -> @moonasgi.AsgiApp {
 
 ///|
 async test "h2: a client that picks h2 by ALPN is served HTTP/2 over TLS" {
-  let port = 18445
   @async.with_task_group(g => {
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_tls_config(
         text_app("hello over h2"),
-        @config.Config::new(port~, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
         test_cert(),
+        listening~,
       )
     })
-    @async.sleep(400)
+    let port = listening.addr().port()
     let conn = @tcp.dial("127.0.0.1", port~, tls=pinned(["h2", "http/1.1"]))
     assert_eq(conn.alpn(), Some("h2"))
     let (status, headers, body) = h2_request(
@@ -68,17 +69,23 @@ async test "h2: a client that picks h2 by ALPN is served HTTP/2 over TLS" {
 ///|
 async test "h2: in the clear one port serves HTTP/1.1 and HTTP/2 by prior knowledge" {
   @async.with_task_group(g => {
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_config(
         text_app("either way"),
-        @config.Config::new(port=18446, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
+        listening~,
       )
     })
-    @async.sleep(400)
-    let (status, _, body) = h2c_request("127.0.0.1", 18446, "GET", "/")
+    let (status, _, body) = h2c_request(
+      "127.0.0.1",
+      listening.addr().port(),
+      "GET",
+      "/",
+    )
     assert_eq(status, "200")
     assert_eq(body, b"either way")
-    let sock = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18446"))
+    let sock = @socket.Tcp::connect(listening.addr())
     defer sock.close()
     sock.write("GET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
     assert_true(
@@ -119,16 +126,17 @@ async fn h1_exchange(conn : @tcp.Conn) -> String {
 /// The family's rule: TLS takes no port of its own. One listener answers TLS by its handshake
 /// record and the clear otherwise, HTTP/1.1 and HTTP/2 both.
 async test "tls: one port serves https, http and h2c" {
-  let port = 18450
   @async.with_task_group(g => {
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_tls_config(
         scheme_app(),
-        @config.Config::new(port~, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
         test_cert(),
+        listening~,
       )
     })
-    @async.sleep(400)
+    let port = listening.addr().port()
     let secure = h1_exchange(
       @tcp.dial("127.0.0.1", port~, tls=pinned(["http/1.1"])),
     )
@@ -144,20 +152,21 @@ async test "tls: one port serves https, http and h2c" {
 
 ///|
 async test "tls: with cleartext off a TLS port does not serve the clear" {
-  let port = 18451
   @async.with_task_group(g => {
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_tls_config(
         scheme_app(),
         @config.Config::new(
-          port~,
+          port=0,
           cleartext=false,
           logger=@config.Logger::silent(),
         ),
         test_cert(),
+        listening~,
       )
     })
-    @async.sleep(400)
+    let port = listening.addr().port()
     let clear = h1_exchange(@tcp.dial("127.0.0.1", port~))
     assert_false(clear.contains("HTTP/1.1 200"))
     let secure = h1_exchange(

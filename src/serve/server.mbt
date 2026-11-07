@@ -104,20 +104,22 @@ async test "serve_config stops itself after limit_max_requests" {
       )
       send(@moonasgi.Event::HttpResponseBody(body=b"ok", more_body=false))
     }
+    let listening = Listening::new()
     let srv = g.spawn(() => {
       serve_config(
         app,
         @config.Config::new(
-          port=18112,
+          port=0,
           limit_max_requests=2,
           logger=@config.Logger::silent(),
         ),
+        listening~,
       )
     })
-    @async.sleep(300)
-    let (first, _b1) = @http.get("http://127.0.0.1:18112/one")
+    let base = "http://" + listening.addr().to_string()
+    let (first, _b1) = @http.get(base + "/one")
     assert_eq(first.code, 200)
-    let (second, _b2) = @http.get("http://127.0.0.1:18112/two")
+    let (second, _b2) = @http.get(base + "/two")
     assert_eq(second.code, 200)
     // Bounded, so a limit that never trips fails this test rather than parking it forever.
     let stopped = @async.with_timeout_opt(5000, () => srv.wait())
@@ -158,9 +160,11 @@ async test "serve responds 200 with body over a real socket" {
         ),
       )
     }
-    let task = g.spawn(() => serve(app, port=18080))
-    @async.sleep(200)
-    let (resp, _body) = @http.get("http://127.0.0.1:18080/")
+    let listening = Listening::new()
+    let task = g.spawn(() => serve(app, port=0, listening~))
+    let (resp, _body) = @http.get(
+      "http://" + listening.addr().to_string() + "/",
+    )
     assert_eq(resp.code, 200)
     task.cancel()
   })
@@ -224,9 +228,11 @@ async fn ws_echo_app(
 ///|
 async test "websocket bridge: full text + binary round-trip through the SEAM" {
   @async.with_task_group(g => {
-    let task = g.spawn(() => serve(ws_echo_app, port=18081))
-    @async.sleep(200)
-    let ws = @websocket.connect("ws://127.0.0.1:18081/chat")
+    let listening = Listening::new()
+    let task = g.spawn(() => serve(ws_echo_app, port=0, listening~))
+    let ws = @websocket.connect(
+      "ws://" + listening.addr().to_string() + "/chat",
+    )
     // text round-trip
     ws.send_text("hello mooncat")
     assert_eq(ws.recv().read_all().text(), "hello mooncat")
@@ -264,11 +270,12 @@ async test "websocket bridge: offered subprotocols reach the scope" {
         _ => ()
       }
     }
-    let task = g.spawn(() => serve(app, port=18082))
-    @async.sleep(200)
-    let ws = @websocket.connect("ws://127.0.0.1:18082/chat", headers={
-      "sec-websocket-protocol": "chat, superchat",
-    })
+    let listening = Listening::new()
+    let task = g.spawn(() => serve(app, port=0, listening~))
+    let ws = @websocket.connect(
+      "ws://" + listening.addr().to_string() + "/chat",
+      headers={ "sec-websocket-protocol": "chat, superchat" },
+    )
     ws.send_text("go")
     assert_eq(ws.recv().read_all().text(), "go")
     assert_eq(seen, ["chat", "superchat"])
@@ -316,18 +323,20 @@ async test "the request scope carries the peer, the bind address, and a decoded 
         _ => ()
       }
     }
+    let listening = Listening::new()
     let task = g.spawn(() => {
-      serve_config(app, @config.Config::new(port=18099, root_path="/api"))
+      serve_config(app, @config.Config::new(root_path="/api"), listening~)
     })
-    @async.sleep(300)
-    let (resp, _b) = @http.get("http://127.0.0.1:18099/files/a%2Fb/caf%C3%A9")
+    let (resp, _b) = @http.get(
+      "http://" + listening.addr().to_string() + "/files/a%2Fb/caf%C3%A9",
+    )
     assert_eq(resp.code, 200)
     // `path` is decoded; `raw_path` is not.
     assert_eq(seen[0], "/files/a/b/café")
     assert_eq(seen[1], "/files/a%2Fb/caf%C3%A9")
     assert_eq(seen[2], "/api")
     assert_eq(seen[3], "127.0.0.1")
-    assert_eq(seen[4], "127.0.0.1:18099")
+    assert_eq(seen[4], listening.addr().to_string())
     task.cancel()
   })
 }
@@ -356,19 +365,21 @@ async test "the server logs each request and turns an app failure into a 500" {
         _ => ()
       }
     }
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_config(
         app,
         @config.Config::new(
-          port=18113,
+          port=0,
           logger=@config.Logger::new(write=line => lines.push(line)),
         ),
+        listening~,
       )
     })
-    @async.sleep(300)
-    let (ok, _b) = @http.get("http://127.0.0.1:18113/hello")
+    let base = "http://" + listening.addr().to_string()
+    let (ok, _b) = @http.get(base + "/hello")
     assert_eq(ok.code, 201)
-    let (boom, _b2) = @http.get("http://127.0.0.1:18113/boom")
+    let (boom, _b2) = @http.get(base + "/boom")
     assert_eq(boom.code, 500)
     @async.sleep(100)
     let joined = lines.join(" | ")
@@ -415,15 +426,17 @@ async test "lifespan state reaches every request scope, a copy each" {
         _ => ()
       }
     }
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_config(
         app,
-        @config.Config::new(port=18330, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
+        listening~,
       )
     })
-    @async.sleep(300)
-    let (first, _) = @http.get("http://127.0.0.1:18330/a")
-    let (second, _) = @http.get("http://127.0.0.1:18330/b")
+    let base = "http://" + listening.addr().to_string()
+    let (first, _) = @http.get(base + "/a")
+    let (second, _) = @http.get(base + "/b")
     assert_eq(first.code, 200)
     assert_eq(second.code, 200)
     assert_eq(seen, ["\"ready\" false", "\"ready\" false"])
@@ -441,14 +454,15 @@ async test "an application that only knows HTTP is served under the default life
       send(HttpResponseStart(status=200, headers=[], trailers=false))
       send(HttpResponseBody(body=b"ok", more_body=false))
     }
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_config(
         app,
-        @config.Config::new(port=18331, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
+        listening~,
       )
     })
-    @async.sleep(300)
-    let (resp, _) = @http.get("http://127.0.0.1:18331/")
+    let (resp, _) = @http.get("http://" + listening.addr().to_string() + "/")
     assert_eq(resp.code, 200)
     task.cancel()
   })

@@ -43,20 +43,21 @@ fn hinting() -> @moonasgi.AsgiApp {
 
 ///|
 async test "extensions: under TLS the scope carries the version, the suite and the certificate, on both versions" {
-  let port = 18447
   @async.with_task_group(g => {
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_tls_config(
         reporting(),
         @config.Config::new(
-          port~,
+          port=0,
           root_path="/api",
           logger=@config.Logger::silent(),
         ),
         test_cert(),
+        listening~,
       )
     })
-    @async.sleep(400)
+    let port = listening.addr().port()
     let h2 = @tcp.dial("127.0.0.1", port~, tls=pinned(["h2"]))
     let suite = h2.tls().bind(t => t.suite()).map(s => s.code()).unwrap_or(-1)
     let (_, _, two) = h2_request(h2, "https", "localhost", "GET", "/a%2Fb?q=1")
@@ -94,15 +95,16 @@ async test "extensions: under TLS the scope carries the version, the suite and t
 
 ///|
 async test "extensions: a 103 goes before the answer and trailers after it, over HTTP/1.1" {
-  let port = 18448
   @async.with_task_group(g => {
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_config(
         hinting(),
-        @config.Config::new(port~, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
+        listening~,
       )
     })
-    @async.sleep(400)
+    let port = listening.addr().port()
     let sock = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:\{port}"))
     defer sock.close()
     sock.write("GET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
@@ -124,16 +126,17 @@ async test "extensions: a 103 goes before the answer and trailers after it, over
 
 ///|
 async test "extensions: a 103 and trailers over HTTP/2" {
-  let port = 18449
   @async.with_task_group(g => {
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_tls_config(
         hinting(),
-        @config.Config::new(port~, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
         test_cert(),
+        listening~,
       )
     })
-    @async.sleep(400)
+    let port = listening.addr().port()
     let conn = @tcp.dial("127.0.0.1", port~, tls=pinned(["h2"]))
     let (status, headers, body) = h2_request(
       conn, "https", "localhost", "GET", "/",

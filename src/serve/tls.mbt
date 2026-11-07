@@ -225,12 +225,17 @@ async test "https: real TLS client GET returns 200 with body" {
         ),
       )
     }
+    let listening = Listening::new()
     let task = g.spawn(() => {
-      serve_tls_config(app, @config.Config::new(port=18443), test_cert())
+      serve_tls_config(
+        app,
+        @config.Config::new(port=0),
+        test_cert(),
+        listening~,
+      )
     })
-    @async.sleep(400)
     let client = @http.Client::Client(
-      "https://127.0.0.1:18443",
+      "https://" + listening.addr().to_string(),
       trust=NoVerification,
     )
     let resp = client.get("/")

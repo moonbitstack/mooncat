@@ -189,16 +189,19 @@ fn answer(text : String) -> @moonasgi.AsgiApp {
 }
 
 ///|
-fn quiet(port : Int32) -> @config.Config {
-  @config.Config::new(port~, logger=@config.Logger::silent())
+fn quiet() -> @config.Config {
+  // Port 0: the system picks one, `Listening` says which, and two of these can run at once.
+  @config.Config::new(port=0, logger=@config.Logger::silent())
 }
 
 ///|
 async test "h2c: a GET is answered with status, body, and the server's own headers" {
   @async.with_task_group(g => {
-    let task = g.spawn(() => serve_h2c(answer("hello over h2c"), port=18300))
-    @async.sleep(250)
-    let peer = Peer::connect(18300)
+    let listening = Listening::new()
+    let task = g.spawn(() => {
+      serve_h2c(answer("hello over h2c"), port=0, listening~)
+    })
+    let peer = Peer::connect(listening.addr().port())
     let id = peer.request("GET", "/")
     peer.wait([id])
     let r = peer.replies[id]
@@ -229,9 +232,10 @@ async test "h2c: a request body reaches the application piece by piece as it arr
       send(HttpResponseStart(status=200, headers=[], trailers=false))
       send(HttpResponseBody(body=b"ok", more_body=false))
     }
-    let task = g.spawn(() => serve_h2c_config(app, quiet(18301)))
+    let listening = Listening::new()
+    let task = g.spawn(() => serve_h2c_config(app, quiet(), listening~))
     @async.sleep(250)
-    let peer = Peer::connect(18301)
+    let peer = Peer::connect(listening.addr().port())
     let id = peer.request("POST", "/up", end=false)
     peer.data(id, b"ab", end=false)
     @async.sleep(150)
@@ -254,10 +258,11 @@ async test "h2c: a large response keeps to the peer's stream window" {
       send(HttpResponseStart(status=200, headers=[], trailers=false))
       send(HttpResponseBody(body=payload, more_body=false))
     }
-    let task = g.spawn(() => serve_h2c_config(app, quiet(18302)))
+    let listening = Listening::new()
+    let task = g.spawn(() => serve_h2c_config(app, quiet(), listening~))
     @async.sleep(250)
     let peer = Peer::connect(
-      18302,
+      listening.addr().port(),
       settings=@http2.Settings::new(initial_window_size=100),
     )
     let id = peer.request("GET", "/big")
@@ -292,9 +297,10 @@ async test "h2c: streams on one connection run at once, so a slow one is overtak
       send(HttpResponseStart(status=200, headers=[], trailers=false))
       send(HttpResponseBody(body=@utf8.encode(h.path), more_body=false))
     }
-    let task = g.spawn(() => serve_h2c_config(app, quiet(18303)))
+    let listening = Listening::new()
+    let task = g.spawn(() => serve_h2c_config(app, quiet(), listening~))
     @async.sleep(250)
-    let peer = Peer::connect(18303)
+    let peer = Peer::connect(listening.addr().port())
     let slow = peer.request("GET", "/slow")
     let fast = peer.request("GET", "/fast")
     peer.wait([slow, fast])
@@ -328,9 +334,10 @@ async test "h2c: http.disconnect comes after the response, not straight after th
         send(HttpResponseBody(body=b"", more_body=false))
       })
     }
-    let task = g.spawn(() => serve_h2c_config(app, quiet(18304)))
+    let listening = Listening::new()
+    let task = g.spawn(() => serve_h2c_config(app, quiet(), listening~))
     @async.sleep(250)
-    let peer = Peer::connect(18304)
+    let peer = Peer::connect(listening.addr().port())
     let id = peer.request("GET", "/stream")
     peer.wait([id])
     @async.sleep(50)
@@ -351,9 +358,10 @@ async test "h2c: a client reset reaches the application as http.disconnect" {
       send(HttpResponseBody(body=b"first", more_body=true))
       heard.push(receive())
     }
-    let task = g.spawn(() => serve_h2c_config(app, quiet(18305)))
+    let listening = Listening::new()
+    let task = g.spawn(() => serve_h2c_config(app, quiet(), listening~))
     @async.sleep(250)
-    let peer = Peer::connect(18305)
+    let peer = Peer::connect(listening.addr().port())
     let id = peer.request("GET", "/")
     let ok = @async.with_timeout_opt(2000, () => {
       while peer.replies[id].body.length() == 0 {
@@ -377,9 +385,12 @@ async test "h2c: a client reset reaches the application as http.disconnect" {
 ///|
 async test "h2c: a HEAD answer carries the head and no body" {
   @async.with_task_group(g => {
-    let task = g.spawn(() => serve_h2c_config(answer("body"), quiet(18306)))
+    let listening = Listening::new()
+    let task = g.spawn(() => {
+      serve_h2c_config(answer("body"), quiet(), listening~)
+    })
     @async.sleep(250)
-    let peer = Peer::connect(18306)
+    let peer = Peer::connect(listening.addr().port())
     let id = peer.request("HEAD", "/")
     peer.wait([id])
     assert_eq(peer.replies[id].status, "200")
@@ -399,9 +410,10 @@ async test "h2c: early hints and trailers go out as heads of their own" {
       send(HttpResponseBody(body=b"data", more_body=false))
       send(HttpResponseTrailers(headers=[("x-sum", "42")], more_trailers=false))
     }
-    let task = g.spawn(() => serve_h2c_config(app, quiet(18307)))
+    let listening = Listening::new()
+    let task = g.spawn(() => serve_h2c_config(app, quiet(), listening~))
     @async.sleep(250)
-    let peer = Peer::connect(18307)
+    let peer = Peer::connect(listening.addr().port())
     let id = peer.request("GET", "/")
     peer.wait([id])
     let r = peer.replies[id]
@@ -424,9 +436,10 @@ async test "h2c: a failure before the answer is a 500, after it a reset" {
       }
       fail("handler blew up")
     }
-    let task = g.spawn(() => serve_h2c_config(app, quiet(18308)))
+    let listening = Listening::new()
+    let task = g.spawn(() => serve_h2c_config(app, quiet(), listening~))
     @async.sleep(250)
-    let peer = Peer::connect(18308)
+    let peer = Peer::connect(listening.addr().port())
     let early = peer.request("GET", "/early")
     let late = peer.request("GET", "/late")
     peer.wait([early, late])
@@ -448,18 +461,20 @@ async test "h2c: past limit_concurrency a stream is answered 503" {
       send(HttpResponseStart(status=200, headers=[], trailers=false))
       send(HttpResponseBody(body=b"ok", more_body=false))
     }
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_h2c_config(
         app,
         @config.Config::new(
-          port=18309,
+          port=0,
           limit_concurrency=1,
           logger=@config.Logger::silent(),
         ),
+        listening~,
       )
     })
     @async.sleep(250)
-    let peer = Peer::connect(18309)
+    let peer = Peer::connect(listening.addr().port())
     let slow = peer.request("GET", "/slow")
     @async.sleep(100)
     let extra = peer.request("GET", "/extra")
@@ -473,18 +488,20 @@ async test "h2c: past limit_concurrency a stream is answered 503" {
 ///|
 async test "h2c: limit_max_requests counts streams and stops the server with a GOAWAY" {
   @async.with_task_group(g => {
+    let listening = Listening::new()
     let srv = g.spawn(() => {
       serve_h2c_config(
         answer("ok"),
         @config.Config::new(
-          port=18310,
+          port=0,
           limit_max_requests=2,
           logger=@config.Logger::silent(),
         ),
+        listening~,
       )
     })
     @async.sleep(250)
-    let peer = Peer::connect(18310)
+    let peer = Peer::connect(listening.addr().port())
     let a = peer.request("GET", "/a")
     let b = peer.request("GET", "/b")
     peer.wait([a, b])
@@ -507,14 +524,16 @@ async test "h2c: limit_max_requests counts streams and stops the server with a G
 ///|
 async test "h2c: a peer's GOAWAY does not end the connection" {
   @async.with_task_group(g => {
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_h2c_config(
         answer("ok"),
-        @config.Config::new(port=18315, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
+        listening~,
       )
     })
     @async.sleep(250)
-    let peer = Peer::connect(18315)
+    let peer = Peer::connect(listening.addr().port())
     peer.wire.goaway()
     peer.flush()
     let id = peer.request("GET", "/")
@@ -527,18 +546,20 @@ async test "h2c: a peer's GOAWAY does not end the connection" {
 ///|
 async test "h2c: a connection idle past timeout_keep_alive is sent a GOAWAY and closed" {
   @async.with_task_group(g => {
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_h2c_config(
         answer("ok"),
         @config.Config::new(
-          port=18311,
+          port=0,
           timeout_keep_alive=200,
           logger=@config.Logger::silent(),
         ),
+        listening~,
       )
     })
     @async.sleep(250)
-    let peer = Peer::connect(18311)
+    let peer = Peer::connect(listening.addr().port())
     let id = peer.request("GET", "/")
     peer.wait([id])
     let ended = @async.with_timeout_opt(3000, () => {
@@ -562,18 +583,20 @@ async test "h2c: streams past Config.h2.max_streams are refused" {
       send(HttpResponseStart(status=200, headers=[], trailers=false))
       send(HttpResponseBody(body=b"ok", more_body=false))
     }
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_h2c_config(
         app,
         @config.Config::new(
-          port=18312,
+          port=0,
           h2=@config.H2Config::new(max_streams=1),
           logger=@config.Logger::silent(),
         ),
+        listening~,
       )
     })
     @async.sleep(250)
-    let peer = Peer::connect(18312)
+    let peer = Peer::connect(listening.addr().port())
     // The server's SETTINGS arrive before the limit is known on this side.
     let first = peer.request("GET", "/one")
     let ok = @async.with_timeout_opt(1000, () => {
@@ -597,17 +620,19 @@ async test "h2c: streams past Config.h2.max_streams are refused" {
 async test "h2c: the access log has one line per stream" {
   @async.with_task_group(g => {
     let lines : Array[String] = []
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_h2c_config(
         answer("ok"),
         @config.Config::new(
-          port=18313,
+          port=0,
           logger=@config.Logger::new(write=line => lines.push(line)),
         ),
+        listening~,
       )
     })
     @async.sleep(250)
-    let peer = Peer::connect(18313)
+    let peer = Peer::connect(listening.addr().port())
     let id = peer.request("GET", "/logged")
     peer.wait([id])
     @async.sleep(50)
@@ -726,18 +751,20 @@ async test "h2c: an upload larger than the receive window flows as the applicati
         HttpResponseBody(body=@utf8.encode(total.to_string()), more_body=false),
       )
     }
+    let listening = Listening::new()
     let task = g.spawn(() => {
       serve_h2c_config(
         app,
         @config.Config::new(
-          port=18314,
+          port=0,
           h2=@config.H2Config::new(window=16384, connection_window=65535),
           logger=@config.Logger::silent(),
         ),
+        listening~,
       )
     })
     @async.sleep(250)
-    let peer = Peer::connect(18314)
+    let peer = Peer::connect(listening.addr().port())
     let id = peer.request("POST", "/upload", end=false)
     let chunk = Bytes::make(4096, b'u')
     let total = 200 * 1024

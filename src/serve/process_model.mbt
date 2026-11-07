@@ -522,12 +522,13 @@ async test "graceful shutdown drains in-flight, runs lifespan shutdown, then clo
         _ => ()
       }
     }
+    let listening = Listening::new()
     let srv = g.spawn(() => {
-      serve_graceful(app, @config.Config::new(port=18090), handle~)
+      serve_graceful(app, @config.Config::new(port=0), handle~, listening~)
     })
     @async.sleep(250)
     let client = g.spawn(() => {
-      let (resp, _b) = @http.get("http://127.0.0.1:18090/")
+      let (resp, _b) = @http.get("http://" + listening.addr().to_string() + "/")
       resp.code
     })
     @async.sleep(100)
@@ -535,7 +536,7 @@ async test "graceful shutdown drains in-flight, runs lifespan shutdown, then clo
     assert_eq(client.wait(), 200)
     assert_eq(log, ["request-done", "lifespan-shutdown"])
     let refused = try {
-      @http.get("http://127.0.0.1:18090/") |> ignore
+      @http.get("http://" + listening.addr().to_string() + "/") |> ignore
       false
     } catch {
       _ => true
@@ -565,8 +566,9 @@ async test "concurrent request burst is served by per-connection handlers" {
       )
       send(@moonasgi.Event::HttpResponseBody(body=b"ok", more_body=false))
     }
+    let listening = Listening::new()
     let srv = g.spawn(() => {
-      serve_graceful(app, @config.Config::new(port=18091), handle~)
+      serve_graceful(app, @config.Config::new(port=0), handle~, listening~)
     })
     @async.sleep(250)
     let codes : Array[Int32] = []
@@ -574,7 +576,9 @@ async test "concurrent request burst is served by per-connection handlers" {
     for _i in 0..<8 {
       tasks.push(
         g.spawn(() => {
-          let (resp, _b) = @http.get("http://127.0.0.1:18091/")
+          let (resp, _b) = @http.get(
+            "http://" + listening.addr().to_string() + "/",
+          )
           codes.push(resp.code)
         }),
       )
@@ -616,19 +620,21 @@ async fn ok_app(
 async test "an idle keep-alive connection is dropped after timeout_keep_alive" {
   @async.with_task_group(g => {
     let handle = ShutdownHandle::new()
+    let listening = Listening::new()
     let srv = g.spawn(() => {
       serve_graceful(
         ok_app,
         @config.Config::new(
-          port=18093,
+          port=0,
           timeout_keep_alive=300,
           logger=@config.Logger::silent(),
         ),
         handle~,
+        listening~,
       )
     })
     @async.sleep(250)
-    let sock = @socket.Tcp::connect(@socket.Addr::parse("127.0.0.1:18093"))
+    let sock = @socket.Tcp::connect(listening.addr())
     // Connect and say nothing at all. The server has to be the one to give up.
     let opened = @async.now()
     let dropped = @async.with_timeout_opt(3000, () => sock.read_some() is None)
@@ -649,21 +655,27 @@ async test "an idle keep-alive connection is dropped after timeout_keep_alive" {
 async test "the request-count limit stops the server on its own" {
   @async.with_task_group(g => {
     let handle = ShutdownHandle::new()
+    let listening = Listening::new()
     let srv = g.spawn(() => {
       serve_graceful(
         ok_app,
         @config.Config::new(
-          port=18094,
+          port=0,
           limit_max_requests=2,
           logger=@config.Logger::silent(),
         ),
         handle~,
+        listening~,
       )
     })
     @async.sleep(250)
-    let (first, _b1) = @http.get("http://127.0.0.1:18094/one")
+    let (first, _b1) = @http.get(
+      "http://" + listening.addr().to_string() + "/one",
+    )
     assert_eq(first.code, 200)
-    let (second, _b2) = @http.get("http://127.0.0.1:18094/two")
+    let (second, _b2) = @http.get(
+      "http://" + listening.addr().to_string() + "/two",
+    )
     assert_eq(second.code, 200)
     // Nobody asked it to stop; the count did. Bounded, so a limit that never trips fails this
     // test rather than parking it on a server that will never exit.
@@ -674,7 +686,7 @@ async test "the request-count limit stops the server on its own" {
     }
     assert_eq(stopped is Some(_), true)
     let refused = try {
-      @http.get("http://127.0.0.1:18094/three") |> ignore
+      @http.get("http://" + listening.addr().to_string() + "/three") |> ignore
       false
     } catch {
       _ => true
@@ -702,26 +714,32 @@ async test "limit_concurrency refuses the overflow request with 503" {
       )
       send(@moonasgi.Event::HttpResponseBody(body=b"ok", more_body=false))
     }
+    let listening = Listening::new()
     let srv = g.spawn(() => {
       serve_graceful(
         slow,
         @config.Config::new(
-          port=18096,
+          port=0,
           limit_concurrency=1,
           logger=@config.Logger::silent(),
         ),
         handle~,
+        listening~,
       )
     })
     @async.sleep(250)
     let codes : Array[Int32] = []
     let first = g.spawn(() => {
-      let (resp, _b) = @http.get("http://127.0.0.1:18096/slow")
+      let (resp, _b) = @http.get(
+        "http://" + listening.addr().to_string() + "/slow",
+      )
       codes.push(resp.code)
     })
     // Far enough behind that the first request is certainly in flight, well inside its 400ms.
     @async.sleep(120)
-    let (overflow, _b) = @http.get("http://127.0.0.1:18096/overflow")
+    let (overflow, _b) = @http.get(
+      "http://" + listening.addr().to_string() + "/overflow",
+    )
     assert_eq(overflow.code, 503)
     first.wait()
     assert_eq(codes, [200])
@@ -755,11 +773,12 @@ async test "graceful serve honours max_connections" {
       )
       send(@moonasgi.Event::HttpResponseBody(body=b"ok", more_body=false))
     }
+    let listening = Listening::new()
     let srv = g.spawn(() => {
       serve_graceful(
         counted,
         @config.Config::new(
-          port=18097,
+          port=0,
           max_connections=1,
           // A handler holds its slot until the connection ends, so the idle timeout bounds how
           // long a finished client can keep the next one waiting.
@@ -767,6 +786,7 @@ async test "graceful serve honours max_connections" {
           logger=@config.Logger::silent(),
         ),
         handle~,
+        listening~,
       )
     })
     @async.sleep(250)
@@ -775,7 +795,9 @@ async test "graceful serve honours max_connections" {
     for _i in 0..<4 {
       tasks.push(
         g.spawn(() => {
-          let (resp, _b) = @http.get("http://127.0.0.1:18097/")
+          let (resp, _b) = @http.get(
+            "http://" + listening.addr().to_string() + "/",
+          )
           codes.push(resp.code)
         }),
       )
@@ -817,15 +839,17 @@ async test "a trusted proxy's forwarded headers reach the scope" {
       )
       send(@moonasgi.Event::HttpResponseBody(body=b"ok", more_body=false))
     }
+    let listening = Listening::new()
     let srv = g.spawn(() => {
       serve_graceful(
         app,
-        @config.Config::new(port=18098, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
         handle~,
+        listening~,
       )
     })
     @async.sleep(250)
-    let (resp, _b) = @http.get("http://127.0.0.1:18098/", headers={
+    let (resp, _b) = @http.get("http://" + listening.addr().to_string() + "/", headers={
       "x-forwarded-for": "203.0.113.7, 10.0.0.9",
       "x-forwarded-proto": "https",
     })
@@ -864,20 +888,22 @@ async test "an untrusted peer's forwarded headers are ignored" {
       )
       send(@moonasgi.Event::HttpResponseBody(body=b"ok", more_body=false))
     }
+    let listening = Listening::new()
     let srv = g.spawn(() => {
       serve_graceful(
         app,
         // The loopback client this test runs from is not in the trusted set.
         @config.Config::new(
-          port=18102,
+          port=0,
           forwarded_allow_ips=["10.0.0.1"],
           logger=@config.Logger::silent(),
         ),
         handle~,
+        listening~,
       )
     })
     @async.sleep(250)
-    let (resp, _b) = @http.get("http://127.0.0.1:18102/", headers={
+    let (resp, _b) = @http.get("http://" + listening.addr().to_string() + "/", headers={
       "x-forwarded-for": "203.0.113.7",
       "x-forwarded-proto": "https",
     })
@@ -917,18 +943,20 @@ async test "a trusted proxy's forwarded headers reach a websocket scope" {
         _ => ()
       }
     }
+    let listening = Listening::new()
     let srv = g.spawn(() => {
       serve_graceful(
         app,
-        @config.Config::new(port=18110, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
         handle~,
+        listening~,
       )
     })
     @async.sleep(250)
-    let ws = @websocket.connect("ws://127.0.0.1:18110/chat", headers={
-      "x-forwarded-for": "203.0.113.7",
-      "x-forwarded-proto": "https",
-    })
+    let ws = @websocket.connect(
+      "ws://" + listening.addr().to_string() + "/chat",
+      headers={ "x-forwarded-for": "203.0.113.7", "x-forwarded-proto": "https" },
+    )
     ws.send_text("go")
     assert_eq(ws.recv().read_all().text(), "go")
     ws.close()
@@ -946,15 +974,17 @@ async test "a trusted proxy's forwarded headers reach a websocket scope" {
 async test "a served response carries a Date header" {
   @async.with_task_group(g => {
     let handle = ShutdownHandle::new()
+    let listening = Listening::new()
     let srv = g.spawn(() => {
       serve_graceful(
         ok_app,
-        @config.Config::new(port=18111, logger=@config.Logger::silent()),
+        @config.Config::new(port=0, logger=@config.Logger::silent()),
         handle~,
+        listening~,
       )
     })
     @async.sleep(250)
-    let (resp, _b) = @http.get("http://127.0.0.1:18111/")
+    let (resp, _b) = @http.get("http://" + listening.addr().to_string() + "/")
     assert_eq(resp.code, 200)
     guard resp.headers.get("date") is Some(stamped) else {
       fail("the response carried no Date header")
@@ -973,11 +1003,19 @@ async test "a served response carries a Date header" {
 async test "graceful serve bridges a websocket round-trip" {
   @async.with_task_group(g => {
     let handle = ShutdownHandle::new()
+    let listening = Listening::new()
     let srv = g.spawn(() => {
-      serve_graceful(ws_echo_app, @config.Config::new(port=18092), handle~)
+      serve_graceful(
+        ws_echo_app,
+        @config.Config::new(port=0),
+        handle~,
+        listening~,
+      )
     })
     @async.sleep(250)
-    let ws = @websocket.connect("ws://127.0.0.1:18092/chat")
+    let ws = @websocket.connect(
+      "ws://" + listening.addr().to_string() + "/chat",
+    )
     ws.send_text("via graceful")
     assert_eq(ws.recv().read_all().text(), "via graceful")
     ws.send_binary(b"\x01\x02\x03\xff"[:])
