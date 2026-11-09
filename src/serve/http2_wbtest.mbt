@@ -452,11 +452,16 @@ async test "h2c: a failure before the answer is a 500, after it a reset" {
 ///|
 async test "h2c: past limit_concurrency a stream is answered 503" {
   @async.with_task_group(g => {
+    // The slow stream keeps its slot until the test lets it go, so the second one
+    // arrives while the first is counted however loaded the machine is.
+    let entered : @aqueue.Queue[Unit] = @aqueue.Queue(kind=Unbounded)
+    let release : @aqueue.Queue[Unit] = @aqueue.Queue(kind=Unbounded)
     let app : @moonasgi.AsgiApp = (scope, receive, send) => {
       guard scope is Http(h) else { return }
       ignore(receive())
       if h.path == "/slow" {
-        @async.sleep(400)
+        entered.put(())
+        release.get()
       }
       send(HttpResponseStart(status=200, headers=[], trailers=false))
       send(HttpResponseBody(body=b"ok", more_body=false))
@@ -476,9 +481,13 @@ async test "h2c: past limit_concurrency a stream is answered 503" {
     @async.sleep(250)
     let peer = Peer::connect(listening.addr().port())
     let slow = peer.request("GET", "/slow")
-    @async.sleep(100)
+    guard @async.with_timeout_opt(2000, () => entered.get()) is Some(_) else {
+      fail("the slow stream never reached the app")
+    }
     let extra = peer.request("GET", "/extra")
-    peer.wait([slow, extra])
+    peer.wait([extra])
+    release.put(())
+    peer.wait([slow])
     assert_eq(peer.replies[slow].status, "200")
     assert_eq(peer.replies[extra].status, "503")
     task.cancel()
