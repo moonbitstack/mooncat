@@ -50,7 +50,7 @@ jobs:
         run: python scripts/docs/check_docs.py
 
       - name: every snippet on the pages compiles
-        run: python scripts/docs/check_snippets.py
+        run: python scripts/docs/check_page_snippets.py
 
       - uses: actions/configure-pages@v6
         with:

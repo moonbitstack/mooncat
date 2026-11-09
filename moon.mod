@@ -53,7 +53,7 @@ import {
   "moonbitstack/moonasgi@0.10.8",
   "moonbitlang/async@0.22.5",
   "moonbitstack/moonbase@0.4.4",
-  "moonbitstack/mooncrypt@0.4.14",
+  "moonbitstack/mooncrypt@0.4.15",
   "moonbitstack/mooncred@0.6.13",
   "moonbitstack/moonlog@0.1.7",
   "moonbitstack/moontls@0.9.16",
