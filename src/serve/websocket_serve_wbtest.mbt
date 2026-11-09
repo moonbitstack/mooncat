@@ -339,12 +339,15 @@ async test "a set RSV bit without compression agreed fails the connection" {
 
 ///|
 async test "a peer that does not answer a ping is closed with 1011, one that does stays" {
+  // A loaded machine can stall the loop until the peer's next pong and the server's
+  // deadline fall due together, so the deadline sits well past the peer's 20 ms
+  // pauses. The answering peer outlasts a deadline; the silent one outlasts the first.
   let config = @config.Config::new(
-    ws=@config.WsConfig::new(ping_interval=Some(30), ping_timeout=Some(30)),
+    ws=@config.WsConfig::new(ping_interval=Some(50), ping_timeout=Some(250)),
   )
   let mask = b"\x01\x02\x03\x04"
   let got = ws_exchange(ws_upgrade_request(), config, async fn(_w) {
-    @async.sleep(200)
+    @async.sleep(500)
   })
   let tail = after_head(got)
   let (ping, used) = @ws.decode(tail[:], client=false).unwrap()
@@ -353,7 +356,7 @@ async test "a peer that does not answer a ping is closed with 1011, one that doe
   assert_eq(close.opcode, Close)
   assert_eq(@ws.status(close.payload[:]), 1011)
   let lively = ws_exchange(ws_upgrade_request(), config, async fn(w) {
-    for _ in 0..<8 {
+    for _ in 0..<24 {
       @async.sleep(20)
       w.write(
         ({ fin: true, opcode: Pong, payload: b"", } : @ws.Frame).encode(mask~),
@@ -366,6 +369,32 @@ async test "a peer that does not answer a ping is closed with 1011, one that doe
     )
   })
   assert_false(closes_with(after_head(lively), 1011))
+}
+
+///|
+async test "a second close frame is not sent" {
+  let (r, w) = @pipe.pipe()
+  let wire = Wire::new(w)
+  wire.frame(Close, @ws.close(1000))
+  wire.frame(Close, @ws.close(1011))
+  w.close()
+  let got = r.read_all().binary()
+  let (first, used) = @ws.decode(got[:], client=false).unwrap()
+  assert_eq(@ws.status(first.payload[:]), 1000)
+  assert_eq(used, got.length())
+}
+
+///|
+/// Once a close has passed, a ping or a `1011` would come after the closing handshake began.
+async test "keep-alive stops once a close has passed" {
+  let (r, w) = @pipe.pipe()
+  let wire = Wire::new(w)
+  wire.closing = true
+  let inbox : @aqueue.Queue[Inbound] = @aqueue.Queue(kind=Unbounded)
+  keep_alive(wire, inbox, 10, Some(10))
+  w.close()
+  assert_eq(r.read_all().binary().length(), 0)
+  assert_true(inbox.try_get() is None)
 }
 
 ///|

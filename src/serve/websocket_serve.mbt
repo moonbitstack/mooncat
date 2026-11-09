@@ -152,11 +152,13 @@ priv struct Wire {
   mut deflater : @pmd.Writer?
   // When the last pong arrived, by `@async.now`.
   mut pong : Int64
+  // A close frame has gone one way or the other: only the closing handshake follows it.
+  mut closing : Bool
 }
 
 ///|
 fn Wire::new(writer : &@io.Writer) -> Wire {
-  { writer, lock: @async.Mutex(), deflater: None, pong: 0L, }
+  { writer, lock: @async.Mutex(), deflater: None, pong: 0L, closing: false, }
 }
 
 ///|
@@ -174,6 +176,12 @@ async fn Wire::write(self : Wire, data : Bytes) -> Unit {
 ///|
 /// A control frame, or any frame that is not to be compressed.
 async fn Wire::frame(self : Wire, opcode : @ws.Opcode, payload : Bytes) -> Unit {
+  if opcode is Close {
+    if self.closing {
+      return
+    }
+    self.closing = true
+  }
   self.write(({ fin: true, opcode, payload, } : @ws.Frame).encode())
 }
 
@@ -224,8 +232,10 @@ async fn pump(
         limit~,
         extended=terms is Some(_),
       )
-      if frame.opcode is Pong {
-        wire.pong = @async.now()
+      match frame.opcode {
+        Pong => wire.pong = @async.now()
+        Close => wire.closing = true
+        _ => ()
       }
       let step = feed(frame, compressed)
       if step.reply is Some(reply) {
@@ -264,10 +274,16 @@ async fn keep_alive(
 ) -> Unit {
   for ;; {
     @async.sleep(every)
+    if wire.closing {
+      return
+    }
     let asked = @async.now()
     wire.frame(Ping, b"")
     guard timeout is Some(wait) else { continue }
     @async.sleep(wait)
+    if wire.closing {
+      return
+    }
     if wire.pong < asked {
       wire.frame(Close, @ws.close(1011)) catch {
         _ => ()
