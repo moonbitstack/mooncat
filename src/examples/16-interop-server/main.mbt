@@ -116,9 +116,9 @@ async fn app(
 async fn main {
   let port = number("MOONCAT_PORT", 12000)
   let early = match setting("MOONCAT_EARLY") {
+    Some("accept") => @mooncat.EarlyData::Accept
     Some("refuse") => @mooncat.EarlyData::Refuse
-    Some("off") => @mooncat.EarlyData::Off
-    _ => @mooncat.EarlyData::Accept
+    _ => @mooncat.EarlyData::Off
   }
   let config = @mooncat.Config::new(
     host="0.0.0.0",

@@ -1,8 +1,9 @@
 """HTTP over 0-RTT against aioquic, an implementation that shares no code with this one.
 
-RFC 8470 in three runs of the same question: a request sent with the handshake is answered with the
+RFC 8470 in four runs of the same question: a request sent with the handshake is answered with the
 application told it arrived early; a server that refuses it answers `425 Too Early` and the client
-sends it again; a server that offers no early data has a client that waits for the handshake.
+sends it again; a server that offers no early data has a client that waits for the handshake; and a
+server that was told nothing offers nothing, which is the library's default.
 
 Needs `pip install aioquic`, and the example built:
 
@@ -107,7 +108,11 @@ def server(policy):
         binary = binary.with_suffix("")
     if not binary.exists():
         raise SystemExit("build the example first: moon build src/examples/15-early-data")
-    env = dict(os.environ, MOONCAT_EARLY=policy, MOONCAT_PORT=str(PORT))
+    env = dict(os.environ, MOONCAT_PORT=str(PORT))
+    if policy is None:
+        env.pop("MOONCAT_EARLY", None)
+    else:
+        env["MOONCAT_EARLY"] = policy
     process = subprocess.Popen(
         [str(binary)], cwd=ROOT, env=env, stdout=subprocess.DEVNULL
     )
@@ -177,6 +182,19 @@ def main():
         status, body, _ = asyncio.run(fetch(PORT, ticket=ticket))
         check(
             "off, a plain resumption",
+            (status, body),
+            (b"200", f"early 0 after {base + 2}\n".encode()),
+        )
+
+    # No variable at all: the library's own default has to be the safe one, not an accident of
+    # which example happens to be running.
+    with server(None) as base:
+        _, _, ticket = asyncio.run(fetch(PORT))
+        offered = ticket.max_early_data_size if ticket else 0
+        check("default, no allowance in the ticket", offered or 0, 0)
+        status, body, _ = asyncio.run(fetch(PORT, ticket=ticket))
+        check(
+            "default, a plain resumption",
             (status, body),
             (b"200", f"early 0 after {base + 2}\n".encode()),
         )

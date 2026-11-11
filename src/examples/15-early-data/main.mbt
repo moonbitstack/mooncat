@@ -14,9 +14,9 @@ let answered : Ref[Int32] = Ref(0)
 ///|
 fn policy() -> @mooncat.EarlyData {
   match @env.get_env_var("MOONCAT_EARLY") {
+    Some("accept") => Accept
     Some("refuse") => Refuse
-    Some("off") => Off
-    _ => Accept
+    _ => Off
   }
 }
 

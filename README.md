@@ -65,7 +65,7 @@ Both, in `moon.mod`, and the importing package needs them in its `moon.pkg`.
 | h2c | the connection preface `PRI * HTTP/2.0` | the same scope, once per stream |
 | HTTP/2 | ALPN answering `h2` | one scope per stream, each stream in a task of its own |
 | HTTP/3 | the same port number on UDP | one scope per stream, advertised with `alt-svc` |
-| 0-RTT | a QUIC request that travelled with the handshake | the same scope, with `Early-Data: 1` in its headers and `early_data(scope)` true |
+| 0-RTT | a QUIC request that travelled with the handshake, only when `early_data=Accept` | the same scope, with `Early-Data: 1` in its headers and `early_data(scope)` true |
 | ws, wss | `Upgrade: websocket` on an ordinary request | a `websocket` scope: connect, accept, receive, send, close |
 
 The listener decides as the connection opens: under TLS in the handshake, in the
@@ -140,6 +140,7 @@ Options:
   --dual-stack                                                     accept IPv4 and IPv6 on one socket
   --h2c                                                            speak HTTP/2 in the clear instead of HTTP/1.1
   --http3                                                          serve HTTP/3 on UDP beside HTTPS, on the same port
+  --early-data <early-data>                                        accept, refuse or off (off by default)
   --host <host>                                                    address to bind [env: MOONCAT_HOST]
   --port <port>                                                    port to bind [env: MOONCAT_PORT]
   --limit-concurrency <limit-concurrency>                          refuse with 503 above this many in flight
@@ -194,7 +195,7 @@ differs is written.
 | `workers` | `1` | processes on one port, on Linux |
 | `ws` | 16 MiB messages, 32 queued, 20 s pings | the WebSocket side |
 | `h2` | 100 streams, 64 KiB fields, 16 KiB frames, 1 MiB windows | the HTTP/2 side |
-| `early_data` | `Accept` | what a request sent in 0-RTT gets: taken and marked, `Refuse`d with 425, or `Off` |
+| `early_data` | `Off` | what a request sent in 0-RTT gets: taken and marked, `Refuse`d with 425, or `Off` |
 | `early_data_size` | `16384` | how much early data one ticket allows |
 
 ## HTTP/3
@@ -233,12 +234,21 @@ async fn replay_safe(scope : @moonasgi.Scope, send : @moonasgi.Send) -> Unit {
 }
 ```
 
-`early_data = Accept` takes the request and marks it, which is the default;
+`early_data` is `Off` by default: a replayable request is only taken when the
+server was explicitly configured to take it, as nginx's `ssl_early_data` is off
+unless switched on. `EarlyData::Accept` takes the request and marks it;
 `EarlyData::Refuse` answers `425 Too Early` and never runs the application, for a
-server whose routes cannot be replayed; `EarlyData::Off` puts no allowance in a
-ticket, so no client can send any. `early_data_size` is how much one ticket
-allows. Over TCP there is no early data whatever the setting says: a byte stream
-cannot hold a request back until the handshake says whether to take it.
+server whose routes cannot be replayed; `Off` puts no allowance in a ticket, so
+no client can send any. On the command line the same three words go to
+`--early-data`, and a program that wants 0-RTT has to ask for it:
+
+```
+$ ./app --http3 --early-data accept --ssl-certfile cert.pem --ssl-keyfile key.pem
+```
+
+`early_data_size` is how much one ticket allows. Over TCP there is no early data
+whatever the setting says: a byte stream cannot hold a request back until the
+handshake says whether to take it.
 
 ## Interoperability
 

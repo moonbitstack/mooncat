@@ -549,7 +549,7 @@ date        Mon, 02 Nov 2026 09:25:39 GMT
 
     <section class="section" id="early-data">
       <h2 class="bar">HTTP over 0-RTT</h2>
-      <p>A client that has visited before holds a ticket. HTTP/3 runs TLS 1.3, so its next request can travel with the handshake rather than after it. That request may reach the application twice — anything that saw the early data can replay it — and RFC 8470 asks the origin to say so and to be able to refuse. The scope says it three ways: the <code>Early-Data: 1</code> header, the <code>http.request.early_data</code> extension, and <code>early_data(scope)</code>.</p>
+      <p>A client that has visited before holds a ticket. HTTP/3 runs TLS 1.3, so its next request can travel with the handshake rather than after it. That request may reach the application twice — anything that saw the early data can replay it — and RFC 8470 asks the origin to say so and to be able to refuse. The scope says it three ways: the <code>Early-Data: 1</code> header, the <code>http.request.early_data</code> extension, and <code>early_data(scope)</code>. Early data is off by default: a server only receives it after setting <code>Config.early_data</code> to <code>Accept</code>, or passing <code>--early-data accept</code> on the command line.</p>
 
       <figure class="code">
         <figcaption>src/main.mbt</figcaption>
@@ -569,9 +569,9 @@ date        Mon, 02 Nov 2026 09:25:39 GMT
         <table class="tbl">
           <thead><tr><th><code>early_data</code></th><th>What a request sent in 0-RTT gets</th></tr></thead>
           <tbody>
-            <tr><td><code>Accept</code></td><td>taken, and marked for the application; the default</td></tr>
+            <tr><td><code>Accept</code></td><td>taken, and marked for the application; an explicit opt-in</td></tr>
             <tr><td><code>Refuse</code></td><td>answered <code>425 Too Early</code> without running the application</td></tr>
-            <tr><td><code>Off</code></td><td>no allowance in the ticket, so no client can send any</td></tr>
+            <tr><td><code>Off</code></td><td>no allowance in the ticket, so no client can send any; the default</td></tr>
           </tbody>
         </table>
       </div>

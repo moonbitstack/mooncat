@@ -708,9 +708,10 @@ fn entropy(n : Int32) -> Bytes {
 ///
 /// `Config.early_data` decides what a request sent in 0-RTT gets: taken and marked with
 /// `Early-Data: 1`, answered `425 Too Early` without running the application, or not offered at
-/// all (RFC 8470). `Config.early_data_size` is the allowance one ticket carries. Over TCP there is
-/// no early data whatever it says: a byte stream cannot hold a request back until the handshake
-/// says whether to take it, so only the QUIC listener offers any.
+/// all (RFC 8470). It is `Off` by default, so serving HTTP/3 does not offer a replayable request
+/// until the server opts in. `Config.early_data_size` is the allowance one ticket carries. Over
+/// TCP there is no early data whatever it says: a byte stream cannot hold a request back until
+/// the handshake says whether to take it, so only the QUIC listener offers any.
 pub async fn serve_config(
   app : @moonasgi.AsgiApp,
   config : @config.Config,

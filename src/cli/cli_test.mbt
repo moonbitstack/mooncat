@@ -259,6 +259,25 @@ test "early data is a word, and an unknown one is refused" {
 }
 
 ///|
+/// The command line inherits the safe default: no flag means no early data, and the flag is the
+/// only way a program started from the command line offers it.
+test "early data is off on the command line until asked for" {
+  assert_eq(plan([]).config.early_data, @mooncat.EarlyData::Off)
+  assert_eq(
+    plan(["--early-data", "accept"]).config.early_data,
+    @mooncat.EarlyData::Accept,
+  )
+  assert_eq(
+    plan(["--early-data", "refuse"]).config.early_data,
+    @mooncat.EarlyData::Refuse,
+  )
+  assert_eq(
+    plan(["--early-data", "off"]).config.early_data,
+    @mooncat.EarlyData::Off,
+  )
+}
+
+///|
 fn refusal(argv : Array[String]) -> @cli.Refused? {
   try {
     @cli.parse(argv[:]) |> ignore

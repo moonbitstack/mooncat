@@ -79,7 +79,8 @@ async fn with_http3(app : @moonasgi.AsgiApp) -> Unit {
 ## Know when a request may be a replay
 
 An HTTP/3 client can send a request with its handshake. Such a request may reach the application
-twice, so `early_data` says so — and a route that must not run twice can answer `425`.
+twice, so `early_data` says so — and a route that must not run twice can answer `425`. Early data
+is off by default: a replayable request is only taken when the server opted in.
 
 ```moonbit native
 async fn replay_safe(scope : @moonasgi.Scope, send : @moonasgi.Send) -> Unit {
@@ -108,8 +109,23 @@ async fn replay_safe(scope : @moonasgi.Scope, send : @moonasgi.Send) -> Unit {
 ```
 
 `@mooncat.Config::new(early_data=@mooncat.EarlyData::Refuse)` makes the server answer `425` for
-every early request without running the application at all, and `EarlyData::Off` stops it offering
-early data in the first place.
+every early request without running the application at all. `EarlyData::Off`, the default, stops it
+offering early data in the first place. To take it, say so explicitly — on the command line that is
+`--early-data accept`:
+
+```moonbit native
+async fn with_early_data(app : @moonasgi.AsgiApp) -> Unit {
+  let config = @mooncat.Config::new(
+    port=12000,
+    early_data=@mooncat.EarlyData::Accept,
+  )
+  @quic.serve_config(
+    app,
+    config,
+    @mooncat.TlsCert::pem("cert.pem", "key.pem"),
+  )
+}
+```
 
 ## Take the port from the system
 
@@ -143,3 +159,7 @@ async fn on_a_free_port(app : @moonasgi.AsgiApp) -> String {
   back to one process.
 - The command line is `@cli.run(app)`: it takes uvicorn's flags and refuses the ones the transport
   cannot honour, saying why.
+- HTTP/3 alone does not enable 0-RTT. `Config.early_data` is `Off` unless set to `Accept` or
+  `Refuse`, so a server that never mentions early data never receives a replayable request.
+- The peers in the interoperability matrix — aioquic, quic-go and ngtcp2 — are crossed in the
+  project's own CI; the pass table lives in the README.

@@ -549,7 +549,7 @@ date        Mon, 02 Nov 2026 09:25:39 GMT
 
     <section class="section" id="early-data">
       <h2 class="bar">HTTP over 0-RTT</h2>
-      <p>来过的客户端手里有一张 ticket。HTTP/3 跑在 TLS 1.3 上，于是它下一个请求可以随握手一起到，而不是等握手之后。这样的请求可能让应用看到两次：看到过早数据的任何一方都能重放它。RFC 8470 要求源站说明这一点，并且能拒绝。作用域用三种方式说：<code>Early-Data: 1</code> 头、<code>http.request.early_data</code> 扩展，以及 <code>early_data(scope)</code>。</p>
+      <p>来过的客户端手里有一张 ticket。HTTP/3 跑在 TLS 1.3 上，于是它下一个请求可以随握手一起到，而不是等握手之后。这样的请求可能让应用看到两次：看到过早数据的任何一方都能重放它。RFC 8470 要求源站说明这一点，并且能拒绝。作用域用三种方式说：<code>Early-Data: 1</code> 头、<code>http.request.early_data</code> 扩展，以及 <code>early_data(scope)</code>。早数据默认关闭：只有把 <code>Config.early_data</code> 设为 <code>Accept</code>，或者在命令行传 <code>--early-data accept</code>，服务端才会收到它。</p>
 
       <figure class="code">
         <figcaption>src/main.mbt</figcaption>
@@ -569,9 +569,9 @@ date        Mon, 02 Nov 2026 09:25:39 GMT
         <table class="tbl">
           <thead><tr><th><code>early_data</code></th><th>0-RTT 送来的请求会得到什么</th></tr></thead>
           <tbody>
-            <tr><td><code>Accept</code></td><td>收下，并告诉应用；默认</td></tr>
+            <tr><td><code>Accept</code></td><td>收下，并告诉应用；显式开启</td></tr>
             <tr><td><code>Refuse</code></td><td>回 <code>425 Too Early</code>，应用根本不运行</td></tr>
-            <tr><td><code>Off</code></td><td>ticket 里不带额度，客户端发不出来</td></tr>
+            <tr><td><code>Off</code></td><td>ticket 里不带额度，客户端发不出来；默认</td></tr>
           </tbody>
         </table>
       </div>

@@ -63,10 +63,11 @@ pub extend Lifespan with Debug::{to_repr}
 ///|
 /// What the server does with a request a client sent before its handshake had finished — early
 /// data, in the TLS 1.3 and QUIC sense (RFC 8446 §4.2.10, RFC 9000 §12). Such a request can be
-/// replayed by whoever saw it, so RFC 8470 makes it the origin's to judge.
+/// replayed by whoever saw it, so RFC 8470 makes it the origin's to judge. `Off` is the default:
+/// a replayable request is only taken when the server was explicitly configured to take it.
 #derive(Eq, Debug)
 pub(all) enum EarlyData {
-  /// Take it, and tell the application the request may be a replay.
+  /// Take it, and tell the application the request may be a replay. Explicit opt-in.
   Accept
   /// Answer `425 Too Early` and never run the application.
   Refuse
@@ -223,6 +224,10 @@ pub let port : Int32 = 12000
 /// requests to drain before it runs lifespan shutdown anyway (← uvicorn's
 /// `timeout_graceful_shutdown`); `None` waits until the last request finishes,
 /// as uvicorn does by default.
+///
+/// `early_data` defaults to `Off`: early data can be replayed (RFC 8470 §2), so
+/// taking it is an explicit decision, not a side effect of enabling HTTP/3.
+/// nginx takes the same side with `ssl_early_data`, off unless switched on.
 pub fn Config::new(
   host~ : String = "127.0.0.1",
   port~ : Int32 = port,
@@ -248,7 +253,7 @@ pub fn Config::new(
   lifespan~ : Lifespan = Auto,
   cleartext~ : Bool = true,
   workers~ : Int32 = 1,
-  early_data~ : EarlyData = Accept,
+  early_data~ : EarlyData = Off,
   early_data_size~ : Int32 = early_data_size,
 ) -> Config {
   {

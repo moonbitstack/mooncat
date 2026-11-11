@@ -307,7 +307,7 @@ window.SEARCH = [
   "page": "指南",
   "url": "zh/guide.html#early-data",
   "heading": "HTTP over 0-RTT",
-  "text": "来过的客户端手里有一张 ticket。HTTP/3 跑在 TLS 1.3 上，于是它下一个请求可以随握手一起到，而不是等握手之后。这样的请求可能让应用看到两次：看到过早数据的任何一方都能重放它。RFC 8470 要求源站说明这一点，并且能拒绝。作用域用三种方式说： Early-Data: 1 头、 http.request.early_data 扩展，以及 early_data(scope) 。 src/main.mbt async fn pay(scope : @moonasgi.Scope, send : @m"
+  "text": "来过的客户端手里有一张 ticket。HTTP/3 跑在 TLS 1.3 上，于是它下一个请求可以随握手一起到，而不是等握手之后。这样的请求可能让应用看到两次：看到过早数据的任何一方都能重放它。RFC 8470 要求源站说明这一点，并且能拒绝。作用域用三种方式说： Early-Data: 1 头、 http.request.early_data 扩展，以及 early_data(scope) 。早数据默认关闭：只有把 Config.early_data 设为 Accept ，或者在命令行传 --early-data"
  },
  {
   "lang": "zh",
