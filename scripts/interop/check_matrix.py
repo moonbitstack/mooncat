@@ -1,9 +1,10 @@
 """The interoperability matrix, run against aioquic, an implementation that shares no code with this.
 
 The cases are the ones the QUIC interoperability runner names, so that the table in the README says
-what the runner would say. Two of them are transport-wide and answered where they live: this server
-speaks QUIC version 1 only, and QUIC has no KeyUpdate (RFC 9001 §6) — both are recorded as rows the
-transport decides, not the HTTP/3 layer.
+what the runner would say. Version 2 is the transport's to add: this server speaks version 1 only,
+and answers a version 2 Initial with a Version Negotiation that names 1. That row says so instead
+of being passed over. The key-update case is a QUIC key phase update (RFC 9001 §6), which this
+server follows, not a TLS KeyUpdate, which QUIC does not carry.
 
 Needs `pip install aioquic`, and the server built:
 
@@ -157,6 +158,35 @@ async def case_chacha20():
     return "ChaCha20-Poly1305 only"
 
 
+async def case_keyupdate():
+    """One endpoint moves to key phase 1 and the peer follows (RFC 9001 §6).
+
+    The runner's case is a QUIC key phase update, not a TLS KeyUpdate: the second
+    request is encrypted under the new phase and can only be answered if the
+    server decrypted it and rekeyed its own sending side.
+    """
+    from aioquic.tls import Epoch
+
+    async with connect(
+        HOST,
+        PORT,
+        configuration=configuration(),
+        create_protocol=Client,
+    ) as client:
+        first = client.start("GET", "/1024")
+        await asyncio.wait_for(first["done"], 30)
+        assert dict(first["headers"]).get(b":status") == b"200"
+        client._quic.request_key_update()
+        client.transmit()
+        second = client.start("GET", "/65536")
+        await asyncio.wait_for(second["done"], 30)
+        assert dict(second["headers"]).get(b":status") == b"200"
+        assert len(second["body"]) == 65536, len(second["body"])
+        pair = client._quic._cryptos[Epoch.ONE_RTT]
+        assert pair.key_phase == 1, pair.key_phase
+    return "the second request crossed key phase 1"
+
+
 async def case_migration():
     """The same connection, carried by a socket that did not start it: NAT rebinding."""
     from aioquic.h3.connection import H3Connection as H3
@@ -307,7 +337,7 @@ CASES = [
     ("resumption", case_resumption, True),
     ("zerortt", case_zerortt, True),
     ("chacha20", case_chacha20, True),
-    ("keyupdate", None, False),
+    ("keyupdate", case_keyupdate, True),
     ("v2", case_v2, False),
     ("migration", case_migration, True),
 ]
@@ -321,12 +351,13 @@ def binary():
 
 
 @contextlib.contextmanager
-def server(retry):
-    """The interop server, with Retry on or off.
+def server(retry, early=False):
+    """The interop server, with Retry and early data on or off.
 
     Retry and 0-RTT are mutually exclusive by design: a client that is sent a Retry must not send
     early data under a token it has not been given yet (RFC 9000 §8.1), so the case that proves
-    Retry cannot also be the case that proves 0-RTT.
+    Retry cannot also be the case that proves 0-RTT. Early data is off unless a case asks for it,
+    which is the library's default.
     """
     process = subprocess.Popen(
         [str(binary())],
@@ -335,6 +366,7 @@ def server(retry):
             os.environ,
             MOONCAT_PORT=str(PORT),
             MOONCAT_RETRY="1" if retry else "0",
+            MOONCAT_EARLY="accept" if early else "off",
         ),
         stdout=subprocess.DEVNULL,
     )
@@ -356,9 +388,13 @@ def server(retry):
 
 def main():
     failures = 0
-    phases = [(True, ["retry"]), (False, [name for name, _, _ in CASES if name != "retry"])]
-    for retry, names in phases:
-        with server(retry):
+    phases = [
+        (True, False, ["retry"]),
+        (False, False, [name for name, _, _ in CASES if name not in ("retry", "zerortt")]),
+        (False, True, ["zerortt"]),
+    ]
+    for retry, early, names in phases:
+        with server(retry, early):
             for name, case, _ in CASES:
                 if name not in names:
                     continue

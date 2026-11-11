@@ -1,0 +1,7 @@
+.git
+.mooncakes
+_build
+target
+docs/engine
+logs_*
+*.log

@@ -10,12 +10,12 @@
     "role": "both"
   },
   "aioquic": {
-    "image": "aiortc/aioquic-interop:latest",
+    "image": "aiortc/aioquic-qns:latest",
     "url": "https://github.com/aiortc/aioquic",
     "role": "both"
   },
   "ngtcp2": {
-    "image": "ngtcp2/ngtcp2-interop:latest",
+    "image": "ghcr.io/ngtcp2/ngtcp2-interop:latest",
     "url": "https://github.com/ngtcp2/ngtcp2",
     "role": "both"
   }

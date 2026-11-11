@@ -1,0 +1,15 @@
+// An HTTP/3 client used only by the interoperability matrix, in the other direction: it fetches
+// from the server a peer image starts. A separate module so that neither moonfetch nor the
+// integration test's dependencies reach the library's own `moon.mod`.
+supported_targets = "+native"
+
+pkgtype(kind: "executable")
+
+import {
+  "moonbitstack/moonfetch",
+  "moonbitstack/moontls/tls",
+  "moonbitstack/mooncred/x509",
+  "moonbitlang/async",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}

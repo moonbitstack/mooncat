@@ -13,7 +13,7 @@ fi
 
 export MOONCAT_PORT=443
 export MOONCAT_RETRY=0
-export MOONCAT_EARLY=accept
+export MOONCAT_EARLY=off
 export DOWNLOADS="${DOWNLOADS:-${DOWNLOAD:-/downloads}}"
 export SSLKEYLOGFILE="${SSLKEYLOGFILE:-/logs/keys.log}"
 
@@ -21,9 +21,11 @@ case "${TESTCASE:-}" in
   # A client that has just been sent a Retry may not send 0-RTT under a token it has not been
   # given (RFC 9000 §8.1), so these two cases cannot be the same run.
   retry) export MOONCAT_RETRY=1 ;;
+  # 0-RTT is off by default: only the case whose point is early data turns it on.
   zerortt) export MOONCAT_EARLY=accept ;;
-  # The runner's own certificate material wins when it mounts some.
-  *) ;;
+  # An unknown case is not answered at all, as the runner's contract asks.
+  handshake | transfer | resumption | chacha20 | keyupdate | v2 | migration | http3) ;;
+  *) echo "unsupported test case: ${TESTCASE:-}" >&2; exit 127 ;;
 esac
 
 if [ -n "${SSLKEYLOGFILE:-}" ]; then

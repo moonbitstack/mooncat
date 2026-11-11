@@ -1,6 +1,7 @@
 .*
 !.git*
 !.moonignore
+!.dockerignore
 _*
 target/
 

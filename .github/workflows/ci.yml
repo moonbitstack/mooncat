@@ -152,6 +152,29 @@ jobs:
         run: |
           moon info --target all && git -c core.autocrlf=false diff --ignore-cr-at-eol --exit-code
 
+  # The interoperability runner's own images, crossed with this server in both directions. A job of
+  # its own because it needs Docker, and because the image build is the slow part.
+  interop:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: the image the runner starts
+        run: docker build -f scripts/interop/Dockerfile -t mooncat-interop .
+
+      - name: the peers
+        run: |
+          docker pull martenseemann/quic-go-interop:latest
+          docker pull ghcr.io/ngtcp2/ngtcp2-interop:latest
+          docker pull aiortc/aioquic-qns:latest
+
+      - name: the interoperability matrix, nine cases, three peers
+        run: python3 scripts/interop/check_docker_matrix.py
+
   # Autobahn's fuzzingclient against the echo endpoint: framing, fragments, UTF-8, close handling,
   # limits and permessage-deflate. A job of its own because it needs Docker.
   conformance:
