@@ -1,7 +1,10 @@
 .git
 .mooncakes
+**/.mooncakes
 _build
+**/_build
 target
+**/target
 docs/engine
 logs_*
 *.log
