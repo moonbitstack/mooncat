@@ -18,6 +18,7 @@ import {
   "moonbitstack/moondate",
   "moonbitstack/moonnet/tcp",
   "moonbitstack/moonbase/base64",
+  "moonbitstack/moonjson",
   "moonbitstack/moontls/tls",
   "moonbitstack/moontls/record",
   "moonbitstack/mooncred/x509",

@@ -414,7 +414,7 @@ async test "lifespan state reaches every request scope, a copy each" {
           }
         Http(h) => {
           seen.push(
-            h.state.get("db").map(j => j.stringify()).unwrap_or("none") +
+            h.state.get("db").map(j => @moonjson.dumps(j)).unwrap_or("none") +
             " " +
             h.state.contains("mine").to_string(),
           )

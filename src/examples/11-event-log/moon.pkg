@@ -9,6 +9,7 @@ import {
   "moonbitlang/async/stdio",
   "moonbitlang/core/bench",
   "moonbitlang/core/encoding/utf8",
+  "moonbitstack/moonjson",
 }
 
 warnings = "-29"

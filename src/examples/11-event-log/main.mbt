@@ -109,12 +109,14 @@ async fn emit(peer : String, call : String, message : Json) -> Unit {
   writing.acquire()
   defer writing.release()
   @stdio.stdout.write(
-    Json::object({
-      "t": Json::number(@bench.monotonic_clock_end(started) / 1000.0),
-      "peer": Json::string(peer),
-      "call": Json::string(call),
-      "message": message,
-    }).stringify() +
+    @moonjson.dumps(
+      Json::object({
+        "t": Json::number(@bench.monotonic_clock_end(started) / 1000.0),
+        "peer": Json::string(peer),
+        "call": Json::string(call),
+        "message": message,
+      }),
+    ) +
     "\n",
   )
 }
