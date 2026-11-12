@@ -319,14 +319,16 @@ stays open and keeps asking while the others come and go.
 | h2spec, in the clear and over TLS | 146 | all pass |
 | h2spec, strict | 147 | all pass |
 | h3spec 0.1.14, its HTTP/3 servers section | 34 | all pass |
-| Autobahn `fuzzingclient`, WebSocket | all cases | pass |
+| Autobahn `fuzzingclient`, WebSocket | 343 | 336 pass, 4 pass non-strict, 3 informational, none failed |
 | HTTP/3 matrix, against aioquic | 9 | 8 pass; version 2 is not offered |
 | QUIC matrix in Docker, three peers | 9 × 3 forward, 1 × 3 reverse | pass, with the `n/a` rows above |
 
 What does not pass is what this server does not offer: QUIC version 2, which is
 the transport's to add. TLS KeyUpdate is not a case either: QUIC has no such
 message, and the runner's `keyupdate` case is a QUIC key phase update, which
-passes.
+passes. Autobahn's `NON-STRICT` is a case that passed by a route the suite
+would have preferred otherwise, and `INFORMATIONAL` is a case that asserts
+nothing; neither is a failure, and the run fails the build on `FAILED` alone.
 
 ## Packages
 
