@@ -325,7 +325,11 @@ async test "the request scope carries the peer, the bind address, and a decoded 
     }
     let listening = Listening::new()
     let task = g.spawn(() => {
-      serve_config(app, @config.Config::new(root_path="/api"), listening~)
+      serve_config(
+        app,
+        @config.Config::new(port=0, root_path="/api"),
+        listening~,
+      )
     })
     let (resp, _b) = @http.get(
       "http://" + listening.addr().to_string() + "/files/a%2Fb/caf%C3%A9",

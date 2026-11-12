@@ -13,6 +13,9 @@ What this refuses:
   port rather than bind one, so `src/cli` is left out.
 - an address literal naming a port, `"127.0.0.1:8080"`, `"localhost:8080"`, `"0.0.0.0:8080"`: a
   client that connects to one only works because something else bound it.
+- a serving entry point handed a `Config` that does not say `port=0` in the same line: the default
+  is 12000, which collides with anything else on the machine — a stray example server was enough
+  to fail the test that was written this way.
 
     python scripts/checks/check_ports.py
 """
@@ -25,6 +28,11 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent / "src"
 BIND = re.compile(r"\bport\s*=\s*(\d+)")
 ADDRESS = re.compile(r'"(?:127\.0\.0\.1|localhost|0\.0\.0\.0):(\d+)"')
+# A serving entry point handed a literal `Config` in one line: the default port is 12000, which is
+# a number written down as surely as `port=12000`, and nothing in the line says so. The entry
+# points themselves are the exception — they are handed `port~`.
+SERVES = ("serve(", "serve_config(", "serve_h2c", "serve_tls", "serve_graceful(")
+DEFAULTED = re.compile(r"Config::new\((?![^)]*port\s*[=~])")
 
 
 def sources():
@@ -47,6 +55,11 @@ for rel in sources():
         for number in ADDRESS.findall(line):
             if int(number) != 0:
                 found.append(f"{rel}:{n} connects to port {number}")
+        if any(call in line for call in SERVES) and DEFAULTED.search(line):
+            found.append(
+                f"{rel}:{n} serves a Config that does not ask for port 0,"
+                " so it takes the default 12000"
+            )
 
 for one in found:
     print(one)
