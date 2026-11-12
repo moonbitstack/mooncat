@@ -83,6 +83,13 @@ let refused : Array[(String, Bool, String)] = [
   ),
   ("ssl-cert-reqs", true, "client certificates are not requested"),
   ("ssl-ca-certs", true, "client certificates are not requested"),
+  (
+    "headers", true, "the headers every response starts with are Config.server_headers, which a program sets",
+  ),
+  ("use-colors", false, "the log carries no colour, and its layout is fixed"),
+  (
+    "timeout-worker-healthcheck", true, "the supervisor replaces a worker that exits; workers are not pinged",
+  ),
 ]
 
 ///|

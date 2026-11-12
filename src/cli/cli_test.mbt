@@ -378,3 +378,23 @@ test "--version answers with the version it was given" {
   }
   assert_eq(text, "9.8.7")
 }
+
+///|
+/// Every flag of the reference command line answers: with a plan, or with the
+/// reason it cannot be honoured. A typo and a feature this server does not have
+/// must not look the same, and none of the three below may fall through to
+/// "unexpected argument".
+test "the flags it cannot honour say why" {
+  for
+    one in [
+      ["--headers", "x-frame-options: deny"],
+      ["--use-colors"],
+      ["--timeout-worker-healthcheck", "5"],
+    ] {
+    guard refusal(one) is Some(@cli.Unsupported(flag~, why~)) else {
+      fail("a flag the transport cannot honour should say why")
+    }
+    assert_true(flag.has_prefix("--"))
+    assert_true(why.length() > 10)
+  }
+}
