@@ -31,9 +31,16 @@ async test "reload watcher fires on a real file change" {
     @fs.write_file(file, b"one", create_mode=CreateOrTruncate)
     let hits = Ref(0)
     let task = g.spawn(() => reload_watch(dir, () => hits.val = hits.val + 1))
-    @async.sleep(200)
-    @fs.write_file(file, b"two", create_mode=CreateOrTruncate)
-    @async.sleep(500)
+    // Registering the watch takes as long as the machine takes, and a change made
+    // before it is registered is a change nobody was watching for. A single write
+    // after a guessed delay therefore races the scheduler — it was seen to lose on a
+    // busy CI runner — so the file keeps changing until one of the changes lands.
+    let mut waited = 0
+    while hits.val == 0 && waited < 5000 {
+      @async.sleep(50)
+      waited += 50
+      @fs.write_file(file, b"two", create_mode=CreateOrTruncate)
+    }
     task.cancel()
     assert_eq(hits.val >= 1, true)
     @fs.rmdir(dir, recursive=true)
