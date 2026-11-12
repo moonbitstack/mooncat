@@ -48,6 +48,9 @@ jobs:
       - name: no test picks the port it listens on
         run: python scripts/checks/check_ports.py
 
+      - name: --version prints the version in the manifest
+        run: python scripts/checks/check_version.py
+
       - name: moon check
         run: moon check --target all --deny-warn
 

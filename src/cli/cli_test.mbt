@@ -365,3 +365,16 @@ test "--ssl-ciphers names TLS 1.3 suites, --http3 needs a certificate, and runs 
   assert_true(shared.http3)
   assert_eq(shared.config.workers, 2)
 }
+
+///|
+/// `--version` is argparse's as well, and its outcome is a value rather than a
+/// printed line: the text is the version the caller compiled in. The default of
+/// `command(version~)` is the number `scripts/checks/check_version.py` holds to
+/// `moon.mod`; this is the other half, that the flag answers with it at all.
+test "--version answers with the version it was given" {
+  guard @cli.command(version="9.8.7").parse_outcome(argv=["--version"])
+    is @argparse.Version(text) else {
+    fail("--version should ask for the version")
+  }
+  assert_eq(text, "9.8.7")
+}

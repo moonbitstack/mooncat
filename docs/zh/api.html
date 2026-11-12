@@ -629,7 +629,7 @@ done : @aqueue.Queue[Unit]</pre>
 <details class="item" id="cli--command" data-item="pub fn command(version? : String) -&gt; @argparse.Command">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn command(version? : String) -&gt; @argparse.Command</span></summary>
 <div class="body">
-<p>The command line, as <code>argparse</code> describes it.</p><p>Options carry no defaults on purpose: an absent flag must be distinguishable from one that happens to match the default, because everything not given is left as <code>parse</code> found it in <code>base</code>.</p>
+<p>The command line, as <code>argparse</code> describes it.</p><p>Options carry no defaults on purpose: an absent flag must be distinguishable from one that happens to match the default, because everything not given is left as <code>parse</code> found it in <code>base</code>.</p><p>The default of <code>version</code> is the version in <code>moon.mod</code>: nothing in a running binary knows which version it was compiled from, so the number is a copy, and <code>scripts/checks/check_version.py</code> fails when the copy drifts.</p>
 </div></details>
 <details class="item" id="cli--parse" data-item="pub fn parse(ArrayView[String], base? : @config.Config) -&gt; Plan raise">
 <summary><span class="caret"></span><span class="kind">fn</span><span class="sig">fn parse(ArrayView[String], base? : @config.Config) -&gt; Plan raise</span></summary>

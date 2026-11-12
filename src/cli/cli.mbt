@@ -91,7 +91,11 @@ let refused : Array[(String, Bool, String)] = [
 /// Options carry no defaults on purpose: an absent flag must be
 /// distinguishable from one that happens to match the default, because
 /// everything not given is left as `parse` found it in `base`.
-pub fn command(version~ : String = "0.14.6") -> @argparse.Command {
+///
+/// The default of `version` is the version in `moon.mod`: nothing in a running
+/// binary knows which version it was compiled from, so the number is a copy,
+/// and `scripts/checks/check_version.py` fails when the copy drifts.
+pub fn command(version~ : String = "0.19.8") -> @argparse.Command {
   let flags = [
     @argparse.FlagArg::FlagArg(
       "date_header",
