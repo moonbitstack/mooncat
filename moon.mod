@@ -52,16 +52,17 @@ preferred_target = "native"
 import {
   "moonbitstack/moonasgi@0.10.8",
   "moonbitlang/async@0.22.5",
-  "moonbitstack/moonbase@0.4.4",
+  "moonbitstack/moonbase@0.4.5",
   "moonbitstack/mooncrypt@0.4.15",
-  "moonbitstack/mooncred@0.6.13",
+  "moonbitstack/mooncred@0.6.14",
+  "moonbitstack/moonjson@0.4.4",
   "moonbitstack/moonlog@0.1.7",
   "moonbitstack/moontls@0.9.16",
   "moonbitstack/moonquic@0.3.14",
   "moonbitstack/moonnet@0.1.12",
   "moonbitstack/moonhttp@0.15.10",
   "moonbitstack/moonurl@0.2.6",
-  "moonbitstack/moondate@0.1.6",
+  "moonbitstack/moondate@0.1.7",
   "moonbitstack/moonvar@0.2.2",
 }
 
