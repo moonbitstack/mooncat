@@ -252,6 +252,12 @@ async fn pump(
     @ws.Protocol(_) => 1002
     @ws.Payload(_) => 1007
     @ws.Exceeded(..) => 1009
+    // The peer's end closed, which is how every WebSocket ends. When the group is
+    // tearing the connection down, the read can notice the close after the cancel
+    // has been asked for but before it has been delivered — one event loop turn is
+    // enough — and the two then arrive together. Reporting that as an error fails a
+    // connection that simply ended, so a close seen while cancelled is just the end.
+    @io.ReaderClosed => if @async.is_being_cancelled() { return } else { 1006 }
     e if @async.is_being_cancelled() => raise e
     _ => 1006
   }
