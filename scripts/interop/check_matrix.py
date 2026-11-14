@@ -1,9 +1,7 @@
 """The interoperability matrix, run against aioquic, an implementation that shares no code with this.
 
 The cases are the ones the QUIC interoperability runner names, so that the table in the README says
-what the runner would say. Version 2 is the transport's to add: this server speaks version 1 only,
-and answers a version 2 Initial with a Version Negotiation that names 1. That row says so instead
-of being passed over. The key-update case is a QUIC key phase update (RFC 9001 §6), which this
+what the runner would say. The key-update case is a QUIC key phase update (RFC 9001 §6), which this
 server follows, not a TLS KeyUpdate, which QUIC does not carry.
 
 Needs `pip install aioquic`, and the server built:
@@ -80,10 +78,14 @@ class Client(QuicConnectionProtocol):
         return waiter
 
 
-def configuration(suite=None, ticket=None):
+def configuration(suite=None, ticket=None, versions=None, start=None):
     config = QuicConfiguration(
         is_client=True, alpn_protocols=H3_ALPN, verify_mode=ssl.CERT_NONE
     )
+    if versions is not None:
+        config.supported_versions = versions
+    if start is not None:
+        config.original_version = start
     if suite is not None:
         config.cipher_suites = [CipherSuite[suite]]
     if ticket is not None:
@@ -92,12 +94,12 @@ def configuration(suite=None, ticket=None):
 
 
 async def request(path="/", method="GET", body=b"", suite=None, ticket=None,
-                  early=False, saved=None):
+                  early=False, saved=None, versions=None, start=None):
     """One connection, one request. Returns the status, the body, the ticket and the connection."""
     async with connect(
         HOST,
         PORT,
-        configuration=configuration(suite, ticket),
+        configuration=configuration(suite, ticket, versions, start),
         create_protocol=Client,
         session_ticket_handler=(saved.append if saved is not None else None),
         wait_connected=not early,
@@ -313,21 +315,17 @@ def case_retry():
     return "Retry answered; handshake completes after it"
 
 
-def case_v2():
-    """QUIC version 2 is the transport's to add; this one answers with its own version list."""
-    answer = raw_exchange(initial(0x6B3343CF, b"\x03" * 8, b"\x04" * 8))
-    assert answer[0] & 0x80, f"not a long header: {answer[:8]!r}"
-    version = struct.unpack("!I", answer[1:5])[0]
-    assert version == 0, "not a Version Negotiation"
-    at = 5
-    at += 1 + answer[at]
-    at += 1 + answer[at]
-    offered = [
-        struct.unpack("!I", answer[i : i + 4])[0]
-        for i in range(at, len(answer) - 3, 4)
-    ]
-    assert offered == [1], offered
-    return "v1 only, offered as such"
+async def case_v2():
+    """QUIC version 2 (RFC 9369). A client that starts in version 1 and offers 2 is moved to it
+    by compatible negotiation (RFC 9368), as the runner's case asks; one that starts in 2 stays."""
+    from aioquic.quic.packet import QuicProtocolVersion
+
+    one, two = QuicProtocolVersion.VERSION_1, QuicProtocolVersion.VERSION_2
+    status, _, moved = await request("/", versions=[two, one], start=one)
+    assert status == b"200" and moved._version == two, (status, moved._version)
+    status, _, direct = await request("/", versions=[two], start=two)
+    assert status == b"200" and direct._version == two, (status, direct._version)
+    return "moved from 1 to 2 by compatible negotiation; a start in 2 stays in 2"
 
 
 CASES = [

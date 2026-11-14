@@ -214,11 +214,9 @@ NOT_APPLICABLE = {
     ("quic-go", "zerortt"): "the image's HTTP/3 client exposes no 0-RTT",
     ("quic-go", "chacha20"): "the cipher-suite knob is only wired for HTTP/0.9",
     ("quic-go", "keyupdate"): "the key-update knob is only wired for HTTP/0.9",
-    ("quic-go", "v2"): "the server offers QUIC version 1 only",
+    ("quic-go", "v2"): "the image's HTTP/3 client runs every case as `http3`, which offers version 1",
     ("quic-go", "migration"): "the image's HTTP/3 client does not move its address",
-    ("aioquic", "v2"): "the server offers QUIC version 1 only",
     ("aioquic", "migration"): "the image's HTTP/3 client does not move its address",
-    ("ngtcp2", "v2"): "the server offers QUIC version 1 only",
 }
 
 # The reverse direction: our client fetches one URL per run. The client library

@@ -277,7 +277,7 @@ The nine cases, against aioquic's HTTP/3 client:
 | chacha20 | a handshake offering only ChaCha20-Poly1305 completes | pass |
 | keyupdate | the client moves to QUIC key phase 1 and the server follows (RFC 9001 §6) | pass |
 | migration | the same connection is answered at a source port it did not start on | pass |
-| v2 | QUIC version 2 | not offered: version 1 only, and a version 2 Initial is answered with a negotiated list naming 1 |
+| v2 | a client that starts in QUIC version 1 and offers 2 is moved to 2 by compatible negotiation (RFC 9368), and one that starts in 2 stays in it | pass |
 
 Retry and 0-RTT cannot be the same run: a client that has been sent a Retry may
 not send early data under a token it has not been given yet (RFC 9000 §8.1), so
@@ -294,7 +294,7 @@ The same cases in Docker, the peer as the client and this server as the server:
 | zerortt | pass | n/a | pass | early data is accepted and the request answered |
 | chacha20 | pass | n/a | pass | a handshake offering only ChaCha20-Poly1305 completes |
 | keyupdate | pass | n/a | pass | the client moves to key phase 1 and the server follows |
-| v2 | n/a | n/a | n/a | version 1 only, as above |
+| v2 | pass | n/a | pass | the client offers version 2 beside 1 and the transfer completes |
 | migration | n/a | n/a | pass | the same connection is answered at a source address it did not start on |
 
 The reverse direction, this repository's HTTP/3 client (`integration/interop-client`)
@@ -311,8 +311,7 @@ case that failed. The runner's clients speak HTTP/0.9 for every case but its
 image's HTTP/3 side. The client here asks for one file and takes the answer as it
 comes, with the 16 KiB stream window it advertises; that carries the handshake
 case, and a multi-megabyte transfer belongs to the forward table, whose clients
-raise the window as they read. Version 2 is the transport's to add: the server
-answers a version 2 Initial with a Version Negotiation that names version 1.
+raise the window as they read.
 
 `scripts/http3/check_connections.py` asks the other question a server can fail: a
 hundred connections one after another, a burst at once, and one connection that
@@ -326,11 +325,10 @@ stays open and keeps asking while the others come and go.
 | h2spec, strict | 147 | all pass |
 | h3spec 0.1.14, its HTTP/3 servers section | 34 | all pass |
 | Autobahn `fuzzingclient`, WebSocket | 343 | 336 pass, 4 pass non-strict, 3 informational, none failed |
-| HTTP/3 matrix, against aioquic | 9 | 8 pass; version 2 is not offered |
+| HTTP/3 matrix, against aioquic | 9 | all pass |
 | QUIC matrix in Docker, three peers | 9 × 3 forward, 1 × 3 reverse | pass, with the `n/a` rows above |
 
-What does not pass is what this server does not offer: QUIC version 2, which is
-the transport's to add. TLS KeyUpdate is not a case either: QUIC has no such
+TLS KeyUpdate is not a case: QUIC has no such
 message, and the runner's `keyupdate` case is a QUIC key phase update, which
 passes. Autobahn's `NON-STRICT` is a case that passed by a route the suite
 would have preferred otherwise, and `INFORMATIONAL` is a case that asserts
