@@ -491,6 +491,10 @@ async test "graceful shutdown drains in-flight, runs lifespan shutdown, then clo
   @async.with_task_group(g => {
     let log : Array[String] = []
     let handle = ShutdownHandle::new()
+    // Shutdown is triggered once the request is inside the app, not after a guessed delay: on a
+    // loaded machine the client could otherwise connect after the listener had closed.
+    let in_flight = Ref(false)
+    let arrived = @cond_var.Cond()
     let app : @moonasgi.AsgiApp = (scope, receive, send) => {
       match scope {
         Lifespan(_) =>
@@ -506,6 +510,8 @@ async test "graceful shutdown drains in-flight, runs lifespan shutdown, then clo
             }
           }
         Http(_) => {
+          in_flight.val = true
+          arrived.broadcast()
           @async.sleep(300)
           send(
             @moonasgi.Event::HttpResponseStart(
@@ -526,12 +532,14 @@ async test "graceful shutdown drains in-flight, runs lifespan shutdown, then clo
     let srv = g.spawn(() => {
       serve_graceful(app, @config.Config::new(port=0), handle~, listening~)
     })
-    @async.sleep(250)
+    let addr = listening.addr()
     let client = g.spawn(() => {
-      let (resp, _b) = @http.get("http://" + listening.addr().to_string() + "/")
+      let (resp, _b) = @http.get("http://" + addr.to_string() + "/")
       resp.code
     })
-    @async.sleep(100)
+    while !in_flight.val {
+      arrived.wait()
+    }
     handle.shutdown()
     assert_eq(client.wait(), 200)
     assert_eq(log, ["request-done", "lifespan-shutdown"])
