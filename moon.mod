@@ -1,6 +1,6 @@
 name = "moonbitstack/mooncat"
 
-version = "0.20.0"
+version = "0.21.0"
 
 readme = "README.md"
 
@@ -50,20 +50,20 @@ description = "A native ASGI server for MoonBit."
 preferred_target = "native"
 
 import {
-  "moonbitstack/moonasgi@0.11.1",
+  "moonbitstack/moonasgi@0.11.2",
   "moonbitlang/async@0.22.5",
   "moonbitstack/moonbase@0.5.0",
   "moonbitstack/mooncrypt@0.5.0",
   "moonbitstack/mooncred@0.7.0",
   "moonbitstack/moonjson@0.5.0",
-  "moonbitstack/moonlog@0.1.7",
+  "moonbitstack/moonlog@0.2.0",
   "moonbitstack/moontls@0.9.17",
-  "moonbitstack/moonquic@0.3.14",
-  "moonbitstack/moonnet@0.1.12",
+  "moonbitstack/moonquic@0.4.0",
+  "moonbitstack/moonnet@0.2.0",
   "moonbitstack/moonhttp@0.16.0",
-  "moonbitstack/moonurl@0.2.6",
+  "moonbitstack/moonurl@0.3.0",
   "moonbitstack/moondate@0.1.7",
-  "moonbitstack/moonvar@0.2.2",
+  "moonbitstack/moonvar@0.3.0",
 }
 
 source = "src"

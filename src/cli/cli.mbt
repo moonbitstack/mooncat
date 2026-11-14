@@ -102,7 +102,7 @@ let refused : Array[(String, Bool, String)] = [
 /// The default of `version` is the version in `moon.mod`: nothing in a running
 /// binary knows which version it was compiled from, so the number is a copy,
 /// and `scripts/checks/check_version.py` fails when the copy drifts.
-pub fn command(version~ : String = "0.20.0") -> @argparse.Command {
+pub fn command(version~ : String = "0.21.0") -> @argparse.Command {
   let flags = [
     @argparse.FlagArg::FlagArg(
       "date_header",
