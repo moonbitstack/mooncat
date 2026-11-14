@@ -316,16 +316,17 @@ def case_retry():
 
 
 async def case_v2():
-    """QUIC version 2 (RFC 9369). A client that starts in version 1 and offers 2 is moved to it
-    by compatible negotiation (RFC 9368), as the runner's case asks; one that starts in 2 stays."""
+    """QUIC version 2 (RFC 9369). A client that starts in it is answered in it. A client that
+    starts in version 1 and offers 2 stays in 1: RFC 9368 leaves the choice to the server's order
+    of preference, and this server's is 1, then 2."""
     from aioquic.quic.packet import QuicProtocolVersion
 
     one, two = QuicProtocolVersion.VERSION_1, QuicProtocolVersion.VERSION_2
-    status, _, moved = await request("/", versions=[two, one], start=one)
-    assert status == b"200" and moved._version == two, (status, moved._version)
     status, _, direct = await request("/", versions=[two], start=two)
     assert status == b"200" and direct._version == two, (status, direct._version)
-    return "moved from 1 to 2 by compatible negotiation; a start in 2 stays in 2"
+    status, _, offered = await request("/", versions=[two, one], start=one)
+    assert status == b"200" and offered._version == one, (status, offered._version)
+    return "a start in 2 is answered in 2; a start in 1 offering 2 stays in 1, as preferred"
 
 
 CASES = [

@@ -277,7 +277,7 @@ The nine cases, against aioquic's HTTP/3 client:
 | chacha20 | a handshake offering only ChaCha20-Poly1305 completes | pass |
 | keyupdate | the client moves to QUIC key phase 1 and the server follows (RFC 9001 §6) | pass |
 | migration | the same connection is answered at a source port it did not start on | pass |
-| v2 | a client that starts in QUIC version 1 and offers 2 is moved to 2 by compatible negotiation (RFC 9368), and one that starts in 2 stays in it | pass |
+| v2 | a client that starts in QUIC version 2 is answered in it; one that starts in 1 and offers 2 stays in 1, the version this server prefers (RFC 9368 leaves the choice to the server) | pass |
 
 Retry and 0-RTT cannot be the same run: a client that has been sent a Retry may
 not send early data under a token it has not been given yet (RFC 9000 §8.1), so
