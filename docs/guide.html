@@ -162,7 +162,7 @@ content-length: 19
 <span class="o">hello from mooncat</span></pre>
       </figure>
 
-      <p><code>server</code> and <code>date</code> are added by the server to every response, and both can be turned off. <code>content-length</code> is worked out from the body when the response is a single piece; a response in several pieces is chunked instead.</p>
+      <p><code>server</code> and <code>date</code> are added by the server to every response, and both can be turned off. <code>content-length</code> is worked out from the body when the response is a single piece; a response in several pieces is chunked instead. The head goes out with the first piece, or at once when the application waits before sending one, as an event stream does; such a response is chunked.</p>
 
       <h3 class="bar" id="scope">The scope</h3>
       <p>Each request arrives as a scope, which is where the application finds what it was asked. The fields below are the same on HTTP/1.1, HTTP/2 and HTTP/3 — the versions differ in how the bytes travel, not in what the application is told.</p>

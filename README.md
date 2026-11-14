@@ -71,6 +71,12 @@ Both, in `moon.mod`, and the importing package needs them in its `moon.pkg`.
 The listener decides as the connection opens: under TLS in the handshake, in the
 clear from the first bytes on the wire.
 
+A response's head goes out with its first piece of body, framed by `content-length`
+when that piece is the whole body. An application that sends the head and then waits
+before the first piece, as an event stream or an MCP `GET` does, has the head written
+at once, framed as a stream: chunked on HTTP/1.1, closed with the connection on HTTP/1.0.
+HTTP/2 and HTTP/3 write the head as soon as it is sent.
+
 ## The entry points
 
 | Function | What it starts |
@@ -360,6 +366,7 @@ it sees, one JSON line each; the playground is recorded from it.
 `MOONCAT_EARLY=accept`, `refuse` or `off`. `16-interop-server` is what
 `scripts/interop/check_matrix.py` drives: `GET /<n>` is `n` bytes.
 `14-http2-server` is what `scripts/http2/check_h2spec.sh` runs h2spec against: all 146 cases pass in the clear and over TLS, and all 147 with its strict checks on.
+`17-event-stream` sends its head and its first event two seconds apart; `scripts/checks/check_event_stream.py` checks that a raw socket, httpx and curl (HTTP/1.1 and h2c) hold the head within a second.
 `07-http3` serves HTTP/1.1, HTTP/2 and HTTP/3 on one port, and is what `scripts/http3/check_h3spec.sh` runs h3spec against: all 34 cases of its "HTTP/3 servers" section pass.
 
 ## Targets

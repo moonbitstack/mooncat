@@ -210,7 +210,7 @@ async test "a chunked request body is delivered chunk by chunk" {
       }
     }
     send(
-      @moonasgi.Event::HttpResponseStart(status=204, headers=[], trailers=false),
+      @moonasgi.Event::HttpResponseStart(status=200, headers=[], trailers=false),
     )
   }
   let (_r, w) = @pipe.pipe()
@@ -227,7 +227,7 @@ async test "a request body left unread closes the connection" {
   let req = h1("POST", "HTTP/1.1", "content-length: 5\r\n")
   let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
     send(
-      @moonasgi.Event::HttpResponseStart(status=204, headers=[], trailers=false),
+      @moonasgi.Event::HttpResponseStart(status=200, headers=[], trailers=false),
     )
   }
   let (_r, w) = @pipe.pipe()
@@ -345,4 +345,112 @@ async test "what RFC 9112 says to refuse is answered, and one empty line before 
     )
     assert_true(answer.has_prefix("HTTP/1.1 \{status} "))
   }
+}
+
+///|
+/// Run `app` for a GET over pipes, and return the octets the client has once it holds a whole
+/// head, with the app still waiting for `seen` (an event stream's next event). A server that
+/// held the head until the first body never gets there; `None` is that.
+async fn head_while_waiting(
+  version : String,
+  app : (Ref[Bool], @cond_var.Cond) -> @moonasgi.AsgiApp,
+) -> (Bytes, Bytes)? {
+  let (req_r, req_w) = @pipe.pipe()
+  req_w.close()
+  let (resp_r, resp_w) = @pipe.pipe()
+  let seen = Ref(false)
+  let signal = @cond_var.Cond()
+  @async.with_timeout_opt(5000, () => {
+    @async.with_task_group(g => {
+      g.spawn_bg(() => {
+        let _ = dispatch_http1(
+          app(seen, signal),
+          h1_req(version),
+          Inbox::new(req_r),
+          resp_w,
+        )
+        resp_w.close()
+      })
+      let buf = Buffer()
+      while !bytes_has(buf.to_bytes(), b"\r\n\r\n") {
+        guard resp_r.read_some() is Some(piece) else { break }
+        buf.write_bytes(piece)
+      }
+      let head = buf.to_bytes()
+      seen.val = true
+      signal.broadcast()
+      (head, drain_pipe(resp_r))
+    })
+  })
+}
+
+///|
+/// An event stream sends its head and then waits for something to happen.
+fn stream_app(seen : Ref[Bool], signal : @cond_var.Cond) -> @moonasgi.AsgiApp {
+  (_scope, _receive, send) => {
+    send(
+      @moonasgi.Event::HttpResponseStart(
+        status=200,
+        headers=[("content-type", "text/event-stream")],
+        trailers=false,
+      ),
+    )
+    while !seen.val {
+      signal.wait()
+    }
+    send(
+      @moonasgi.Event::HttpResponseBody(body=b"data: one\n\n", more_body=false),
+    )
+  }
+}
+
+///|
+async test "http1: a head followed by a wait is written before the first event" {
+  guard head_while_waiting("HTTP/1.1", stream_app) is Some((head, rest)) else {
+    fail("the head never reached the client while the app waited")
+  }
+  assert_eq(bytes_has(head, b"HTTP/1.1 200 OK\r\n"), true)
+  assert_eq(bytes_has(head, b"content-type: text/event-stream"), true)
+  // Framed as a stream, since the length was not known when it went out.
+  assert_eq(bytes_has(head, b"transfer-encoding: chunked"), true)
+  assert_eq(bytes_has(head, b"data: one"), false)
+  // The event follows as a chunk, and the stream ends with the zero chunk.
+  assert_eq(rest, b"b\r\ndata: one\n\n\r\n0\r\n\r\n")
+}
+
+///|
+async test "http1: on HTTP/1.0 a head followed by a wait is written close-delimited" {
+  guard head_while_waiting("HTTP/1.0", stream_app) is Some((head, rest)) else {
+    fail("the head never reached the client while the app waited")
+  }
+  assert_eq(bytes_has(head, b"HTTP/1.0 200 OK\r\n"), true)
+  assert_eq(bytes_has(head, b"transfer-encoding"), false)
+  assert_eq(bytes_has(head, b"content-length"), false)
+  assert_eq(bytes_has(head, b"connection: close"), true)
+  assert_eq(rest, b"data: one\n\n")
+}
+
+///|
+async test "http1: a head and a body sent back to back keep content-length" {
+  let resp = run_h1(h1_req("HTTP/1.1"))
+  assert_eq(bytes_has(resp, b"content-length: 2"), true)
+  assert_eq(bytes_has(resp, b"transfer-encoding"), false)
+}
+
+///|
+/// An app that sends only its head and returns gets the empty answer it always did.
+async test "http1: a head with no body is still answered with content-length 0" {
+  let (req_r, req_w) = @pipe.pipe()
+  req_w.close()
+  let (resp_r, resp_w) = @pipe.pipe()
+  let app : @moonasgi.AsgiApp = (_scope, _receive, send) => {
+    send(
+      @moonasgi.Event::HttpResponseStart(status=200, headers=[], trailers=false),
+    )
+  }
+  let _ = dispatch_http1(app, h1_req("HTTP/1.1"), Inbox::new(req_r), resp_w)
+  resp_w.close()
+  let resp = drain_pipe(resp_r)
+  assert_eq(bytes_has(resp, b"content-length: 0"), true)
+  assert_eq(bytes_has(resp, b"transfer-encoding"), false)
 }

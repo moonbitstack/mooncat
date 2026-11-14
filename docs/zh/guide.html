@@ -162,7 +162,7 @@ content-length: 19
 <span class="o">hello from mooncat</span></pre>
       </figure>
 
-      <p><code>server</code> 与 <code>date</code> 由服务器添加，都可关闭。单段响应按正文算 <code>content-length</code>，分段响应改用 chunked。</p>
+      <p><code>server</code> 与 <code>date</code> 由服务器添加，都可关闭。单段响应按正文算 <code>content-length</code>，分段响应改用 chunked。响应头随第一段正文发出；事件流这类先发头、再等事件的应用，响应头立即发出，响应改用 chunked。</p>
 
       <h3 class="bar" id="scope">scope 里有什么</h3>
       <p>请求以 scope 到达。下列字段在三代 HTTP 上一致。</p>

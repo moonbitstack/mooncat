@@ -207,6 +207,12 @@ async fn write_chunk(writer : &@io.Writer, body : Bytes) -> Unit {
 /// * a streamed response (`more_body=true`) switches to `Transfer-Encoding:
 ///   chunked`, one chunk per body event, terminated by the final `0\r\n\r\n`.
 ///
+/// The head goes out with the first body event, or as soon as the app waits for anything
+/// else after `http.response.start`, whichever comes first; in the second case it is framed
+/// as a stream. An app that sends its head and then waits for an event (SSE, an MCP `GET`)
+/// so has its head on the wire at once, as uvicorn does, while one that sends head and body
+/// back to back keeps its `Content-Length`.
+///
 /// Framing headers the app supplies (`content-length` / `transfer-encoding`) are
 /// dropped in favour of the ones this codec computes. Returns whether the
 /// connection should be kept alive for a further request.
@@ -253,6 +259,9 @@ async fn dispatch_http1(
     },
   )
   let started = Ref(false)
+  // The head may be written by the task that sends it early (below) while the app's own
+  // `send` or `receive` writes too; one writer at a time keeps their octets apart.
+  let lock = @async.Mutex::Mutex()
   let chunked = Ref(false)
   let ended = Ref(false)
   let settled = @cond_var.Cond()
@@ -271,8 +280,11 @@ async fn dispatch_http1(
       disconnected.val = true
       return @moonasgi.Event::HttpDisconnect
     }
-    // Expect: 100-continue — let the client know it may send the body now.
-    if !asked.val && req.expects {
+    // Expect: 100-continue — let the client know it may send the body now; once the final
+    // head is out it has been told.
+    if !asked.val && req.expects && !started.val {
+      lock.acquire()
+      defer lock.release()
       writer.write(@http1.continue_)
     }
     asked.val = true
@@ -356,12 +368,45 @@ async fn dispatch_http1(
   // length; HTTP/1.0 and HEAD have nowhere to put them.
   let trailing = Ref(false)
   let trailers : Array[@header.Header] = []
+  // The head framed as a stream, for when the app waits before its first body event.
+  let stream_head = () => {
+    started.val = true
+    if is_head {
+      writer.write(head("transfer-encoding: chunked\r\n\r\n"))
+      ended.val = true
+    } else if is_http10 {
+      close_delimited.val = true
+      writer.write(head("\r\n"))
+    } else {
+      chunked.val = true
+      writer.write(head("transfer-encoding: chunked\r\n\r\n"))
+    }
+  }
+  let group : Ref[@async.TaskGroup[Unit]?] = Ref(None)
+  let app_done = Ref(false)
   let send : @moonasgi.Send = event => {
+    lock.acquire()
+    defer lock.release()
     match event {
       HttpResponseStart(status~, headers~, trailers=promised) => {
         resp_status.val = status
         resp_headers.val = headers
         trailing.val = promised && !is_http10 && !is_head
+        // A new task runs only once the app's task stops to wait, so this writes the head
+        // exactly when the app waits before its first body event.
+        if group.val is Some(g) {
+          g.spawn_bg(no_wait=true, allow_failure=true, () => {
+            lock.acquire()
+            defer lock.release()
+            if !started.val && !app_done.val {
+              // A peer that is gone fails the app's next write as well; that is where it is
+              // reported.
+              stream_head() catch {
+                _ => ()
+              }
+            }
+          })
+        }
       }
       // A 103 (RFC 8297) goes before the answer; an HTTP/1.0 client need not expect a 1xx.
       HttpResponseEarlyHint(links~) =>
@@ -427,15 +472,19 @@ async fn dispatch_http1(
     }
   }
   let failed = Ref(false)
-  app(scope, receive, send) catch {
-    err => {
-      config.logger.log(
-        @moonlog.error,
-        "exception in ASGI application: " + err.to_string(),
-      )
-      failed.val = true
+  @async.with_task_group(g => {
+    group.val = Some(g)
+    app(scope, receive, send) catch {
+      err => {
+        config.logger.log(
+          @moonlog.error,
+          "exception in ASGI application: " + err.to_string(),
+        )
+        failed.val = true
+      }
     }
-  }
+    app_done.val = true
+  })
   if !started.val {
     if failed.val {
       resp_status.val = 500

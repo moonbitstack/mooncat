@@ -99,6 +99,15 @@ jobs:
           moon build src/examples/14-http2-server --target native
           python3 scripts/checks/check_tls_resume.py
 
+      # A stream that sends its head and waits for its first event has the head out at once.
+      - name: an event stream's head arrives before its first event
+        if: runner.os == 'Linux'
+        run: |
+          moon build src/examples/17-event-stream --target native
+          python3 -m venv "$RUNNER_TEMP/httpx"
+          "$RUNNER_TEMP/httpx/bin/pip" install --quiet httpx
+          "$RUNNER_TEMP/httpx/bin/python" scripts/checks/check_event_stream.py
+
       - name: HTTP/3 against another implementation
         if: runner.os == 'Linux'
         run: |
