@@ -8,7 +8,7 @@ pub(all) enum TlsCert {
   Pem(
     certificate_file~ : String,
     private_key_file~ : String,
-    password~ : String?
+    password~ : String?,
   )
   /// A PKCS#12 file, `.p12` or `.pfx` (RFC 7292), holding the chain and the key under one password
   /// (← Tomcat's `PKCS12` keystore, Kestrel's `.pfx`). An empty password opens an unprotected one.
